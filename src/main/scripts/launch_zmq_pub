@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from sys import path
 path.append("src/main/python")
-from mScaleZMQ.zmq_pub_sub import zmq_pub
+from mScale.zmqTest.zmq_pub_sub import zmq_pub
 
 def main():
     zmq_pub()

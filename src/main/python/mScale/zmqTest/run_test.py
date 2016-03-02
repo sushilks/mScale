@@ -8,7 +8,7 @@ from marathon.models import MarathonApp, MarathonConstraint
 import netifaces
 import time
 import logging
-from mScaleLib import testAppServer, mmAPI, util
+from mScale.lib import testAppServer, mmAPI, util
 
 
 l = util.createLogger('runTest', logging.INFO)

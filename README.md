@@ -12,6 +12,7 @@ Quick way to install this is to follow instructions at
 [LINK](https://open.mesosphere.com/getting-started/install/)
 
 I used ubuntu 14.04 as base when installing and had to additional java-8 repo
+
 `sudo add-apt-repository ppa:openjdk-r/ppa`
 
 
@@ -36,6 +37,7 @@ source ../venv/bin/activate
 `pyb install`
 
 ### Running the program
+Make sure the use the right .ini file for your setup.
 `launch_zmq_scale_test ./src/main/python/config/example_config.ini`
 
 If I am testing I use the following command line

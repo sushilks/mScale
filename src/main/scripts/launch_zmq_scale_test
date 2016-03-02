@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from mScaleZMQ import run_test
+from mScale.zmqTest import run_test
 
 def main():
     run_test.RunTest()

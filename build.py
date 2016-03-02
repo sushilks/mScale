@@ -20,7 +20,7 @@ license = 'Apache 2.0'
 summary = "A scale test infra using mesos and marathon."
 version = '0.1.0'
 
-default_task = "publish"
+default_task = ["analyze", "publish"]
 
 
 @init
