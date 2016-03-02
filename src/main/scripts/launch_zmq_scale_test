@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+
+from mScaleZMQ import run_test
+
+def main():
+    run_test.RunTest()
+
+if '__main__' == __name__:
+    main()

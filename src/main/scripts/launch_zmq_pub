@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+from sys import path
+path.append("src/main/python")
+from mScaleZMQ.zmq_pub_sub import zmq_pub
+
+def main():
+    zmq_pub()
+
+if '__main__' == __name__:
+    main()
