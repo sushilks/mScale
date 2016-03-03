@@ -38,14 +38,30 @@ source ../venv/bin/activate
 
 ### Running the program
 Make sure the use the right .ini file for your setup.
-`launch_mscale_test mScale.zmqTest.run_test.RunTest ./src/main/python/config/example_config.ini`
+`cp src/main/python/config/example_config.ini ./mscale.ini`
+
+if your current directory has "mscale.ini" then you can omit the ini file form command line
+`mscale zmq`
+
+Edit the ini file is located in some other directory
+`mscale zmq ./src/main/python/config/example_config.ini`
 
 If I am testing I use the following command line
-`pip uninstall -y mScale && pyb install && launch_mscale_test mScale.zmqTest.run_test.RunTest ./src/main/python/config/example_config.ini`
-
+`pip uninstall -y mScale && pyb install && mscale zqm`
 
 Currently it's not doing much, more work is needed for doing any real testing
 Running the above command will connect to mesos/maraton, spin up one zmq publisher
 and one zmq subscriber to it.
 there after the test will scale the subscribers to 100.
 more to come ....
+
+There is a CLI mode to get some interaction with the running tests.
+>mscale cli
+Usage:
+   mscale cli ls slaves
+   mscale cli ls apps
+   mscale cli ls task <app>
+   mscale cli [force] stop <app>
+   mscale cli scale <app> <scale>
+   mscale cli (-h | --help)
+   mscale cli --version

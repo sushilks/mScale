@@ -30,6 +30,7 @@ def set_properties(project):
     project.build_depends_on('marathon')
     project.build_depends_on('netifaces')
     project.build_depends_on('logging')
+    project.build_depends_on('docopt')
 
     project.set_property('copy_resources_target', '$dir_dist')
     project.get_property('copy_resources_glob').append('LICENSE')

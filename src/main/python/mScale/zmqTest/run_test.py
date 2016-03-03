@@ -18,10 +18,14 @@ l = util.createLogger('runTest', logging.INFO)
 class RunTest(runTestBase.RunTestBase):
     def __init__(self, argv):
         config = ConfigParser()
-        if len(argv) == 2:
-            config.read(argv[1])
-        else:
-            config.read('zst.ini')
+        configFileName = 'mscale.ini'
+        if len(argv) >= 2:
+            configFileName = argv[1]
+            del argv[1]
+        if not os.path.isfile(configFileName):
+            l.error("Unable to open config file %s" % configFileName)
+            sys.exit(1)
+        config.read(configFileName)
         runTestBase.RunTestBase.__init__(self, 'zmqScale', config)
 
         zstPub = '/zst-pub'
@@ -62,8 +66,11 @@ class RunTest(runTestBase.RunTestBase):
             cnt += 1
             sys.stdout.flush()
             time.sleep(1)
-        l.info("All the tasks are running now. press Ctrl-C to exit.")
+        l.info("All the tasks are running now. press Ctrl-C to exit. ")
+        l.info("  (This app needs to be running to allow scale-up of marathon jobs)")
         self.waitForInterrupt()
-
+        # l.info("Exiting")
+        # self.myserver.stop()
+        # self.myserver.join()
 
 

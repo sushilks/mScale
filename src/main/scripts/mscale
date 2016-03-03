@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+
+import sys
+from sys import path
+path.append("../python")
+
+classPath = {
+    'cli' : 'mScale.lib.cli.CLI',
+    'zmq' : 'mScale.zmqTest.run_test.RunTest',
+    'zmq-pub' : 'mScale.zmqTest.zmq_pub_sub.zmq_pub',
+    'zmq-sub' : 'mScale.zmqTest.zmq_pub_sub.zmq_sub',
+}
+arg1 = sys.argv[1]
+if arg1 in classPath.keys():
+    arg1 = classPath[arg1]
+dFuncPath = (arg1).split('.')
+dModule = '.'.join(dFuncPath[0:-1])
+dFunc = dFuncPath[-1]
+
+iFunc = getattr(__import__(dModule, fromlist=[dFunc]), dFunc)
+
+if '__main__' == __name__:
+    argv = sys.argv
+    print ("Running command : " + argv[0] + ' ' + '.'.join(argv[1:]))
+    del argv[1]
+    exit(iFunc(argv))
+
