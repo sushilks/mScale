@@ -38,10 +38,10 @@ source ../venv/bin/activate
 
 ### Running the program
 Make sure the use the right .ini file for your setup.
-`launch_zmq_scale_test ./src/main/python/config/example_config.ini`
+`launch_mscale_test mScale.zmqTest.run_test.RunTest ./src/main/python/config/example_config.ini`
 
 If I am testing I use the following command line
-`pip uninstall -y mScale && pyb install && launch_zmq_scale_test ./src/main/python/config/example_config.ini`
+`pip uninstall -y mScale && pyb install && launch_mscale_test mScale.zmqTest.run_test.RunTest ./src/main/python/config/example_config.ini`
 
 
 Currently it's not doing much, more work is needed for doing any real testing

@@ -2,14 +2,13 @@ __author__ = 'sushil'
 
 import zmq
 import random
-import sys
 import time
 
 
-def zmq_pub():
+def zmq_pub(argv):
     port = " 15556"
-    if len(sys.argv) > 1:
-        port = sys.argv[1]
+    if len(argv) > 1:
+        port = argv[1]
         int(port)
 
     context = zmq.Context()
@@ -26,12 +25,12 @@ def zmq_pub():
         time.sleep(1)
 
 
-def zmq_sub():
+def zmq_sub(argv):
     pub_port = "15556"
     pub_ip = "localhost"
-    if len(sys.argv) > 2:
-        pub_ip = sys.argv[1]
-        pub_port = sys.argv[2]
+    if len(argv) > 2:
+        pub_ip = argv[1]
+        pub_port = argv[2]
         int(pub_port)
 
     context = zmq.Context()
