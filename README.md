@@ -53,7 +53,7 @@ Edit the ini file is located in some other directory
 
 If I am testing I use the following command line
 
-`pip uninstall -y mScale && pyb install && mscale zqm`
+`pip uninstall -y mScale && pyb install && mscale zmq`
 
 Currently it's not doing much, more work is needed for doing any real testing
 Running the above command will connect to mesos/maraton, spin up one zmq publisher
