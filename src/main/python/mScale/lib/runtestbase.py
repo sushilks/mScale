@@ -49,7 +49,7 @@ class RunTestBase(object):
         for app in self.appIdList:
             self.mt.wait_app_removal(app)
         l.info("Populating the app on the server")
-        os.system("rm ../live/" + self.testName + ".tgz")
+        os.system("rm -f ../live/" + self.testName + ".tgz")
         os.system("cd .. && tar cfz live/" + self.testName + ".tgz " + " ".join(self.appItemToUpload))
 
     def get_appserver_addr(self):
