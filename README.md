@@ -1,4 +1,4 @@
-# mScale
+# hydra
 A Scale Testing infra using Mesos and Marathon
 
 This is a work in progress.
@@ -36,25 +36,25 @@ source ../venv/bin/activate
 ### Install all the dependencies
 `pyb install_dependencies`
 
-### Install the mScale package
+### Install the hydra package
 `pyb install`
 
 ### Running the program
 Make sure the use the right .ini file for your setup.
 
-`cp src/main/python/config/example_config.ini ./mscale.ini`
+`cp src/main/python/config/example_config.ini ./hydra.ini`
 
-if your current directory has "mscale.ini" then you can omit the ini file form command line
+if your current directory has "hydra.ini" then you can omit the ini file form command line
 
-`mscale zmq`
+`hydra zmq`
 
 Edit the ini file is located in some other directory
 
-`mscale zmq ./src/main/python/config/example_config.ini`
+`hydra zmq ./src/main/python/config/example_config.ini`
 
 If I am testing I use the following command line
 
-`pip uninstall -y mScale && pyb install && mscale zmq`
+`pip uninstall -y hydra && pyb install && hydra zmq`
 
 Currently it's not doing much, more work is needed for doing any real testing
 Running the above command will connect to mesos/maraton, spin up one zmq publisher
@@ -64,13 +64,13 @@ more to come ....
 
 There is a CLI mode to get some interaction with the running tests.
 ```
->mscale cli
+>hydra cli
 Usage:
-   mscale cli ls slaves
-   mscale cli ls apps
-   mscale cli ls task <app>
-   mscale cli [force] stop <app>
-   mscale cli scale <app> <scale>
-   mscale cli (-h | --help)
-   mscale cli --version
+   hydra cli ls slaves
+   hydra cli ls apps
+   hydra cli ls task <app>
+   hydra cli [force] stop <app>
+   hydra cli scale <app> <scale>
+   hydra cli (-h | --help)
+   hydra cli --version
 ```

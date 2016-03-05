@@ -5,7 +5,7 @@ import logging
 import os
 import time
 import sys
-from mScale.lib import appserver, mmapi, util
+from hydra.lib import appserver, mmapi, util
 
 l = util.createlogger('runTestBase', logging.INFO)
 # l.setLevel(logging.DEBUG)
@@ -14,10 +14,10 @@ l = util.createlogger('runTestBase', logging.INFO)
 class RunTestBase(object):
     def __init__(self, test_name, config):
         self.testName = test_name
-        self.myport = config.getint('zst', 'port')
+        self.myport = config.getint('hydra', 'port')
         self.myserver = appserver.TServer(self.myport, 'live')
         self.myserver.start()
-        self.mydev = config.get('zst', 'dev')
+        self.mydev = config.get('hydra', 'dev')
         self.myip = netifaces.ifaddresses(self.mydev)[2][0]['addr']
         self.myaddr = 'http://' + self.myip + ':' + str(self.myport)
 
@@ -68,7 +68,7 @@ class RunTestBase(object):
         return None
 
     def get_cmd(self, function_path, arguments):
-        return 'cd ./src/main/scripts && ./mscale ' + \
+        return 'cd ./src/main/scripts && ./hydra ' + \
                function_path + ' ' + arguments
 
     def wait_for_interrupt(self):

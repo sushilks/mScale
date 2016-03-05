@@ -2,7 +2,7 @@ __author__ = 'sushil'
 
 from marathon import MarathonClient
 from pprint import pprint, pformat   # NOQA
-from mScale.lib import util
+from hydra.lib import util
 import marathon
 import requests
 import json

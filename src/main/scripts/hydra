@@ -5,10 +5,10 @@ from sys import path
 path.append("../python")
 
 classPath = {
-    'cli' : 'mScale.lib.cli.cli',
-    'zmq' : 'mScale.zmqtest.runtest.RunTest',
-    'zmq-pub' : 'mScale.zmqtest.zmqtests.zmq_pub',
-    'zmq-sub' : 'mScale.zmqtest.zmqtests.zmq_sub',
+    'cli' : 'hydra.lib.cli.cli',
+    'zmq' : 'hydra.zmqtest.runtest.RunTest',
+    'zmq-pub' : 'hydra.zmqtest.zmqtests.zmq_pub',
+    'zmq-sub' : 'hydra.zmqtest.zmqtests.zmq_sub',
 }
 arg1 = sys.argv[1]
 if arg1 in classPath.keys():

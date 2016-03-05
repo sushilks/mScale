@@ -7,8 +7,8 @@ from pprint import pprint, pformat  # NOQA
 from marathon.models import MarathonApp, MarathonConstraint
 import time
 import logging
-from mScale.lib import util
-from mScale.lib.runtestbase import RunTestBase
+from hydra.lib import util
+from hydra.lib.runtestbase import RunTestBase
 
 
 l = util.createlogger('runTest', logging.INFO)
@@ -18,7 +18,7 @@ l = util.createlogger('runTest', logging.INFO)
 class RunTest(RunTestBase):
     def __init__(self, argv):
         config = ConfigParser()
-        config_fn = 'mscale.ini'
+        config_fn = 'hydra.ini'
         if len(argv) >= 2:
             config_fn = argv[1]
             del argv[1]
@@ -35,7 +35,7 @@ class RunTest(RunTestBase):
         self.start_init()
         l.info("Launching the pub app")
         self.mt.create_app(zstpub,
-                          MarathonApp(cmd=self.get_cmd('mScale.zmqtest.zmqtests.zmq_pub', '1555'),
+                          MarathonApp(cmd=self.get_cmd('hydra.zmqtest.zmqtests.zmq_pub', '1555'),
                                       cpus=0.01, mem=32,
                                       constraints=[MarathonConstraint(field='hostname', operator='UNIQUE')],
                                       uris=[self.get_app_uri()]))
@@ -45,7 +45,7 @@ class RunTest(RunTestBase):
 
         # now we can launch subscribe app with ip port
         self.mt.create_app(zstsub,
-                          MarathonApp(cmd=self.get_cmd('mScale.zmqtest.zmqtests.zmq_sub', '%s 1555' % taskip),
+                          MarathonApp(cmd=self.get_cmd('hydra.zmqtest.zmqtests.zmq_sub', '%s 1555' % taskip),
                                       cpus=0.01, mem=32,
                                       uris=[self.get_app_uri()]))
 

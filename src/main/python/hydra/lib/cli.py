@@ -1,13 +1,13 @@
-"""mscale cli.
+"""hydra cli.
 
 Usage:
-   mscale cli ls slaves
-   mscale cli ls apps
-   mscale cli ls task <app>
-   mscale cli [force] stop <app>
-   mscale cli scale <app> <scale>
-   mscale cli (-h | --help)
-   mscale cli --version
+   hydra cli ls slaves
+   hydra cli ls apps
+   hydra cli ls task <app>
+   hydra cli [force] stop <app>
+   hydra cli scale <app> <scale>
+   hydra cli (-h | --help)
+   hydra cli --version
 
 Options:
    -h --help  Show this screen.
@@ -18,7 +18,7 @@ __author__ = 'sushil'
 from docopt import docopt
 from pprint import pprint, pformat  # NOQA
 from ConfigParser import ConfigParser
-from mScale.lib import util, mmapi
+from hydra.lib import util, mmapi
 import os
 import sys
 import logging
@@ -29,7 +29,7 @@ l = util.createlogger('cli', logging.INFO)
 
 def cli(argv):
     config = ConfigParser()
-    config_file_name = 'mscale.ini'
+    config_file_name = 'hydra.ini'
     if len(argv) >= 2 and argv[1].find('.ini') != -1:
         config_file_name = argv[1]
         del argv[1]
@@ -44,7 +44,7 @@ def cli(argv):
                     config.get('marathon', 'port')
 
     argv[0] = 'cli'
-    args = docopt(__doc__, argv=argv, version='mscale 0.1.0', )
+    args = docopt(__doc__, argv=argv, version='hydra 0.1.0', )
     # pprint (args)
     if args['ls']:
         if args['slaves']:
