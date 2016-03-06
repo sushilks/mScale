@@ -34,6 +34,9 @@ class RunTest(RunTestBase):
         self.add_appid(zstsub)
         self.start_init()
         l.info("Launching the pub app")
+        l.info(self.get_cmd('hydra.zmqtest.zmqtests.zmq_pub', '1555'))
+        raw_input("====")
+        sys.exit(1)
         self.mt.create_app(zstpub,
                           MarathonApp(cmd=self.get_cmd('hydra.zmqtest.zmqtests.zmq_pub', '1555'),
                                       cpus=0.01, mem=32,

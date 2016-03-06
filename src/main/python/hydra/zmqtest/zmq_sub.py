@@ -1,4 +1,4 @@
-__author__ = 'sushil'
+__author__ = 'sushil, abdullahS'
 
 import zmq
 import random
@@ -6,45 +6,21 @@ import time
 from hydra.lib.hdaemon import HDaemonRepSrv
 
 
-def zmq_pub(argv):
-    kwargs = {}
-    kwargs.update({"port": 14400})
-    hd = HDaemonRepSrv(**kwargs)
-    hd.run()
-    msg_count = 1000  # Total messages to send
-    raw_input()
-
-
-
-    port = " 15556"
-    if len(argv) > 2:
-        pub_port = argv[1]
-        msg_delay = argv[2]
-        int(pub_port)
-        float(msg_delay)
-
-    context = zmq.Context()
-    socket = context.socket(zmq.PUB)
-    socket.bind("tcp://*:%s" % port)
-
-    print "PUB server initiating sending all DATA"
-    for index in range(msg_count):
-        messagedata = "msg%d" % index
-        print "%d %s" % (index, messagedata)
-        socket.send("%d %s" % (index, messagedata))
-        time.sleep(msg_delay)
-
-    print "PUB server finished sending all DATA"
-
-
-
-def zmq_sub(argv):
+def run(argv):
     pub_port = "15556"
     pub_ip = "localhost"
     if len(argv) > 2:
         pub_ip = argv[1]
         pub_port = argv[2]
         int(pub_port)
+
+    ## Initalize HDaemonRepSrv
+    kwargs = {}
+    kwargs.update({"port": 14400})
+    hd = HDaemonRepSrv(**kwargs)
+    hd.run()
+    raw_input("================================")
+
 
 
     ## Socket to talk to server
@@ -72,26 +48,5 @@ def zmq_sub(argv):
     while True:
         string = socket.recv()
         index, messagedata = string.split()
-        #print index, messagedata
+        print index, messagedata
         #log.info("client_id=%s,latency=%s,total_runtime=%f,index=%s,messagedata=%s", client_id, latency, runtime, index, messagedata)
-
-
-
-    #context = zmq.Context()
-    #socket = context.socket(zmq.SUB)
-
-    #print "Collecting updates from weather server...."
-    #socket.connect("tcp://" + pub_ip + ":%s" % pub_port)
-
-    ## topicfilter = "10001"
-    ## socket.setsockopt(zmq.SUBSCRIBE, topicfilter)
-    #socket.setsockopt(zmq.SUBSCRIBE, '')
-
-    #total_value = 0
-    #msg_cnt = 0
-    #while True:
-    #    string = socket.recv()
-    #    topic, messageData = string.split()
-    #    total_value += int(messageData)
-    #    msg_cnt += 1
-    #    print "[%d] %s %s" % (msg_cnt, topic, messageData)
