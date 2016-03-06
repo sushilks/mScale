@@ -18,7 +18,7 @@ class HAnalyserBase(object):
         self.context = zmq.Context()
         print "Connecting to server..."
         self.socket = self.context.socket(zmq.REQ)
-        self.socket.connect("tcp://localhost:%s" % self.port)
+        self.socket.connect ("tcp://localhost:%s" % self.port)
         l.info("Binding zmq REQ socket...")
 
 class HAnalyser(HAnalyserBase):
@@ -26,12 +26,12 @@ class HAnalyser(HAnalyserBase):
         l.info("Hydra Analyser initiated...")
         super(HAnalyser, self).__init__(**kwargs)
 
-    def do_req(self, message):
+    def do_req(self):
         print "Sending request "
-        self.socket.send(message)
+        self.socket.send ("Hello")
         #  Get the reply.
-        rep = self.socket.recv()
-        print "Received reply ", "[", rep, "]"
+        message = self.socket.recv()
+        print "Received reply ", "[", message, "]"
 
 if __name__ == '__main__':
     kwargs = {}
