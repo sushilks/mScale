@@ -7,8 +7,8 @@ path.append("../python")
 classPath = {
     'cli' : 'hydra.lib.cli.cli',
     'zmq' : 'hydra.zmqtest.runtest.RunTest',
-    'zmq-pub' : 'hydra.zmqtest.zmqtests.zmq_pub',
-    'zmq-sub' : 'hydra.zmqtest.zmqtests.zmq_sub',
+    'zmq-pub' : 'hydra.zmqtest.zmq_pub.run',
+    'zmq-sub' : 'hydra.zmqtest.zmq_sub.run',
 }
 arg1 = sys.argv[1]
 if arg1 in classPath.keys():
