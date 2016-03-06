@@ -23,22 +23,16 @@ class PySysCommand(object):
         self.stderr = None
         self.cmd_status = None
 
-    def run(self, timeout=10, no_assert=False, pass_status=0, do_not_buffer_output=False):
+    def run(self, timeout=10, no_assert=False):
         def target():
             """
             subprocess.Popen wrapper that takes care of the dirty business of
             child processes spawned within the shell
             """
-            if self.do_not_buffer_output:
-                self.process = subprocess.Popen([self.exec_cmd], shell=True, preexec_fn=os.setsid)
-                self.process.communicate()
-            else:
-                self.process = subprocess.Popen([self.exec_cmd], stdout=subprocess.PIPE,
+            self.process = subprocess.Popen([self.exec_cmd], stdout=subprocess.PIPE,
                                                 stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
-                self.stdout, self.stderr = self.process.communicate()
+            self.stdout, self.stderr = self.process.communicate()
             self.cmd_status = self.process.returncode
-        # this optional flag is useful when no output buffering is desired (e.g. for debugging scripts)
-        self.do_not_buffer_output = do_not_buffer_output
         thread = threading.Thread(target=target)
         thread.start()
 
@@ -55,5 +49,5 @@ class PySysCommand(object):
             self.cmd_timeout = True
         # If Command failed or timedout
         if not no_assert:
-            if (self.cmd_status != pass_status or self.cmd_timeout):
-                raise Exception("Command \'%s\' failed with output [%s], error [%s]" % (self.exec_cmd, self.stdout, self.stderr))
+            if (self.cmd_status != 0 or self.cmd_timeout):
+                raise Exception("Command \'%s\' failed with out[%s], err [%s]" % (self.exec_cmd, self.stdout, self.stderr))

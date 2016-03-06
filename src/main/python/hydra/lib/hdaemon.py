@@ -27,7 +27,6 @@ class HDaemonBase(object):
             self.t_exceptions.append(exception)
             l.info(exception)
 
-
 class HDaemonRepSrv(HDaemonBase):
     def __init__(self, **kwargs):
         l.info("HdaemonRepSrv initiated...")
