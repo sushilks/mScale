@@ -84,6 +84,8 @@ class MarathonIF(object):
     def scale_app(self, app, scale):
         return self.mcli.scale_app(app, scale)
 
+    def ping(self):
+        return self.mcli.ping()
 
 class MesosIF(object):
     def __init__(self, addr):
@@ -104,6 +106,30 @@ class MesosIF(object):
             #       "  CPU = " + str(itm['used_resources']['cpus']) + '/' + str(itm['unreserved_resources']['cpus']))
             self.slavesHN[itm['hostname']] = itm
             self.slavesID[itm['id']] = itm
+
+    def get_health(self):
+        r = requests.get(self.myaddr + '/master/state')
+        if (r.status_code == 200):
+            return True
+        return False
+
+    def get_version(self):
+        # returns
+        # {"build_date":"2016-02-23 00:35:03","build_time":1456187703.0,"build_user":"root",
+        #  "git_sha":"864fe8eabd4a83b78ce9140c501908ee3cb90beb","git_tag":"0.27.1","version":"0.27.1"}
+        r = requests.get(self.myaddr + '/version')
+        if (r.status_code == 200):
+            return json.loads(r.content)
+        return None
+
+    def get_stats(self):
+        # returns
+        # {"avg_load_15min":0.24,"avg_load_1min":0.07,"avg_load_5min":0.18,
+        #  "cpus_total":4,"mem_free_bytes":1114415104,"mem_total_bytes":15770980352}
+        r = requests.get(self.myaddr + '/system/stats.json')
+        if (r.status_code == 200):
+            return json.loads(r.content)
+        return None
 
     def print_slaves(self):
         for slaveId in self.slavesID.keys():
