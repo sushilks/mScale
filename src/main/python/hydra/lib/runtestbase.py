@@ -6,7 +6,12 @@ import os
 import time
 import sys
 from hydra.lib import appserver, mmapi, util
-from ConfigParser import ConfigParser
+try:
+    # Python 2.x
+    from ConfigParser import ConfigParser
+except ImportError:
+    # Python 3.x
+    from configparser import ConfigParser
 
 l = util.createlogger('runTestBase', logging.INFO)
 from marathon.models import MarathonApp, MarathonConstraint

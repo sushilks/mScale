@@ -96,7 +96,7 @@ class MesosIF(object):
     def update_slaves(self):
         r = requests.get(self.myaddr + '/master/slaves')
         assert r.status_code == 200
-        dt = json.loads(r.content)
+        dt = json.loads(r.content.decode("utf-8"))
         self.noOfSlaves = len(dt['slaves'])
         # pprint(" Slaves Found : " + str(self.noOfSlaves))
         self.slavesID = {}
@@ -120,7 +120,7 @@ class MesosIF(object):
         #  "git_sha":"864fe8eabd4a83b78ce9140c501908ee3cb90beb","git_tag":"0.27.1","version":"0.27.1"}
         r = requests.get(self.myaddr + '/version')
         if (r.status_code == 200):
-            return json.loads(r.content)
+            return json.loads(r.content.decode("utf-8"))
         raise Exception('Unable to read version information from Mesos StatusCode:' + str(r.status_code))
 
     def get_stats(self):
@@ -129,7 +129,7 @@ class MesosIF(object):
         #  "cpus_total":4,"mem_free_bytes":1114415104,"mem_total_bytes":15770980352}
         r = requests.get(self.myaddr + '/system/stats.json')
         if (r.status_code == 200):
-            return json.loads(r.content)
+            return json.loads(r.content.decode("utf-8"))
         return None
 
     def print_slaves(self):

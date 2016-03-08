@@ -25,11 +25,11 @@ default_task = ["analyze", "publish"]
 
 @init
 def set_properties(project):
-    project.build_depends_on('mockito')
+    # project.build_depends_on('mockito')
     project.build_depends_on('pyzmq')
     project.build_depends_on('marathon')
     project.build_depends_on('netifaces')
-    project.build_depends_on('logging')
+    # project.build_depends_on('logging')
     project.build_depends_on('docopt')
     project.build_depends_on('pep8-naming')
 
