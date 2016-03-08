@@ -9,7 +9,11 @@ import requests
 import time
 import zmq
 
+<<<<<<< HEAD
 from pprint import pprint, pformat
+=======
+from pprint import pprint,pformat
+>>>>>>> 3510d042019d53a5a28afa4632ae157792b2feff
 from hydra.lib.runtestbase import RunTestBase
 
 '''
@@ -253,7 +257,6 @@ class hydraUnitTest(unittest.TestCase):  # NOQA
         # stop and clean up
         self.rt.delete_app(tapp_srv)
         self.rt.delete_app(tapp_cli0)
-
         for idx in range(0, len(cli_cnt)):
             self.assertEqual(srv_cnt, cli_cnt[idx])
 
