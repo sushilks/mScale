@@ -11,10 +11,9 @@ use_plugin("python.flake8")
 use_plugin("python.distutils")
 use_plugin("python.pycharm")
 
-
 name = "hydra"
 url = 'https://github.com/sushilks/hydra'
-# description = "Please visit {url}".format(url=url)
+information = "Please visit {url}".format(url=url)
 
 authors = [Author('Sushil Singh', 'sushilks@gmail.com')]
 license = 'Apache 2.0'
@@ -26,11 +25,11 @@ default_task = ["analyze", "publish"]
 
 @init
 def set_properties(project):
-    project.build_depends_on('mockito')
+    # project.build_depends_on('mockito')
     project.build_depends_on('pyzmq')
     project.build_depends_on('marathon')
     project.build_depends_on('netifaces')
-    project.build_depends_on('logging')
+    # project.build_depends_on('logging')
     project.build_depends_on('docopt')
     project.build_depends_on('pep8-naming')
 

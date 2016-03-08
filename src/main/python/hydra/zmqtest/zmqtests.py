@@ -20,7 +20,7 @@ def zmq_pub(argv):
         topic = random.randrange(9999, 10005)
         messagedata = random.randrange(1, 215) - 80
         msg_cnt += 1
-        print "[%d] %d %d" % (msg_cnt, topic, messagedata)
+        print("[%d] %d %d" % (msg_cnt, topic, messagedata))
         socket.send("%d %d" % (topic, messagedata))
         time.sleep(1)
 
@@ -36,7 +36,7 @@ def zmq_sub(argv):
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
 
-    print "Collecting updates from weather server...."
+    print("Collecting updates from weather server....")
     socket.connect("tcp://" + pub_ip + ":%s" % pub_port)
 
     # topicfilter = "10001"
@@ -50,4 +50,4 @@ def zmq_sub(argv):
         topic, messageData = string.split()
         total_value += int(messageData)
         msg_cnt += 1
-        print "[%d] %s %s" % (msg_cnt, topic, messageData)
+        print("[%d] %s %s" % (msg_cnt, topic, messageData))

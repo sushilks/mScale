@@ -17,11 +17,17 @@ __author__ = 'sushil'
 
 from docopt import docopt
 from pprint import pprint, pformat  # NOQA
-from ConfigParser import ConfigParser
 from hydra.lib import util, mmapi
 import os
 import sys
 import logging
+
+try:
+    # Python 2.x
+    from ConfigParser import ConfigParser
+except ImportError:
+    # Python 3.x
+    from configparser import ConfigParser
 
 l = util.createlogger('cli', logging.INFO)
 # l.setLevel(logging.DEBUG)

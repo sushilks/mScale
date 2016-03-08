@@ -1,12 +1,17 @@
 __author__ = 'sushil'
 
 import sys
-from ConfigParser import ConfigParser
 from pprint import pprint, pformat  # NOQA
 import time
 import logging
 from hydra.lib import util
 from hydra.lib.runtestbase import RunTestBase
+try:
+    # Python 2.x
+    from ConfigParser import ConfigParser
+except ImportError:
+    # Python 3.x
+    from configparser import ConfigParser
 
 
 l = util.createlogger('runTest', logging.INFO)
