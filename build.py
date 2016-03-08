@@ -11,10 +11,9 @@ use_plugin("python.flake8")
 use_plugin("python.distutils")
 use_plugin("python.pycharm")
 
-
 name = "hydra"
 url = 'https://github.com/sushilks/hydra'
-# description = "Please visit {url}".format(url=url)
+information = "Please visit {url}".format(url=url)
 
 authors = [Author('Sushil Singh', 'sushilks@gmail.com')]
 license = 'Apache 2.0'

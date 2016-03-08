@@ -24,7 +24,8 @@ tests :
  - check destroy of app-s
  - check launch of client app-c
  - check communication between  app-s, app-c
- check scale up/down of app-s
+- check scale up of app-s
+ check scale down of app-s
  check cli outputs
 '''
 # def setUpModule():  # NOQA
