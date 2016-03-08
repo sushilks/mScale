@@ -32,7 +32,7 @@ tests :
 #    # gets called only once per run
 #    print("SETUPMODULE CALLED")
 
-#def teadDownModule():  # NOQA
+# def teadDownModule():  # NOQA
 #    # gets called only once per run
 #    print("TearDown Module Called")
 
