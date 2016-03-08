@@ -11,7 +11,7 @@ import time
 import os
 import zmq
 
-from pprint import pprint
+from pprint import pprint,pformat
 from hydra.lib.runtestbase import RunTestBase
 
 '''
@@ -141,10 +141,15 @@ class mScaleUnitTest(unittest.TestCase):  # NOQA
         # clean up any previous app by this name
         self.rt.delete_app(tapp)
         self.rt.create_hydra_app(name=tapp, app_path='hydra.selftest.agents.Test',
-                                 app_args='5599 5598 0',
+                                 app_args='5598 0',
+                                 ports=[0],
                                  cpus=0.01, mem=32)
         taskip = self.rt.find_ip_uniqueapp(tapp)
-        pprint('task is launched at ip=' + taskip)
+        tasks = self.rt.get_app_tasks(tapp)
+        self.assertTrue(len(tasks) == 1)
+        self.assertTrue(len(tasks[0].ports) == 1)
+        taskport = str(tasks[0].ports[0])
+        pprint('task is launched at ip=' + taskip + ":" + taskport)
         # stop and clean up
         self.rt.delete_app(tapp)
         self.assertTrue(len(taskip) >= 7)
@@ -156,14 +161,19 @@ class mScaleUnitTest(unittest.TestCase):  # NOQA
         # clean up any previous app by this name
         self.rt.delete_app(tapp)
         self.rt.create_hydra_app(name=tapp, app_path='hydra.selftest.agents.Test',
-                                 app_args='5599 5598 0',
+                                 app_args='5598 0',
                                  cpus=0.01, mem=32)
         taskip = self.rt.find_ip_uniqueapp(tapp)
-        pprint('task is launched at ip=' + taskip)
+        tasks = self.rt.get_app_tasks(tapp)
+        self.assertTrue(len(tasks) == 1)
+        self.assertTrue(len(tasks[0].ports) == 1)
+        taskport = str(tasks[0].ports[0])
+
+        pprint('task is launched at ip=' + taskip + ":" + taskport)
         # now send a message to this app to find out how it's doing
         zctx = zmq.Context()
         zsocket = zctx.socket(zmq.REQ)
-        zsocket.connect("tcp://%s:5599" % taskip)
+        zsocket.connect("tcp://%s:%s" % (taskip, taskport))
         zsocket.send('ping');
         message = zsocket.recv()
 
@@ -174,34 +184,46 @@ class mScaleUnitTest(unittest.TestCase):  # NOQA
 
     def test_multiple_apps(self):
         tapp_cli0 = 'testapp.c0'
-        tapp_cli1 = 'testapp.c1'
-        tapp_cli2 = 'testapp.c2'
         tapp_srv = 'testapp.s'
         # clean up any previous app by this name
         self.rt.delete_app(tapp_cli0)
-        self.rt.delete_app(tapp_cli1)
-        self.rt.delete_app(tapp_cli2)
         self.rt.delete_app(tapp_srv)
         self.rt.create_hydra_app(name=tapp_srv, app_path='hydra.selftest.agents.Test',
-                                 app_args='5599 5598 0',
+                                 app_args='5598 0',
+                                 ports=[0],
                                  cpus=0.01, mem=32)
         srvip = self.rt.find_ip_uniqueapp(tapp_srv)
+        tasks = self.rt.get_app_tasks(tapp_srv)
+        self.assertTrue(len(tasks) == 1)
+        self.assertTrue(len(tasks[0].ports) == 1)
+        taskport = str(tasks[0].ports[0])
+        srvipport = srvip + ':' + taskport
 
         self.rt.create_hydra_app(name=tapp_cli0, app_path='hydra.selftest.agents.Test',
-                                 app_args='5597 0 %s:5598' % srvip,
+                                 ports=[0],
+                                 app_args='0 %s:5598' % srvip,
                                  cpus=0.01, mem=32)
         cliip0 = self.rt.find_ip_uniqueapp(tapp_cli0)
+        tasks = self.rt.get_app_tasks(tapp_cli0)
+        self.assertTrue(len(tasks) == 1)
+        self.assertTrue(len(tasks[0].ports) == 1)
+        taskport = str(tasks[0].ports[0])
+        cliip0 += ':' + taskport
 
-        pprint('task is launched at srvip=' + srvip + ' cliip0=' + cliip0)
+        pprint('task is launched at srvip=' + srvipport + ' cliip0=' + cliip0)
         # now send a message to this app to find out how it's doing
         zctx = zmq.Context()
         clisocket0 = zctx.socket(zmq.REQ)
         srvsocket = zctx.socket(zmq.REQ)
-        clisocket0.connect("tcp://%s:5597" % cliip0)
-        srvsocket.connect("tcp://%s:5599" % srvip)
+        clisocket0.connect("tcp://%s" % cliip0)
+        srvsocket.connect("tcp://%s" % srvipport)
         # check if we can talk to both client and server programs
         send_zmq_message(self, clisocket0, 'ping', 'pong')
         send_zmq_message(self, srvsocket, 'ping', 'pong')
+        # find out what port is reported by the marathon
+        tasks0 = self.rt.get_app_tasks(tapp_cli0)
+        for task in tasks0:
+            print(" PORTS reported by api taskid[" + task.id + " PORT = "  + pformat(task.ports))
         send_zmq_message(self, srvsocket, 'disable_pub', 'ok')
         send_zmq_message(self, srvsocket, 'reset_pub', 'ok')
         send_zmq_message(self, clisocket0, 'reset_sub', 'ok')
@@ -215,45 +237,39 @@ class mScaleUnitTest(unittest.TestCase):  # NOQA
         pprint("cli_cnt = " + str(cli_cnt))
         self.assertEqual(srv_cnt, cli_cnt)
         send_zmq_message(self, srvsocket, 'reset_pub', 'ok')
+
+        self.rt.scale_app(tapp_cli0, 10)
+        self.rt.wait_app_ready(tapp_cli0, 10)
+        cliiplist = []
+        tasks0 = self.rt.get_app_tasks(tapp_cli0)
+        for task in tasks0:
+            taskip = self.rt.get_ip_hostname(task.host)
+            print(" PORTS reported by api taskid[" + task.id + " IP_PORT = "  + taskip + ":" + pformat(task.ports[0]))
+            cliiplist.append(taskip + ':' + str(task.ports[0]))
         # launch 2 more clients
-        self.rt.create_hydra_app(name=tapp_cli1, app_path='hydra.selftest.agents.Test',
-                                 app_args='5596 0 %s:5598' % srvip,
-                                 cpus=0.01, mem=32)
-        cliip1 = self.rt.find_ip_uniqueapp(tapp_cli1)
-        self.rt.create_hydra_app(name=tapp_cli2, app_path='hydra.selftest.agents.Test',
-                                 app_args='5595 0 %s:5598' % srvip,
-                                 cpus=0.01, mem=32)
-        cliip2 = self.rt.find_ip_uniqueapp(tapp_cli2)
-        clisocket1 = zctx.socket(zmq.REQ)
-        clisocket2 = zctx.socket(zmq.REQ)
-        clisocket1.connect("tcp://%s:5596" % cliip1)
-        clisocket2.connect("tcp://%s:5595" % cliip2)
-        send_zmq_message(self, clisocket1, 'ping', 'pong')
-        send_zmq_message(self, clisocket2, 'ping', 'pong')
-        send_zmq_message(self, clisocket0, 'reset_sub', 'ok')
-        send_zmq_message(self, clisocket1, 'reset_sub', 'ok')
-        send_zmq_message(self, clisocket2, 'reset_sub', 'ok')
+        clisockets = []
+        for ipp in cliiplist:
+            sock = zctx.socket(zmq.REQ)
+            sock.connect("tcp://%s" % ipp)
+            clisockets.append(sock)
+        for cli in clisockets:
+            send_zmq_message(self, cli, 'ping', 'pong')
+            send_zmq_message(self, cli, 'reset_sub', 'ok')
         send_zmq_message(self, srvsocket, 'enable_pub', 'ok')
         time.sleep(1)
         send_zmq_message(self, srvsocket, 'disable_pub', 'ok')
         srv_cnt = send_zmq_message(self, srvsocket, 'cnt_pub')
-        cli_cnt0 = send_zmq_message(self, clisocket0, 'cnt_sub')
-        cli_cnt1 = send_zmq_message(self, clisocket1, 'cnt_sub')
-        cli_cnt2 = send_zmq_message(self, clisocket2, 'cnt_sub')
-
-        pprint(' cli_cnt0  =  ' + str(cli_cnt0))
-        pprint(' cli_cnt1  =  ' + str(cli_cnt1))
-        pprint(' cli_cnt2  =  ' + str(cli_cnt2))
-
+        cli_cnt = []
+        for cli in clisockets:
+            cli_cnt.append(send_zmq_message(self, cli, 'cnt_sub'))
+        for idx in range(0, len(cli_cnt)):
+            pprint(' cli_cnt%d  =  %s' % (idx, cli_cnt[idx]))
         # stop and clean up
         self.rt.delete_app(tapp_srv)
         self.rt.delete_app(tapp_cli0)
-        self.rt.delete_app(tapp_cli1)
-        self.rt.delete_app(tapp_cli2)
 
-        self.assertEqual(srv_cnt, cli_cnt0)
-        self.assertEqual(srv_cnt, cli_cnt1)
-        self.assertEqual(srv_cnt, cli_cnt2)
+        for idx in range(0, len(cli_cnt)):
+            self.assertEqual(srv_cnt, cli_cnt[idx])
 
 
 if __name__ == '__main__':

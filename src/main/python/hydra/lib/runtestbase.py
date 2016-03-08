@@ -110,6 +110,11 @@ class RunTestBase(object):
     def get_mesos_slave_count(self):
         return self.__mesos.get_slave_cnt()
 
+    def get_app_tasks(self, app):
+        #a1 = self.__mt.wait_app_ready(app, 1)
+        a1 = self.__mt.get_app(app)
+        return a1.tasks
+
     def find_ip_uniqueapp(self, app):
         a1 = self.__mt.wait_app_ready(app, 1)
         for task in a1.tasks:
@@ -119,8 +124,11 @@ class RunTestBase(object):
         l.warn("Unable to find IP address for app " + app)
         return None
 
+    def get_ip_hostname(self, hostname):
+        return self.__mesos.get_slave_ip_from_hn(hostname)
+
     def get_cmd(self, function_path, arguments):
-        return 'cd ./src/main/scripts && ./hydra ' + \
+        return 'env && cd ./src/main/scripts && ./hydra ' + \
                function_path + ' ' + arguments
 
     def delete_app(self, app):
@@ -132,11 +140,12 @@ class RunTestBase(object):
     def app_constraints(self, field, operator):
         return MarathonConstraint(field=field, operator=operator)
 
-    def create_hydra_app(self, name, app_path, app_args, cpus, mem, constraints = None):
+    def create_hydra_app(self, name, app_path, app_args, cpus, mem, ports = None, constraints = None):
         if True:
             return self.__mt.create_app\
                 (name, MarathonApp(cmd=self.get_cmd(app_path, app_args),
                                    cpus=cpus, mem=mem,
+                                   ports= ports,
                                    constraints=constraints,
                                    uris=[self.get_app_uri()]))
 

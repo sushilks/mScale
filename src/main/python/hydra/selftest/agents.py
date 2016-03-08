@@ -5,15 +5,18 @@ import random
 import time
 import threading
 import sys
+import os
 # REQ -> REP
 # PUB -> SUB
 
 
 class Test(object):
     def __init__(self, argv):
-        self.port_rep = argv[1]
-        self.port_pub = argv[2]
-        self.ip_port_sub = argv[3]
+        p0 = os.environ.get('PORT0')
+        print("REQ PORT0 = " + p0)
+        self.port_rep = p0
+        self.port_pub = argv[1]
+        self.ip_port_sub = argv[2]
         self.shutdown = False
         self.pub_enabled = True
         self.send_delay = 1
