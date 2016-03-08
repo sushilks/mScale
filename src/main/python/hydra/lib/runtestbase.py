@@ -14,16 +14,15 @@ from marathon.models import MarathonApp, MarathonConstraint
 
 
 class RunTestBase(object):
-    def __init__(self, test_name, config = None, config_filename = None,
+    def __init__(self, test_name, config=None, config_filename=None,
                  startappserver=True):
         if not config:
             config = ConfigParser()
-        if config_filename != None:
+        if config_filename:
             if not os.path.isfile(config_filename):
                 l.error("Unable to open config file %s" % config_filename)
-                sys.exit(1)
-            else:
-                config.read(config_filename)
+                raise Exception("Unable to open config file %s" % config_filename)
+            config.read(config_filename)
         self.pwd = os.getcwd()
         self.testName = test_name
         self.appserver_running = False
@@ -63,12 +62,12 @@ class RunTestBase(object):
         self.appItemToUpload.append(item)
 
     def init_mesos(self):
-        if self.__mesos == None:
+        if not self.__mesos:
             l.info("Creating Mesos Client")
             self.__mesos = mmapi.MesosIF(self.mesos_addr)
 
     def init_marathon(self):
-        if self.__mt == None:
+        if not self.__mt:
             l.info("Creating Marathon Client")
             self.__mt = mmapi.MarathonIF(self.marathon_addr, self.myip, self.__mesos)
             self.mt = self.__mt
@@ -110,6 +109,10 @@ class RunTestBase(object):
     def get_mesos_slave_count(self):
         return self.__mesos.get_slave_cnt()
 
+    def get_app_tasks(self, app):
+        a1 = self.__mt.get_app(app)
+        return a1.tasks
+
     def find_ip_uniqueapp(self, app):
         a1 = self.__mt.wait_app_ready(app, 1)
         for task in a1.tasks:
@@ -119,8 +122,11 @@ class RunTestBase(object):
         l.warn("Unable to find IP address for app " + app)
         return None
 
+    def get_ip_hostname(self, hostname):
+        return self.__mesos.get_slave_ip_from_hn(hostname)
+
     def get_cmd(self, function_path, arguments):
-        return 'cd ./src/main/scripts && ./hydra ' + \
+        return 'env && cd ./src/main/scripts && ./hydra ' + \
                function_path + ' ' + arguments
 
     def delete_app(self, app):
@@ -132,14 +138,13 @@ class RunTestBase(object):
     def app_constraints(self, field, operator):
         return MarathonConstraint(field=field, operator=operator)
 
-    def create_hydra_app(self, name, app_path, app_args, cpus, mem, constraints = None):
-        if True:
-            return self.__mt.create_app\
-                (name, MarathonApp(cmd=self.get_cmd(app_path, app_args),
-                                   cpus=cpus, mem=mem,
-                                   constraints=constraints,
-                                   uris=[self.get_app_uri()]))
-
+    def create_hydra_app(self, name, app_path, app_args, cpus, mem, ports=None, constraints=None):
+        return self.__mt.create_app(
+            name, MarathonApp(cmd=self.get_cmd(app_path, app_args),
+                              cpus=cpus, mem=mem,
+                              ports=ports,
+                              constraints=constraints,
+                              uris=[self.get_app_uri()]))
 
     def wait_app_ready(self, name, cnt):
         return self.__mt.wait_app_ready(name, cnt)

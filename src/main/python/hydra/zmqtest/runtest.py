@@ -1,10 +1,8 @@
 __author__ = 'sushil'
 
-import os
 import sys
 from ConfigParser import ConfigParser
 from pprint import pprint, pformat  # NOQA
-from marathon.models import MarathonApp, MarathonConstraint
 import time
 import logging
 from hydra.lib import util
@@ -30,14 +28,9 @@ class RunTest(RunTestBase):
         self.add_appid(zstsub)
         self.start_init()
         l.info("Launching the pub app")
-        #self.mt.create_app(zstpub,
-        #                  MarathonApp(cmd=self.get_cmd('hydra.zmqtest.zmqtests.zmq_pub', '1555'),
-        #                              cpus=0.01, mem=32,
-        #                              constraints=[MarathonConstraint(field='hostname', operator='UNIQUE')],
-        #                              uris=[self.get_app_uri()]))
         self.create_hydra_app(name=zstpub, app_path='hydra.zmqtest.zmqtests.zmq_pub', app_args='1555',
-                        cpus=0.01, mem=32,
-                        constraints=[self.app_constraints(field='hostname', operator='UNIQUE')])
+                              cpus=0.01, mem=32,
+                              constraints=[self.app_constraints(field='hostname', operator='UNIQUE')])
 
         # wait for the application to be launched and be ready and find it's IP
         taskip = self.find_ip_uniqueapp(zstpub)
