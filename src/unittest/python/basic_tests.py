@@ -9,11 +9,7 @@ import requests
 import time
 import zmq
 
-<<<<<<< HEAD
 from pprint import pprint, pformat
-=======
-from pprint import pprint,pformat
->>>>>>> 3510d042019d53a5a28afa4632ae157792b2feff
 from hydra.lib.runtestbase import RunTestBase
 
 '''
