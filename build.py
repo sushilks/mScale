@@ -1,5 +1,5 @@
-from pybuilder.core import use_plugin, init, Author
-
+from pybuilder.core import use_plugin, init, Author, task, description, depends
+from pybuilder.plugins.exec_plugin import run_command
 
 use_plugin("python.core")
 use_plugin("copy_resources")
@@ -14,7 +14,7 @@ use_plugin("python.pycharm")
 
 name = "hydra"
 url = 'https://github.com/sushilks/hydra'
-description = "Please visit {url}".format(url=url)
+# description = "Please visit {url}".format(url=url)
 
 authors = [Author('Sushil Singh', 'sushilks@gmail.com')]
 license = 'Apache 2.0'
@@ -61,4 +61,10 @@ def set_properties(project):
         'Topic :: Software Development :: Testing',
         'Topic :: Software Development :: Quality Assurance'])
 
+    pass
+
+@task
+@description("Runs all unit tests. Runs unit tests based on Python's unittest module.")
+@depends('run_unit_tests')
+def test(project, logger):
     pass

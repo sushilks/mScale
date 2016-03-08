@@ -87,6 +87,7 @@ class MarathonIF(object):
     def ping(self):
         return self.mcli.ping()
 
+
 class MesosIF(object):
     def __init__(self, addr):
         self.myaddr = addr
@@ -120,7 +121,7 @@ class MesosIF(object):
         r = requests.get(self.myaddr + '/version')
         if (r.status_code == 200):
             return json.loads(r.content)
-        return None
+        raise Exception('Unable to read version information from Mesos StatusCode:' + str(r.status_code))
 
     def get_stats(self):
         # returns
