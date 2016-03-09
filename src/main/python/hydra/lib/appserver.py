@@ -34,19 +34,19 @@ class TServer(Thread):
         self.stopServer = False
 
     def run(self):
-        print ("Started a http server to serve content form ./live folder at port %d" % self.port)
+        print("Started a http server to serve content form ./live folder at port %d" % self.port)
         os.chdir(self.directory)
         self.server = ThreadingSimpleServer(('', self.port), MyHandler)
         try:
             while not self.stopServer:
                 sys.stdout.flush()
                 self.server.handle_request()
-            print "Exiting from server"
+            print("Exiting from server")
             return
         except KeyboardInterrupt:
-            print "Stopping the HTTP Server"
+            print("Stopping the HTTP Server")
 
     def stop(self):
         self.stopServer = True
-        print "Calling Server shutdown"
+        print("Calling Server shutdown")
         requests.get('http://localhost:' + str(self.port))

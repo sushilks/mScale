@@ -24,7 +24,8 @@ tests :
  - check destroy of app-s
  - check launch of client app-c
  - check communication between  app-s, app-c
- check scale up/down of app-s
+- check scale up of app-s
+ check scale down of app-s
  check cli outputs
 '''
 # def setUpModule():  # NOQA
@@ -38,8 +39,8 @@ tests :
 
 def send_zmq_message(this, sock, message, expected_val=None):
     # pprint('sending message:' + message)
-    sock.send(message)
-    m = sock.recv()
+    sock.send_string(message)
+    m = sock.recv().decode("utf-8")
     # pprint('\tgot response :' + m)
     if expected_val:
         this.assertEqual(m, expected_val)
@@ -121,7 +122,7 @@ class hydraUnitTest(unittest.TestCase):  # NOQA
             time.sleep(1)
         r = requests.get('http://127.0.0.1:' + str(self.rt.myport) + '/')
         self.assertEqual(r.status_code, 200)
-        self.assertTrue(r.content.find('basicTest.tgz') >= 0)
+        self.assertTrue(r.content.decode("utf-8").find('basicTest.tgz') >= 0)
 
     def test_app_launch(self):
         tapp = 'testapp1'
@@ -161,8 +162,8 @@ class hydraUnitTest(unittest.TestCase):  # NOQA
         zctx = zmq.Context()
         zsocket = zctx.socket(zmq.REQ)
         zsocket.connect("tcp://%s:%s" % (taskip, taskport))
-        zsocket.send('ping')
-        message = zsocket.recv()
+        zsocket.send_string('ping')
+        message = zsocket.recv().decode("utf-8")
 
         # stop and clean up
         self.rt.delete_app(tapp)

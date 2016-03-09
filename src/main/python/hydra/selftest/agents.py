@@ -90,7 +90,7 @@ class Test(object):
                 topic = random.randrange(9999, 10005)
                 messagedata = self.pub_msg_cnt
                 self.pub_msg_cnt += 1
-                print "PUB [%d] %d %d" % (self.pub_msg_cnt, topic, messagedata)
+                print("PUB [%d] %d %d" % (self.pub_msg_cnt, topic, messagedata))
                 socket_pub.send("%d %d" % (topic, messagedata))
             time.sleep(self.send_delay)
 
@@ -109,7 +109,7 @@ class Test(object):
             topic, messageData = string.split()
             total_value += int(messageData)
             self.sub_msg_cnt += 1
-            print "SUB:: [%d] %s %s" % (self.sub_msg_cnt, topic, messageData)
+            print("SUB:: [%d] %s %s" % (self.sub_msg_cnt, topic, messageData))
 
 
 if '__main__' == __name__:
@@ -118,5 +118,5 @@ if '__main__' == __name__:
         print("Usages %s <port_rep> <port_pub> <ip_port_sub>")
         print("Use 0 if you dont want to create a service i.e. set <port_pub> to 0 if pub is not needed")
         exit(1)
-    print ("Running command : " + argv[0] + ' ' + '.'.join(argv[1:]))
+    print("Running command : " + argv[0] + ' ' + '.'.join(argv[1:]))
     exit(Test(argv))
