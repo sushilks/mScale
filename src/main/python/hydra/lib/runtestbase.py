@@ -136,6 +136,7 @@ class RunTestBase(object):
 
     def delete_app(self, app):
         self.__mt.delete_app_ifexisting(app)
+        self.__mt.wait_app_removal(app)
 
     def ping(self):
         return self.__mt.ping()
@@ -168,3 +169,6 @@ class RunTestBase(object):
         except KeyboardInterrupt:
             l.info("Exiting")
             self.stop_appserver()
+
+    def list_tasks(self, app_id, **kwargs):
+        return self.__mt.list_tasks(app_id, **kwargs)
