@@ -2,9 +2,9 @@ __author__ = 'AbdullahS'
 
 from pprint import pprint, pformat   # NOQA
 import zmq
-import time
 import logging
 import json
+import sys
 from hydra.lib import util
 
 l = util.createlogger('HDaemon', logging.INFO)
@@ -12,9 +12,9 @@ l = util.createlogger('HDaemon', logging.INFO)
 
 
 class HAnalyserBase(object):
-    def __init__(self, **kwargs):
-        self.server_ip = kwargs.pop("server_ip")
-        self.port = kwargs.pop("server_port")
+    def __init__(self, server_ip, server_port):
+        self.server_ip = server_ip
+        self.port = server_port
         self.data = {}  # This is where all received data will be stored
 
         self.context = zmq.Context()
@@ -23,13 +23,13 @@ class HAnalyserBase(object):
         self.socket.connect("tcp://%s:%s" % (self.server_ip, self.port))
         l.info("Conneced...")
 
+
 class HAnalyser(HAnalyserBase):
-    def __init__(self, **kwargs):
+    def __init__(self, server_ip, server_port):
         l.info("Hydra Analyser initiated...")
-        super(HAnalyser, self).__init__(**kwargs)
+        super(HAnalyser, self).__init__(server_ip, server_port)
 
     def do_req(self, msg):
-        #print "Sending request "
         # TODO: (AbdullahS): Make sure pub actually started sending data
         self.socket.send(msg)
         l.info("Waiting for PUB server to finish sending all data..")
@@ -42,14 +42,16 @@ class HAnalyser(HAnalyserBase):
         l.info("Sending request [%s] to sub_client at [%s:%s]", msg, self.server_ip, self.port)
         self.socket.send(msg)
         #  Get the reply.
-        #l.info("waiting for resp")
+        # l.info("waiting for resp")
         rep = self.socket.recv()
-        #l.info(rep)
+        # l.info(rep)
         self.data.update(json.loads(rep))
-        self.socket.close()
 
     def get_data(self):
         return self.data
+
+    def stop(self):
+        self.socket.close()
 
 
 if __name__ == '__main__':

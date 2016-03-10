@@ -1,12 +1,6 @@
-import os
-import sys
 import threading
-import time
 import traceback
-import logging
-import ctypes
-import inspect
-import uuid
+
 
 class HThread(object):
 
@@ -25,7 +19,6 @@ class HThread(object):
     def _start_thread(self, callback_fn, fn, daemon=False, **kwargs):
         thread_kwargs = kwargs.pop('kwargs', {})
         thread_args = kwargs.pop('args', ())
-        wait_event = kwargs.pop('event', ())
         self.thread = threading.Thread(target=self._wrapper, args=(fn, thread_args, thread_kwargs, callback_fn))
         if daemon:
             self.thread.setDaemon(True)

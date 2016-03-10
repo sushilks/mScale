@@ -1,11 +1,9 @@
-import sys
-from optparse import OptionParser
 import subprocess
 import threading
-import json
 import os
 import signal
 import time
+
 
 class PySysCommand(object):
     """
@@ -30,7 +28,7 @@ class PySysCommand(object):
             child processes spawned within the shell
             """
             self.process = subprocess.Popen([self.exec_cmd], stdout=subprocess.PIPE,
-                                                stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+                                            stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
             self.stdout, self.stderr = self.process.communicate()
             self.cmd_status = self.process.returncode
         thread = threading.Thread(target=target)
@@ -38,11 +36,10 @@ class PySysCommand(object):
 
         thread.join(timeout)
         if thread.is_alive() and self.process:
-            #print 'Timeout occured Terminating process'
-            # Timeout occured, kill all processes in the group
+            # Timeout occured, kill all group processes
             os.killpg(self.process.pid, signal.SIGTERM)
             time.sleep(2)
-            if self.process.poll() is None:  # Force kill if process is still alive
+            if self.process.poll() is None:  # Force kill if still alive
                 time.sleep(3)
                 os.killpg(self.process.pid, signal.SIGKILL)
             thread.join()
@@ -50,4 +47,5 @@ class PySysCommand(object):
         # If Command failed or timedout
         if not no_assert:
             if (self.cmd_status != 0 or self.cmd_timeout):
-                raise Exception("Command \'%s\' failed with out[%s], err [%s]" % (self.exec_cmd, self.stdout, self.stderr))
+                raise Exception("Command \'%s\' failed with out[%s], err [%s]" %
+                                (self.exec_cmd, self.stdout, self.stderr))

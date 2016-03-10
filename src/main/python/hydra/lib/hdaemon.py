@@ -2,7 +2,6 @@ __author__ = 'AbdullahS'
 
 from pprint import pprint, pformat   # NOQA
 import zmq
-import time
 import logging
 import json
 from hydra.lib import util
@@ -13,8 +12,8 @@ l = util.createlogger('HDaemon', logging.INFO)
 
 
 class HDaemonBase(object):
-    def __init__(self, **kwargs):
-        self.port = kwargs.pop("port")
+    def __init__(self, port):
+        self.port = port
         self.data = {}  # Dict calling class can use to store data, can be fetched later
         l.info("HdaemonBase initiated..., REP port[%s]", self.port)
         self.t_exceptions = []
@@ -35,9 +34,9 @@ class HDaemonBase(object):
 
 
 class HDaemonRepSrv(HDaemonBase):
-    def __init__(self, **kwargs):
+    def __init__(self, port):
         l.info("HdaemonRepSrv initiated...")
-        super(HDaemonRepSrv, self).__init__(**kwargs)
+        super(HDaemonRepSrv, self).__init__(port)
 
     def run(self):
         l.info("HdaemonRepSrv spawning run thread...")

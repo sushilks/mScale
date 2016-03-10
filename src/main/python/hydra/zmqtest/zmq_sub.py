@@ -1,13 +1,12 @@
 __author__ = 'sushil, abdullahS'
 
 import zmq
-import random
-import time
 import logging
 import os
 from hydra.lib import util
 from hydra.lib.hdaemon import HDaemonRepSrv
 l = util.createlogger('HSub', logging.INFO)
+
 
 def run(argv):
     pub_port = ""
@@ -21,20 +20,17 @@ def run(argv):
                         " can not be empty pub_ip[%s], pub_port[%s]" % (pub_ip, pub_port))
 
     # Initalize HDaemonRepSrv
-    kwargs = {}
     sub_rep_port = os.environ.get('PORT0')
-    kwargs.update({"port": sub_rep_port})
-    hd = HDaemonRepSrv(**kwargs)
+    hd = HDaemonRepSrv(sub_rep_port)
     hd.run()
-    time.sleep(1)
 
-    ## Socket to SUB to PUB server
+    # Socket to SUB to PUB server
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     topicfilter = ""
 
     l.info("SUB client connecting to PUB server at [%s:%s]" % (pub_ip, pub_port))
-    socket.connect ("tcp://%s:%s" % (pub_ip, pub_port))
+    socket.connect("tcp://%s:%s" % (pub_ip, pub_port))
     l.info("SUB client succesfully connected to PUB server at [%s:%s]" % (pub_ip, pub_port))
     socket.setsockopt(zmq.SUBSCRIBE, topicfilter)
 
@@ -51,7 +47,7 @@ def run(argv):
     while True:
         string = socket.recv()
         index, messagedata = string.split()
-        #l.info("%s, %s", index, messagedata)
+        # l.info("%s, %s", index, messagedata)
         index_list.append(index)
         # Update data for THIS client, later to be queried
         client_data[client_id].update({"msg_count": len(index_list)})
