@@ -77,9 +77,10 @@ class MarathonIF(object):
                 return a1
             cnt += 1
             time.sleep(1)
-            l.info("[%d]Waiting for task to move to running stage, " % cnt +
-                   "current stat staged=%d running=%d expected Running=%d" %
-                   (a1.tasks_staged, a1.tasks_running, running_count))
+            if (cnt % 30) == 29:
+                l.info("[%d]Waiting for task to move to running stage, " % cnt +
+                       "current stat staged=%d running=%d expected Running=%d" %
+                       (a1.tasks_staged, a1.tasks_running, running_count))
 
     def scale_app(self, app, scale):
         return self.mcli.scale_app(app, scale)

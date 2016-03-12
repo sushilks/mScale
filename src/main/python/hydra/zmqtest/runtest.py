@@ -4,6 +4,7 @@ import sys
 from pprint import pprint, pformat  # NOQA
 from optparse import OptionParser
 import logging
+import time
 from hydra.lib import util
 from hydra.lib.h_analyser import HAnalyser
 from hydra.lib.runtestbase import RunTestBase
@@ -18,16 +19,49 @@ l = util.createlogger('runTest', logging.INFO)
 # l.setLevel(logging.DEBUG)
 
 
+class ZMQPubAnalyser(HAnalyser):
+    def __init__(self, server_ip, server_port):
+        HAnalyser.__init__(self, server_ip, server_port)
+
+    def start_test(self):
+        # TODO: (AbdullahS): Make sure pub actually started sending data
+        (status, resp) = self.do_req_resp('start')
+        assert(status == 'ok')
+
+    def wait_for_testend(self):
+        while True:
+            (status, resp) = self.do_req_resp('teststatus')
+            assert(status == 'ok')
+            if resp:
+                break
+            time.sleep(1)
+
+    def get_stats(self):
+        (status, resp) = self.do_req_resp('stats')
+        assert(status == 'ok')
+        return resp
+
+
+class ZMQSubAnalyser(HAnalyser):
+    def __init__(self, server_ip, server_port):
+        HAnalyser.__init__(self, server_ip, server_port)
+
+    def get_stats(self):
+        (status, resp) = self.do_req_resp('stats', 0)
+        assert(status == 'ok')
+        return resp
+
+
 class RunTest(RunTestBase):
     def __init__(self, argv):
-        usage = ('python %prog --total_msgs=<total msgs to send> --msg_batch=<msg burst batch before sleep>'
-                 '--msg_delay=<msg delay in secs> --total_sub_apps=<Total sub apps to launch>'
+        usage = ('python %prog --test_duration=<time to run test> --msg_batch=<msg burst batch before sleep>'
+                 '--msg_rate=<rate in packet per secs> --total_sub_apps=<Total sub apps to launch>'
                  '--config_file=<path_to_config_file>')
         parser = OptionParser(description='zmq scale test master',
                               version="0.1", usage=usage)
-        parser.add_option("--total_msgs", dest='total_msgs', type='int', default=10000)
+        parser.add_option("--test_duration", dest='test_duration', type='float', default=10)
         parser.add_option("--msg_batch", dest='msg_batch', type='int', default=100)
-        parser.add_option("--msg_delay", dest='msg_delay', type='float', default=0.01)
+        parser.add_option("--msg_rate", dest='msg_rate', type='float', default=10000)
         parser.add_option("--total_sub_apps", dest='total_sub_apps', type='int', default=100)
         parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
 
@@ -35,9 +69,9 @@ class RunTest(RunTestBase):
         if ((len(args) != 0)):
             parser.print_help()
             sys.exit(1)
-        self.total_msgs = options.total_msgs
+        self.test_duration = options.test_duration
         self.msg_batch = options.msg_batch
-        self.msg_delay = options.msg_delay
+        self.msg_rate = options.msg_rate
         self.total_sub_apps = options.total_sub_apps
         self.config_file = options.config_file
 
@@ -59,8 +93,14 @@ class RunTest(RunTestBase):
         # Launch zmq sub up to self.total_sub_apps
         self.launch_zmq_sub()
 
+        # probe all the clients to see if they are ready.
+        self.ping_all_sub()
+
         # Signal PUB to start sending all messages, blocks until PUB notifies
-        self.signal_pub_send_msgs()
+        pub_data = self.signal_pub_send_msgs()
+        l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['count'],
+                                                                    pub_data['rate']))
+        msg_cnt_pub_tx = pub_data['count']
 
         #  Fetch all client SUB data
         self.fetch_all_sub_clients_data()
@@ -71,22 +111,35 @@ class RunTest(RunTestBase):
 
         l.info("================================================")
         bad_clients = 0
-        for client, info in self.all_sub_clients_info.items():
-            if info.values()[0] < self.total_msgs:
-                l.info("Client: %s", client)
-                l.info("Info: %s", info)
+        all_clients = self.all_sub_clients_info.items()
+        client_rate = 0
+        bad_client_rate = 0
+        clients_packet_count = 0
+        for client, info in all_clients:
+            # l.info(" CLIENT = " + pformat(client) + " DATA = " + pformat(info))
+            client_rate += info['rate']
+            clients_packet_count += info['msg_cnt']
+            if info['msg_cnt'] != msg_cnt_pub_tx:
+                l.info("[%s] Count Mismatch Info: %s" % (client, pformat(info)))
                 bad_clients += 1
+                bad_client_rate += info['rate']
         if bad_clients > 0:
-            l.info("Total number of clients experiencing packet drop = %d", bad_clients)
+            l.info("Total number of clients experiencing packet drop = %d out of %d clients" %
+                   (bad_clients, len(all_clients)))
+            l.info('Average rate seen at the failing clients %f' % (bad_client_rate / bad_clients))
         else:
-            l.info("OK")
+            l.info("No client experienced packet drops out of %d clients" % len(all_clients))
+        l.info("Total packet's send by PUB:%d and average packets received by client:%d" %
+               (msg_cnt_pub_tx, clients_packet_count / len(all_clients)))
+        l.info('Average rate seen at the pub %f and at clients %f' %
+               (pub_data['rate'], (client_rate / len(all_clients))))
 
     def launch_zmq_pub(self):
         l.info("Launching the pub app")
         self.create_hydra_app(name=self.zstpub, app_path='hydra.zmqtest.zmq_pub.run',
-                              app_args='%s %s %s %s' % (self.total_msgs,
+                              app_args='%s %s %s %s' % (self.test_duration,
                                                         self.msg_batch,
-                                                        self.msg_delay, self.total_sub_apps),
+                                                        self.msg_rate, self.total_sub_apps),
                               cpus=0.01, mem=32,
                               ports=[0],
                               constraints=[self.app_constraints(field='hostname', operator='UNIQUE')])
@@ -121,32 +174,42 @@ class RunTest(RunTestBase):
             assert(len(task.ports) == 1)
             sub_app_ip = self.get_ip_hostname(task.host)
             sub_app_rep_port = task.ports[0]
-            self.sub_app_ip_rep_port_map[task.id] = {sub_app_rep_port: sub_app_ip}
+            self.sub_app_ip_rep_port_map[task.id] = [sub_app_rep_port, sub_app_ip]
         # l.info(self.sub_app_ip_rep_port_map)
 
     def signal_pub_send_msgs(self):
         l.info("Sending signal to PUB to start sending all messages..")
-        pub_rep_kwargs = {}
-        pub_rep_kwargs.update({"server_ip": self.pub_ip})
-        pub_rep_kwargs.update({"server_port": self.pub_rep_taskport})
-        ha_pub = HAnalyser(self.pub_ip, self.pub_rep_taskport)
+        ha_pub = ZMQPubAnalyser(self.pub_ip, self.pub_rep_taskport)
         # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-        ha_pub.do_req("start")
+        ha_pub.start_test()
+        ha_pub.wait_for_testend()
+        return ha_pub.get_stats()
 
     def fetch_all_sub_clients_data(self):
         l.info("Attempting to fetch all client data..")
         # TODO: (AbdullahS): Add more stuff, timestamp, client ip etc
         self.all_sub_clients_info = {}  # stores a mapping of client_id: {msg_count: x}
         for task_id, info in self.sub_app_ip_rep_port_map.items():
-            l.info(task_id)
-            l.info(info)
-            port = info.keys()[0]
-            ip = info.values()[0]
-            ha_sub = HAnalyser(ip, port)
+            port = info[0]
+            ip = info[1]
+            ha_sub = ZMQSubAnalyser(ip, port)
             # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-            ha_sub.do_req_update_data("stats_req")
+            stats = ha_sub.get_stats()
             ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
-            self.all_sub_clients_info.update(ha_sub.get_data())
+            self.all_sub_clients_info[str(ip) + ':' + str(port)] = stats
+
+    def ping_all_sub(self):
+        l.info('Pinging all the clients to make sure they are started....')
+        cnt = 0
+        for task_id, info in self.sub_app_ip_rep_port_map.items():
+            port = info[0]
+            ip = info[1]
+            ha = HAnalyser(ip, port)
+            # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
+            cnt += ha.do_ping()
+            ha.stop()  # closes the ANalyser socket, can not be used anymore
+        l.info('Done pinging all the clients. Got pong response from %d out of %d' %
+               (cnt, len(self.sub_app_ip_rep_port_map.items())))
 
     def delete_all_launched_apps(self):
         l.info("Deleting all launched apps")

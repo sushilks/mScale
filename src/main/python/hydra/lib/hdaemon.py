@@ -1,4 +1,4 @@
-__author__ = 'AbdullahS'
+__author__ = 'AbdullahS, sushil'
 
 from pprint import pprint, pformat   # NOQA
 import zmq
@@ -11,36 +11,36 @@ l = util.createlogger('HDaemon', logging.INFO)
 # l.setLevel(logging.DEBUG)
 
 
-class HDaemonBase(object):
+class HDaemonRepSrv(object):
     def __init__(self, port):
+        l.info("initiated..., REP port[%s]", port)
         self.port = port
         self.data = {}  # Dict calling class can use to store data, can be fetched later
-        l.info("HdaemonBase initiated..., REP port[%s]", self.port)
         self.t_exceptions = []
         self.h_threading = HThreading()
-        self.data = {}  # This is where anyone instantiating HDaemon* needs to put data
+        self.cbfn = {}
 
     def thread_cb(self, t_exceptions):
         for exception in t_exceptions:
             self.t_exceptions.append(exception)
-            l.info(exception)
-
-    def set_data(self, data={}):
-        self.data = data  # probably deepcopy will be better, will see
-
-    def send_stats(self):
-        l.info("Sending stats for client[%s]", self.data.keys()[0])
-        self.socket.send(json.dumps(self.data))
-
-
-class HDaemonRepSrv(HDaemonBase):
-    def __init__(self, port):
-        l.info("HdaemonRepSrv initiated...")
-        super(HDaemonRepSrv, self).__init__(port)
+            l.error(exception)
 
     def run(self):
-        l.info("HdaemonRepSrv spawning run thread...")
+        l.info("spawning run thread...")
+        self.register_fn('ping', self.ping_task)
         self.h_threading.start_thread(self.thread_cb, self.start)
+
+    def register_fn(self, token, fn):
+        l.debug("Registering function for [%s]" % token)
+        if token in self.cbfn:
+            raise Exception('token [%s] is already registered' % token)
+        self.cbfn[token] = fn
+
+    def ping_task(self, arg):
+        return ('ok', 'pong')
+
+    def send_response(self, status, msg):
+        self.socket.send(json.dumps([status, msg]))
 
     def start(self):
         l.info("Binding zmq REP socket...")
@@ -50,18 +50,26 @@ class HDaemonRepSrv(HDaemonBase):
         l.info("Done Binding zmq REP socket...")
         while True:
             #  Wait for next request from client
-            message = self.socket.recv()
-            l.info("Received request: [%s]", message)
+            raw_message = self.socket.recv()
+            message = json.loads(raw_message)
+            l.info("Received request: [%s]", raw_message)
             # Stop and return
-            if message == "stop":
+            if message[0] == "stop":
+                l.info("Stopping.")
                 self.stop()
                 return
-            elif message == "stats_req":
-                self.send_stats()
-                self.stop()  # end listen on socket
-                return
+            elif not message[0] in self.cbfn:
+                msg = "UNKNOWN message [%s] received... " % message[0]
+                status_code = 'error'
+                l.error(msg)
+                self.send_response(status_code, msg)
             else:
-                l.info("UNKNOWN message received...")
+                fn = self.cbfn[message[0]]
+                if len(message) == 1 or not message[1]:
+                    sts, msg = fn(None)
+                else:
+                    sts, msg = fn(message[1])
+                self.send_response(sts, msg)
 
     def stop(self):
         l.info("Received stop signal, closing socket")

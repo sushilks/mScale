@@ -105,3 +105,14 @@ def cli(argv):
         mt.scale_app(app, scale)
         l.info("Waiting for app scale to complete")
         mt.wait_app_ready(app, scale)
+# SK:Tried to add log collection but no luck so far.
+#    elif args['logs']:
+#        path = "/tmp/mesos/slaves/"
+#        #11323ada-daab-4d76-8749-3113b5448bed-S0/
+#        path += "/frameworks/
+#        # #11323ada-daab-4d76-8749-3113b5448bed-0007
+#        path += "/executors/"
+#        #zst-pub.4bdec0e2-e7e3-11e5-a874-fe2077b92eeb
+#        path += "/runs/"
+#        # d00620ea-8f3e-427d-9404-6f6b9701f64f/
+#        app = args['<app>']

@@ -1,4 +1,4 @@
-__author__ = 'AbdullahS'
+__author__ = 'AbdullahS, sushil'
 
 from pprint import pprint, pformat   # NOQA
 import zmq
@@ -11,44 +11,32 @@ l = util.createlogger('HDaemon', logging.INFO)
 # l.setLevel(logging.DEBUG)
 
 
-class HAnalyserBase(object):
+class HAnalyser(object):
     def __init__(self, server_ip, server_port):
+        l.debug("Hydra Analyser initiated...")
         self.server_ip = server_ip
         self.port = server_port
         self.data = {}  # This is where all received data will be stored
 
         self.context = zmq.Context()
-        l.info("Connecting to server at [%s:%s]", self.server_ip, self.port)
+        l.debug("Connecting to server at [%s:%s]", self.server_ip, self.port)
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect("tcp://%s:%s" % (self.server_ip, self.port))
-        l.info("Conneced...")
+        l.debug("Conneced...")
 
-
-class HAnalyser(HAnalyserBase):
-    def __init__(self, server_ip, server_port):
-        l.info("Hydra Analyser initiated...")
-        super(HAnalyser, self).__init__(server_ip, server_port)
-
-    def do_req(self, msg):
-        # TODO: (AbdullahS): Make sure pub actually started sending data
-        self.socket.send(msg)
-        l.info("Waiting for PUB server to finish sending all data..")
+    def do_req_resp(self, msg_send, msg_args=None):
+        smsg = [msg_send, msg_args]
+        l.debug("Sending message %s" % pformat(smsg))
+        self.socket.send(json.dumps(smsg))
+        l.debug("Waiting for server to respond...")
         rep = self.socket.recv()
-        if rep == "DONE":
-            l.info("Pub server finished sending all DATA..")
-            self.socket.close()
+        l.debug("Got response %s" % pformat(rep))
+        r = json.loads(rep)
+        return (r[0], r[1])
 
-    def do_req_update_data(self, msg):
-        l.info("Sending request [%s] to sub_client at [%s:%s]", msg, self.server_ip, self.port)
-        self.socket.send(msg)
-        #  Get the reply.
-        # l.info("waiting for resp")
-        rep = self.socket.recv()
-        # l.info(rep)
-        self.data.update(json.loads(rep))
-
-    def get_data(self):
-        return self.data
+    def do_ping(self):
+        (status, response) = self.do_req_resp('ping')
+        return (status == 'ok') and (response == 'pong')
 
     def stop(self):
         self.socket.close()
