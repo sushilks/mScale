@@ -42,9 +42,9 @@ class TServer(Thread):
                 sys.stdout.flush()
                 self.server.handle_request()
             print("Exiting from server")
-            return
         except KeyboardInterrupt:
             print("Stopping the HTTP Server")
+        return
 
     def stop(self):
         self.stopServer = True

@@ -11,4 +11,4 @@ install:
   - pyb install_dependencies analyze --verbose
 
 script:
-  - pyb analyze --verbose
+  - pyb test --verbose
