@@ -26,7 +26,7 @@ class MocGen(object):
         fn = self.exp_value[max(k for k in self.exp_value if k <= val)]
         res = fn(val)
         if self.verbose:
-            print ('moc1 called with ' + pformat(val) + " Resp:" + pformat(res))
+            print('moc1 called with ' + pformat(val) + " Resp:" + pformat(res))
         return (True, res)
 
     def run_for_exp(self, test, start_dt, exp_step_correction, exp_data):
