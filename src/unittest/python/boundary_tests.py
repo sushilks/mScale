@@ -42,7 +42,7 @@ class MocGen(object):
         test.assertEqual(status, True)
 
 
-class ScannerUnitTest(unittest.TestCase):
+class ScannerUnitTest(object):
     def setUp(self):
         self.mocgen = MocGen()
         self.scanner = Scanner(self.mocgen.generate, 1000, 2)
