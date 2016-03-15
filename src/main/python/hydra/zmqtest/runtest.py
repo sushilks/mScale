@@ -52,23 +52,8 @@ class ZMQSubAnalyser(HAnalyser):
         return resp
 
 
-class RunTest(RunTestBase):
-    def __init__(self, argv):
-        usage = ('python %prog --test_duration=<time to run test> --msg_batch=<msg burst batch before sleep>'
-                 '--msg_rate=<rate in packet per secs> --total_sub_apps=<Total sub apps to launch>'
-                 '--config_file=<path_to_config_file>')
-        parser = OptionParser(description='zmq scale test master',
-                              version="0.1", usage=usage)
-        parser.add_option("--test_duration", dest='test_duration', type='float', default=10)
-        parser.add_option("--msg_batch", dest='msg_batch', type='int', default=100)
-        parser.add_option("--msg_rate", dest='msg_rate', type='float', default=10000)
-        parser.add_option("--total_sub_apps", dest='total_sub_apps', type='int', default=100)
-        parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
-
-        (options, args) = parser.parse_args()
-        if ((len(args) != 0)):
-            parser.print_help()
-            sys.exit(1)
+class RunTestZMQ(RunTestBase):
+    def __init__(self, options, runtest=True):
         self.test_duration = options.test_duration
         self.msg_batch = options.msg_batch
         self.msg_rate = options.msg_rate
@@ -77,16 +62,21 @@ class RunTest(RunTestBase):
 
         config = ConfigParser()
         config_fn = self.config_file
-        RunTestBase.__init__(self, 'zmqScale', config, config_fn)
+        RunTestBase.__init__(self, 'zmqScale', config, config_fn, startappserver=runtest)
         self.zstpub = '/zst-pub'
         self.zstsub = '/zst-sub'
         self.add_appid(self.zstpub)
         self.add_appid(self.zstsub)
-        self.start_init()
-        self.run_test()
-        self.stop_appserver()
+        if runtest:
+            self.run_test()
+            self.stop_appserver()
 
     def run_test(self):
+        self.start_init()
+        res = self.start_test()
+        return res
+
+    def start_test(self):
         # Launch zmq pub
         self.launch_zmq_pub()
 
@@ -110,6 +100,13 @@ class RunTest(RunTestBase):
         l.info("Successfully finished gathering all data")
 
         l.info("================================================")
+        result = {
+            'client_count': 0,
+            'average_packets': 0,
+            'average_rate': 0,
+            'failing_clients': 0,
+            'average_packet_loss': 0
+        }
         bad_clients = 0
         all_clients = self.all_sub_clients_info.items()
         client_rate = 0
@@ -133,6 +130,17 @@ class RunTest(RunTestBase):
                (msg_cnt_pub_tx, clients_packet_count / len(all_clients)))
         l.info('Average rate seen at the pub %f and at clients %f' %
                (pub_data['rate'], (client_rate / len(all_clients))))
+        result['client_count'] = len(all_clients)
+        result['packet_tx'] = msg_cnt_pub_tx
+        result['average_packets'] = clients_packet_count / result['client_count']
+        result['average_rate'] = client_rate / result['client_count']
+        result['failing_clients'] = bad_clients
+        result['average_tx_rate'] = pub_data['rate']
+        if bad_clients:
+            result['failing_clients_rate'] = (bad_client_rate / bad_clients)
+        result['average_packet_loss'] = \
+            ((msg_cnt_pub_tx - (1.0 * clients_packet_count / result['client_count'])) * 100.0 / msg_cnt_pub_tx)
+        return result
 
     def launch_zmq_pub(self):
         l.info("Launching the pub app")
@@ -217,3 +225,25 @@ class RunTest(RunTestBase):
         self.delete_app(self.zstpub)
         l.info("Deleting SUBs")
         self.delete_app(self.zstsub)
+
+
+class RunTest(object):
+    def __init__(self, argv):
+        usage = ('python %prog --test_duration=<time to run test> --msg_batch=<msg burst batch before sleep>'
+                 '--msg_rate=<rate in packet per secs> --total_sub_apps=<Total sub apps to launch>'
+                 '--config_file=<path_to_config_file>')
+        parser = OptionParser(description='zmq scale test master',
+                              version="0.1", usage=usage)
+        parser.add_option("--test_duration", dest='test_duration', type='float', default=10)
+        parser.add_option("--msg_batch", dest='msg_batch', type='int', default=100)
+        parser.add_option("--msg_rate", dest='msg_rate', type='float', default=10000)
+        parser.add_option("--total_sub_apps", dest='total_sub_apps', type='int', default=100)
+        parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
+
+        (options, args) = parser.parse_args()
+        if ((len(args) != 0)):
+            parser.print_help()
+            sys.exit(1)
+        r = RunTestZMQ(options, False)
+        res = r.run_test()
+        print("RES = " + pformat(res))

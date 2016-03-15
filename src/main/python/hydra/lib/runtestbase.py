@@ -54,11 +54,13 @@ class RunTestBase(object):
             self.myserver = appserver.TServer(self.myport, self.pwd + '/live')
             self.myserver.start()
             self.appserver_running = True
+        self.init_appserver_dir()
 
     def stop_appserver(self):
         self.myserver.stop()
         self.myserver.join()
         self.appserver_running = False
+        os.chdir(self.pwd)
 
     def add_appid(self, name):
         self.appIdList.append(name)
@@ -94,7 +96,6 @@ class RunTestBase(object):
         l.info("Waiting for delete to complete")
         for app in self.appIdList:
             self.__mt.wait_app_removal(app)
-        self.init_appserver_dir()
 
     def get_appserver_addr(self):
         return self.myaddr
