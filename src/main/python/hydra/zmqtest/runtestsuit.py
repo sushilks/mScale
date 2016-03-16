@@ -28,7 +28,7 @@ class TestRunner:
             if not self.first_test:
                 self.first_test = r
                 self.first_test.start_appserver()
-            res = r.run_test()
+            res = r.run_test(False)
             self.run_results[message_rate] = res
         l.info("Completed run with message rate = %d and client count=%d " %
                (message_rate, self.options.total_sub_apps) +
@@ -67,20 +67,23 @@ class RunSuit(object):
         setattr(options, 'msg_rate', 10000)
         setattr(options, 'total_sub_apps', 30)
         setattr(options, 'config_file', pwd + '/hydra.ini')
+        setattr(options, 'keep_running', False)
 
         # Parameters
-        # ClientSet = [5, 10, 50, 100, 200, 500, 1000, 2000, 5000, 10000]
-        client_set = [5, 10, 50, 100, 200, 400]
-        drop_percentage_set = [0, 5, 10, 20]
+        # client_set = [5, 10, 50, 100, 200, 500, 1000, 2000, 5000, 10000]
+        client_set = [10, 1000, 2000, 5000, 8000]
+        # client_set = [5, 10, 50, 100, 200, 400]
+        # drop_percentage_set = [0, 5, 10, 20]
+        drop_percentage_set = [0, 10]
         first_test = None
         for client_count in client_set:
             runner = TestRunner(options, first_test)
             if client_count < 50:
                 scanner = Scanner(runner.run, 10000, 50)
             else:
-                scanner = Scanner(runner.run, 1000, 50)
+                scanner = Scanner(runner.run, 500, 50)
             for drop_percentage in drop_percentage_set:
-                setattr(options, 'total_sub_apps', client_count)
+                setattr(options, 'total_sub_apps', int(client_count / 10))
                 (status, step_cnt, res) = scanner.search(drop_percentage)
                 if status:
                     l.info("Found for Client Count %d DropRate %d Max message Rate %d after %d run's" %
