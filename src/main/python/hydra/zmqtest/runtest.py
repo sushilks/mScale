@@ -18,6 +18,10 @@ except ImportError:
 l = util.createlogger('runTest', logging.INFO)
 # l.setLevel(logging.DEBUG)
 
+tout_60s = 30000
+tout_30s = 30000
+tout_10s = 10000
+
 
 class ZMQPubAnalyser(HAnalyser):
     def __init__(self, server_ip, server_port):
@@ -25,12 +29,14 @@ class ZMQPubAnalyser(HAnalyser):
 
     def start_test(self):
         # TODO: (AbdullahS): Make sure pub actually started sending data
-        (status, resp) = self.do_req_resp('start')
+        l.info("Sending Start test to PUB")
+        (status, resp) = self.do_req_resp('start', timeout=tout_60s)
+        l.info("Start test came back with status " + pformat(status) + " resp = " + pformat(resp))
         assert(status == 'ok')
 
     def wait_for_testend(self):
         while True:
-            (status, resp) = self.do_req_resp('teststatus')
+            (status, resp) = self.do_req_resp('teststatus', tout_30s)
             assert(status == 'ok')
             if resp:
                 break
@@ -59,10 +65,11 @@ class RunTestZMQ(RunTestBase):
         self.msg_rate = options.msg_rate
         self.total_sub_apps = options.total_sub_apps
         self.config_file = options.config_file
+        self.keep_running = options.keep_running
 
-        config = ConfigParser()
+        self.config = ConfigParser()
         config_fn = self.config_file
-        RunTestBase.__init__(self, 'zmqScale', config, config_fn, startappserver=runtest)
+        RunTestBase.__init__(self, 'zmqScale', self.config, config_fn, startappserver=runtest)
         self.zstpub = '/zst-pub'
         self.zstsub = '/zst-sub'
         self.add_appid(self.zstpub)
@@ -71,8 +78,10 @@ class RunTestZMQ(RunTestBase):
             self.run_test()
             self.stop_appserver()
 
-    def run_test(self):
+    def run_test(self, start_appserver=True):
         self.start_init()
+        if start_appserver:
+            self.start_appserver()
         res = self.start_test()
         return res
 
@@ -95,8 +104,6 @@ class RunTestZMQ(RunTestBase):
         #  Fetch all client SUB data
         self.fetch_all_sub_clients_data()
 
-        #  Delete all launched apps
-        self.delete_all_launched_apps()
         l.info("Successfully finished gathering all data")
 
         l.info("================================================")
@@ -140,17 +147,24 @@ class RunTestZMQ(RunTestBase):
             result['failing_clients_rate'] = (bad_client_rate / bad_clients)
         result['average_packet_loss'] = \
             ((msg_cnt_pub_tx - (1.0 * clients_packet_count / result['client_count'])) * 100.0 / msg_cnt_pub_tx)
+        #  Delete all launched apps
+        self.delete_all_launched_apps()
         return result
 
     def launch_zmq_pub(self):
         l.info("Launching the pub app")
+        constraints = [self.app_constraints(field='hostname', operator='UNIQUE')]
+        # Use cluster0 for launching the PUB
+        if 0 in self.mesos_cluster:
+            constraints.append(self.app_constraints(field=self.mesos_cluster[0]['cat'],
+                                                    operator='CLUSTER', value=self.mesos_cluster[0]['match']))
         self.create_hydra_app(name=self.zstpub, app_path='hydra.zmqtest.zmq_pub.run',
                               app_args='%s %s %s %s' % (self.test_duration,
                                                         self.msg_batch,
                                                         self.msg_rate, self.total_sub_apps),
                               cpus=0.01, mem=32,
                               ports=[0],
-                              constraints=[self.app_constraints(field='hostname', operator='UNIQUE')])
+                              constraints=constraints)
         self.wait_app_ready(self.zstpub, 1)
         # Find launched pub server's ip, rep PORT
         self.pub_ip = self.find_ip_uniqueapp(self.zstpub)
@@ -163,10 +177,16 @@ class RunTestZMQ(RunTestBase):
 
     def launch_zmq_sub(self):
         l.info("Launching the sub app")
-        self.create_hydra_app(name=self.zstsub, app_path='hydra.zmqtest.zmq_sub.run',
+        constraints = []
+        # Use cluster 1 for launching the SUB
+        if 1 in self.mesos_cluster:
+            constraints.append(self.app_constraints(field=self.mesos_cluster[1]['cat'],
+                                                    operator='CLUSTER', value=self.mesos_cluster[1]['match']))
+        self.create_hydra_app(name=self.zstsub, app_path='hydra.zmqtest.zmq_sub.run10',
                               app_args='%s 15556' % (self.pub_ip),  # pub_ip, pub_port
                               cpus=0.01, mem=32,
-                              ports=[0])
+                              ports=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                              constraints=constraints)
         self.wait_app_ready(self.zstsub, 1)
 
         # scale
@@ -179,10 +199,10 @@ class RunTestZMQ(RunTestBase):
         tasks = self.get_app_tasks(self.zstsub)
         assert(len(tasks) == self.total_sub_apps)
         for task in tasks:
-            assert(len(task.ports) == 1)
             sub_app_ip = self.get_ip_hostname(task.host)
-            sub_app_rep_port = task.ports[0]
-            self.sub_app_ip_rep_port_map[task.id] = [sub_app_rep_port, sub_app_ip]
+            for sub_app_rep_port in task.ports:
+                self.sub_app_ip_rep_port_map[task.id + '_PORT' + str(sub_app_rep_port)] = \
+                    [sub_app_rep_port, sub_app_ip]
         # l.info(self.sub_app_ip_rep_port_map)
 
     def signal_pub_send_msgs(self):
@@ -209,13 +229,21 @@ class RunTestZMQ(RunTestBase):
     def ping_all_sub(self):
         l.info('Pinging all the clients to make sure they are started....')
         cnt = 0
+        remove_list = []
         for task_id, info in self.sub_app_ip_rep_port_map.items():
             port = info[0]
             ip = info[1]
             ha = HAnalyser(ip, port)
             # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-            cnt += ha.do_ping()
+            res = ha.do_ping()
+            if not res:
+                l.info("Ping failed to [%s] %s:%s. removing from client list" % (task_id, ip, port))
+                remove_list.append(task_id)
+            cnt += res
             ha.stop()  # closes the ANalyser socket, can not be used anymore
+
+        for item in remove_list:
+            del self.sub_app_ip_rep_port_map[item]
         l.info('Done pinging all the clients. Got pong response from %d out of %d' %
                (cnt, len(self.sub_app_ip_rep_port_map.items())))
 
@@ -231,7 +259,7 @@ class RunTest(object):
     def __init__(self, argv):
         usage = ('python %prog --test_duration=<time to run test> --msg_batch=<msg burst batch before sleep>'
                  '--msg_rate=<rate in packet per secs> --total_sub_apps=<Total sub apps to launch>'
-                 '--config_file=<path_to_config_file>')
+                 '--config_file=<path_to_config_file> --keep_running')
         parser = OptionParser(description='zmq scale test master',
                               version="0.1", usage=usage)
         parser.add_option("--test_duration", dest='test_duration', type='float', default=10)
@@ -239,6 +267,7 @@ class RunTest(object):
         parser.add_option("--msg_rate", dest='msg_rate', type='float', default=10000)
         parser.add_option("--total_sub_apps", dest='total_sub_apps', type='int', default=100)
         parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
+        parser.add_option("--keep_running", dest='keep_running', action="store_true", default=False)
 
         (options, args) = parser.parse_args()
         if ((len(args) != 0)):
@@ -247,3 +276,11 @@ class RunTest(object):
         r = RunTestZMQ(options, False)
         res = r.run_test()
         print("RES = " + pformat(res))
+        if not options.keep_running:
+            r.stop_appserver()
+        else:
+            print("Keep running is set: Leaving the app server running")
+            print("   you can use the marathon gui/cli to scale the app up.")
+            print("   after you are done press enter on this window")
+            input('>')
+            r.stop_appserver()

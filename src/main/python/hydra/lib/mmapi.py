@@ -34,16 +34,23 @@ class MarathonIF(object):
     def delete_app(self, app_id, force=False):
         return self.mcli.delete_app(app_id, force)
 
-    def delete_app_ifexisting(self, app_id):
-        for idx in range(0, 4):
+    def delete_deployment(self, dep_id):
+        return self.mcli.delete_deployment(dep_id)
+
+    def get_deployments(self):
+        return self.mcli.list_deployments()
+
+    def delete_app_ifexisting(self, app_id, trys=4):
+        for idx in range(0, trys):
             try:
                 a = self.get_app(app_id)
                 if a:
-                    return self.delete_app(app_id, True)
+                    return self.delete_app(app_id)
                 return None
             except:
                 e = sys.exc_info()[0]
                 pprint("<p>Error: %s</p>" % e)
+                time.sleep(10)
         raise
 
     def create_app(self, app_id, attr):
@@ -52,7 +59,7 @@ class MarathonIF(object):
                 a = self.mcli.create_app(app_id, attr)
                 return a
             except marathon.exceptions.MarathonHttpError as e:
-                if str(e).find('App is locked by one or more deployments. Override with the option') > 0:
+                if str(e).find('App is locked by one or more deployments. Override with the option') >= 0:
                     time.sleep(1)
                 else:
                     raise
