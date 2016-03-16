@@ -282,5 +282,5 @@ class RunTest(object):
             print("Keep running is set: Leaving the app server running")
             print("   you can use the marathon gui/cli to scale the app up.")
             print("   after you are done press enter on this window")
-            raw_input('>')
+            input('>')
             r.stop_appserver()
