@@ -62,7 +62,8 @@ class RunSuit(object):
 
         def options():
             None
-        setattr(options, 'test_duration', 5)
+        #setattr(options, 'test_duration', 5)
+        setattr(options, 'test_duration', 15)
         setattr(options, 'msg_batch', 1000)
         setattr(options, 'msg_rate', 10000)
         setattr(options, 'total_sub_apps', 30)
@@ -70,15 +71,17 @@ class RunSuit(object):
 
         # Parameters
         # ClientSet = [5, 10, 50, 100, 200, 500, 1000, 2000, 5000, 10000]
-        client_set = [5, 10, 50, 100, 200, 400]
-        drop_percentage_set = [0, 5, 10, 20]
+        #client_set = [5, 10, 50, 100, 200, 400]
+        client_set = [200, 300]
+        #drop_percentage_set = [0, 5, 10, 20]
+        drop_percentage_set = [0]
         first_test = None
         for client_count in client_set:
             runner = TestRunner(options, first_test)
             if client_count < 50:
                 scanner = Scanner(runner.run, 10000, 50)
             else:
-                scanner = Scanner(runner.run, 1000, 50)
+                scanner = Scanner(runner.run, 10000, 50)
             for drop_percentage in drop_percentage_set:
                 setattr(options, 'total_sub_apps', client_count)
                 (status, step_cnt, res) = scanner.search(drop_percentage)

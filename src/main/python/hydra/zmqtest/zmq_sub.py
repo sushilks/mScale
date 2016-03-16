@@ -20,6 +20,9 @@ class HDZmqsRepSrv(HDaemonRepSrv):
             self.run_data['last_msg_time'] - self.run_data['first_msg_time'])
         return ('ok', self.run_data)
 
+    def reset_stats(self, args):
+        self.run_data = {'msg_cnt': 0, 'first_msg_time': 0, 'last_msg_time': 0}
+
 
 def run(argv):
     pub_port = ""

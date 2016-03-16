@@ -20,6 +20,7 @@ class HDZmqpRepSrv(HDaemonRepSrv):
 
     def start_test(self, args):
         self.run_data['start'] = True
+        self.run_data['test_status'] = False
         return ('ok', None)
 
     def get_stats(self, args):
@@ -59,6 +60,7 @@ def run(argv):
     # l.info("Done Binding zmq REP socket...")
     while True:
         if not run_data['start']:
+            l.info("PUB WAITING FOR SIGNAL")
             time.sleep(1)
             continue
         l.info("PUB server initiating test_duration [%f] messages, with batches [%d] with msg rate[%f]",
@@ -68,7 +70,7 @@ def run(argv):
         start_time = time.time()
         while True:
             messagedata = "msg%d" % msg_cnt
-            # l.info("%d %s" % (index, messagedata))
+            l.info("%d %s" % (msg_cnt, messagedata))
             pub_socket.send("%d %s" % (msg_cnt, messagedata))
             cnt += 1
             msg_cnt += 1
@@ -89,6 +91,8 @@ def run(argv):
         run_data['stats']['rate'] = msg_cnt / elapsed_time
         run_data['stats']['count'] = msg_cnt
         run_data['test_status'] = True
+        run_data['start'] = False
+        continue
         pub_socket.close()
         l.info("PUB Server stopping after sending %d messages elapsed time %f and message rate %f" %
                (msg_cnt, elapsed_time, run_data['stats']['rate']))
