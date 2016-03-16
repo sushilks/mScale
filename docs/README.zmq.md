@@ -23,21 +23,16 @@ We keep increasing the rate till the publisher can not see any more increase and
 ### Results
 Table showing results on client count and message rate
 
-<img src=
-"https://docs.google.com/spreadsheets/d/1BFmQ1xvnga44r15BGnTzCUcs5i-dleNMZ1bsnh8j2rg/pubchart?oid=1193589650&format=image"
->
+<img src="https://docs.google.com/spreadsheets/d/1BFmQ1xvnga44r15BGnTzCUcs5i-dleNMZ1bsnh8j2rg/pubchart?oid=1193589650&format=image">
 
 
 Here is a graph showing the maximum rate of message received at the subscribers as a function of number of clients.
 
-<img src="https://docs.google.com/spreadsheets/d/1BFmQ1xvnga44r15BGnTzCUcs5i-dleNMZ1bsnh8j2rg/pubchart?oid=971303165&format=image"
->
+<img src="https://docs.google.com/spreadsheets/d/1BFmQ1xvnga44r15BGnTzCUcs5i-dleNMZ1bsnh8j2rg/pubchart?oid=971303165&format=image">
 
 This chart is showing packet drops with increase in the number of clients.
 
-<img src=
-"https://docs.google.com/spreadsheets/d/1BFmQ1xvnga44r15BGnTzCUcs5i-dleNMZ1bsnh8j2rg/pubchart?oid=632762905&format=image"
->
+<img src="https://docs.google.com/spreadsheets/d/1BFmQ1xvnga44r15BGnTzCUcs5i-dleNMZ1bsnh8j2rg/pubchart?oid=632762905&format=image">
 
 At 10k clients the python publisher was having problem responding to commands and calls where timing out, so there is 
 no data gathered at that sample. 
