@@ -41,6 +41,11 @@ class ZMQPubAnalyser(HAnalyser):
         assert(status == 'ok')
         return resp
 
+    def update_pub_metrics(self, pub_metrics={}):
+        (status, resp) = self.do_req_resp('updatepub', msg_args=pub_metrics)
+        assert(status == 'ok')
+        return resp
+
 
 class ZMQSubAnalyser(HAnalyser):
     def __init__(self, server_ip, server_port):
@@ -48,6 +53,11 @@ class ZMQSubAnalyser(HAnalyser):
 
     def get_stats(self):
         (status, resp) = self.do_req_resp('stats', 0)
+        assert(status == 'ok')
+        return resp
+
+    def reset_stats(self):
+        (status, resp) = self.do_req_resp('reset', 0)
         assert(status == 'ok')
         return resp
 
@@ -71,49 +81,69 @@ class RunTestZMQ(RunTestBase):
             self.run_test()
             self.stop_appserver()
 
+    def update_metrics_run_test(self, options):
+        self.test_duration = options.test_duration
+        self.msg_batch = options.msg_batch
+        self.msg_rate = options.msg_rate
+        l.info("Updating test metrics: test_duration=%s, msg_batch=%s, msg_rate=%s",
+               self.test_duration, self.msg_batch, self.msg_rate)
+
+        # Update the PUB server with new metrics
+        pub_metrics = {'test_duration': self.test_duration,
+                       'msg_batch': self.msg_batch,
+                       'msg_requested_rate': self.msg_rate}
+        self.ha_pub.update_pub_metrics(pub_metrics)
+        l.info("PUB server updated")
+
+        # Reset all clients stats
+        # TODO: (ABdullahS): Make this more intelligent in next step
+        #                    i-e add scaling up and down
+        self.reset_sub_stats(self.sub_app_ip_rep_port_map)
+
+        # Signal message sending
+        pub_data = self.signal_pub_send_msgs()
+        l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['count'],
+                                                                    pub_data['rate']))
+
+        # Fetch all sub client data
+        self.fetch_all_sub_clients_data()
+
+        all_clients = self.all_sub_clients_info.items()
+        return self.result_parser(all_clients, pub_data)
+
     def run_test(self):
         self.start_init()
         res = self.start_test()
         return res
+
+    def stop_and_delete_all_apps(self):
+        self.delete_all_launched_apps()
 
     def start_test(self):
         # Launch zmq pub
         self.launch_zmq_pub()
 
         # Launch zmq sub up to self.total_sub_apps
-        #self.launch_zmq_sub()
+        self.launch_zmq_sub()
 
         # probe all the clients to see if they are ready.
-        #self.ping_all_sub()
+        self.ping_all_sub()
 
         # Signal PUB to start sending all messages, blocks until PUB notifies
         pub_data = self.signal_pub_send_msgs()
         l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['count'],
                                                                     pub_data['rate']))
-        raw_input("signal again")
-        pub_data = self.signal_pub_send_msgs()
-        l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['count'],
-                                                                    pub_data['rate']))
-        msg_cnt_pub_tx = pub_data['count']
-        raw_input("====================")
-        self.stop_appserver()
-        return
-        sys.exit(1)
 
         #  Fetch all client SUB data
         self.fetch_all_sub_clients_data()
-        raw_input("====================")
-        l.info(self.all_sub_clients_info)
-        raw_input("====================")
-        self.stop_appserver()
-        return
-
 
         #  Delete all launched apps
-        self.delete_all_launched_apps()
         l.info("Successfully finished gathering all data")
 
-        l.info("================================================")
+        all_clients = self.all_sub_clients_info.items()
+        return self.result_parser(all_clients, pub_data)
+
+    def result_parser(self, all_clients, pub_data):
         result = {
             'client_count': 0,
             'average_packets': 0,
@@ -121,8 +151,8 @@ class RunTestZMQ(RunTestBase):
             'failing_clients': 0,
             'average_packet_loss': 0
         }
+        msg_cnt_pub_tx = pub_data['count']
         bad_clients = 0
-        all_clients = self.all_sub_clients_info.items()
         client_rate = 0
         bad_client_rate = 0
         clients_packet_count = 0
@@ -203,14 +233,9 @@ class RunTestZMQ(RunTestBase):
 
     def signal_pub_send_msgs(self):
         l.info("Sending signal to PUB to start sending all messages..")
-        #ha_pub = ZMQPubAnalyser(self.pub_ip, self.pub_rep_taskport)
-        #self.ha_pub = ZMQPubAnalyser(self.pub_ip, self.pub_rep_taskport)
         # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-        #ha_pub.start_test()
         self.ha_pub.start_test()
-        #ha_pub.wait_for_testend()
         self.ha_pub.wait_for_testend()
-        #return ha_pub.get_stats()
         return self.ha_pub.get_stats()
 
     def fetch_all_sub_clients_data(self):
@@ -239,6 +264,17 @@ class RunTestZMQ(RunTestBase):
         l.info('Done pinging all the clients. Got pong response from %d out of %d' %
                (cnt, len(self.sub_app_ip_rep_port_map.items())))
 
+    def reset_sub_stats(self, sub_app_ip_rep_port_map):
+        l.info("Attempting to reset client stats ...")
+        for task_id, info in sub_app_ip_rep_port_map.items():
+            port = info[0]
+            ip = info[1]
+            ha_sub = ZMQSubAnalyser(ip, port)
+            # Signal it to reset all client stats
+            l.debug("Resetting stats for %s:%s", ip, port)
+            ha_sub.reset_stats()
+            ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
+
     def delete_all_launched_apps(self):
         l.info("Deleting all launched apps")
         l.info("Deleting PUB")
@@ -264,7 +300,6 @@ class RunTest(object):
         if ((len(args) != 0)):
             parser.print_help()
             sys.exit(1)
-        #r = RunTestZMQ(options, False)
-        r = RunTestZMQ(options, True)
-        #res = r.run_test()
-        #print("RES = " + pformat(res))
+        r = RunTestZMQ(options, False)
+        res = r.run_test()
+        print("RES = " + pformat(res))

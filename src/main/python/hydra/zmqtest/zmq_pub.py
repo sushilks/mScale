@@ -11,12 +11,15 @@ l = util.createlogger('HPub', logging.INFO)
 
 
 class HDZmqpRepSrv(HDaemonRepSrv):
-    def __init__(self, port, run_data):
+    def __init__(self, port, run_data, pub_metrics):
         self.run_data = run_data
+        self.pub_metrics = pub_metrics
+        self.init_pub_metrics()
         HDaemonRepSrv.__init__(self, port)
         self.register_fn('start', self.start_test)
         self.register_fn('stats', self.get_stats)
         self.register_fn('teststatus', self.test_status)
+        self.register_fn('updatepub', self.update_pub_metrics)
 
     def start_test(self, args):
         self.run_data['start'] = True
@@ -28,6 +31,26 @@ class HDZmqpRepSrv(HDaemonRepSrv):
 
     def test_status(self, args):
         return ('ok', self.run_data['test_status'])
+
+    def init_pub_metrics(self):
+        l.info("Init PUB metrics...")
+        self.test_duration = self.pub_metrics['test_duration']
+        self.msg_batch = self.pub_metrics['msg_batch']
+        self.msg_requested_rate = self.pub_metrics['msg_requested_rate']
+
+    def update_pub_metrics(self, args):
+        self.test_duration = float(args['test_duration'])
+        self.msg_batch = int(args['msg_batch'])
+        self.msg_requested_rate = float(args['msg_requested_rate'])
+        l.info("PUB updated metrics: test_duration=%f, msg_batch=%f, msg_requested_rate=%f", self.test_duration,
+               self.msg_batch, self.msg_requested_rate)
+        return ('ok', None)
+
+# class PubMetrics(object):
+#    def __init__(self, test_duration, msg_batch, msg_requested_rate):
+#        self.test_duration = test_duration
+#        self.msg_batch  = msg_batch
+#        self.msg_requested_rate = msg_requested_rate
 
 
 def run(argv):
@@ -52,32 +75,32 @@ def run(argv):
     run_data = {'start': False,
                 'stats': {'rate': 0, 'count': 0},
                 'test_status': False}
-    hd = HDZmqpRepSrv(pub_rep_port, run_data)
+    pub_metrics = {'test_duration': test_duration,
+                   'msg_batch': msg_batch,
+                   'msg_requested_rate': msg_requested_rate}
+    hd = HDZmqpRepSrv(pub_rep_port, run_data, pub_metrics)
     hd.run()
-    # pub_rep_context = zmq.Context()
-    # pub_rep_socket = pub_rep_context.socket(zmq.REP)
-    # pub_rep_socket.bind("tcp://*:%s" % pub_rep_port)
-    # l.info("Done Binding zmq REP socket...")
+
     while True:
         if not run_data['start']:
-            l.info("PUB WAITING FOR SIGNAL")
+            l.debug("PUB WAITING FOR SIGNAL")
             time.sleep(1)
             continue
         l.info("PUB server initiating test_duration [%f] messages, with batches [%d] with msg rate[%f]",
-               test_duration, msg_batch, msg_requested_rate)
+               hd.test_duration, hd.msg_batch, hd.msg_requested_rate)
         cnt = 0
         msg_cnt = 0
         start_time = time.time()
         while True:
             messagedata = "msg%d" % msg_cnt
-            l.info("%d %s" % (msg_cnt, messagedata))
+            # l.info("%d %s" % (msg_cnt, messagedata))
             pub_socket.send("%d %s" % (msg_cnt, messagedata))
             cnt += 1
             msg_cnt += 1
-            if cnt >= msg_batch:
+            if cnt >= hd.msg_batch:
                 # compute the delay
                 duration = time.time() - start_time
-                expected_time = msg_cnt / msg_requested_rate
+                expected_time = msg_cnt / hd.msg_requested_rate
                 delay = 0.0
                 if expected_time > duration:
                     delay = expected_time - duration
@@ -86,7 +109,7 @@ def run(argv):
                 time.sleep(delay)
                 cnt = 0
             elapsed_time = time.time() - start_time
-            if elapsed_time >= test_duration:
+            if elapsed_time >= hd.test_duration:
                 break
         run_data['stats']['rate'] = msg_cnt / elapsed_time
         run_data['stats']['count'] = msg_cnt

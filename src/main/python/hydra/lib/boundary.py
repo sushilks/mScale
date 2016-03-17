@@ -26,7 +26,7 @@ class Scanner(object):
                 break
             if res <= expected_result:
                 if not first_toggle:
-                    # aggrassively increase in the begining
+                    # aggressively increase in the begining
                     inc = value
                 else:
                     # Once an area is found do search

@@ -8,7 +8,7 @@ import sys
 from hydra.lib import util
 
 l = util.createlogger('HDaemon', logging.INFO)
-#l.setLevel(logging.DEBUG)
+# l.setLevel(logging.DEBUG)
 
 
 class HAnalyser(object):
