@@ -6,6 +6,9 @@ import os
 import time
 from hydra.lib import util
 from hydra.lib.hdaemon import HDaemonRepSrv
+from hydra.lib.childmgr import ChildManager
+from pprint import pformat
+
 l = util.createlogger('HSub', logging.INFO)
 
 
@@ -29,9 +32,25 @@ class HDZmqsRepSrv(HDaemonRepSrv):
         return ('ok', 'stats reset')
 
 
+def run10(argv):
+    pwd = os.getcwd()
+    l.info("CWD = " + pformat(pwd))
+    cmgr = ChildManager()
+    cmd = './hydra hydra.zmqtest.zmq_sub.run'.split(' ') + argv[1:]
+    cwd = None
+    for idx in range(0, 10):
+        myenv = os.environ.copy()
+        myenv["PORT0"] = myenv["PORT" + str(idx)]
+        l.info("Launch%d:" % idx + " cwd=" + " CMD=" + pformat(cmd) + " PORT0=" + str(myenv["PORT0"]))
+        cmgr.add_child('p' + str(idx), cmd, cwd, myenv)
+    cmgr.launch_children()
+    cmgr.wait()
+
+
 def run(argv):
     pub_port = ""
     pub_ip = ""
+    l.info("JOB RUN : " + pformat(argv))
     if len(argv) > 2:
         pub_ip = argv[1]
         pub_port = argv[2]

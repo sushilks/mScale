@@ -21,7 +21,7 @@ class Scanner(object):
         self.inital_toggle_count = 0
         status = True
         while True:
-            (status, res) = self.runfn(value)
+            (status, rate, res) = self.runfn(value)
             if not status:
                 break
             if res <= expected_result:
@@ -30,9 +30,9 @@ class Scanner(object):
                     inc = value
                 else:
                     # Once an area is found do search
-                    inc = abs(last_increase / 2)
+                    inc = abs(1.0 * last_increase / 2)
             else:
-                inc = -1 * abs(last_increase / 2)
+                inc = -1 * abs(1.0 * last_increase / 2)
                 first_toggle = True
             # pprint(" Iteration %d ::" % cnt + " value = %d res = %d inc = %f" % (value, res, inc) +
             #       " :: last_increase = %d" % last_increase)
@@ -43,4 +43,14 @@ class Scanner(object):
             cnt += 1
             if not first_toggle:
                 self.inital_toggle_count += 1
-        return (status, cnt, value)
+        return (status, cnt, int(value))
+
+    def find_max_rate(self):
+        value = self.start_value
+        while True:
+            (status, rate, drop) = self.runfn(value)
+            if rate < value * 0.7:
+                # max rate is likely rate
+                break
+            value += value
+        return (True, rate, drop)

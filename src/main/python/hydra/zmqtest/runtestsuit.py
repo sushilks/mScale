@@ -27,7 +27,7 @@ class TestRunner:
         else:
             setattr(self.options, 'msg_rate', message_rate)
             if not self.first_run:
-                res = self.r.run_test()
+                res = self.r.run_test(False)
                 self.first_run = True
             else:
                 # Update existing PUB and SUBs instead of launching new
@@ -46,7 +46,7 @@ class TestRunner:
         if (res['average_tx_rate'] < 0.7 * message_rate):
             # if we are unable to get 70% of the tx rate
             run_pass = False
-        return (run_pass, res['average_packet_loss'])
+        return (run_pass, res['average_tx_rate'], res['average_packet_loss'])
 
     def stop(self):
         if self.first_test:
@@ -54,7 +54,51 @@ class TestRunner:
             self.first_test = None
 
 
-class RunSuit(object):
+class RunSuitMaxRate(object):
+    def __init__(self, argv):
+        l.info(" Starting Max Rate ....")
+        pwd = os.getcwd()
+        fname = 'zmqsuit.test.log'
+        ofile = open(pwd + '/' + fname, 'w')
+        ofile.truncate()
+        ofile.write('Starting at :' + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '\n')
+        # def options = lambda: None  # NOQA
+
+        def options():
+            None
+        setattr(options, 'test_duration', 10)
+        setattr(options, 'msg_batch', 1000)
+        setattr(options, 'msg_rate', 10000)
+        setattr(options, 'config_file', pwd + '/hydra.ini')
+        setattr(options, 'keep_running', False)
+
+        # Parameters
+        # client_set = [10, 20]
+        client_set = [10, 20, 40, 80, 160, 500, 1000, 2000, 4000, 8000]
+        self.first_test = None
+        for client_count in client_set:
+            setattr(options, 'total_sub_apps', int(client_count / 10))
+            if not self.first_test:
+                runner = TestRunner(options, None)
+                self.first_test = runner
+                self.first_test.r.start_appserver()
+            else:
+                runner = TestRunner(options, None)
+            if client_count < 100:
+                scanner = Scanner(runner.run, 10000, 50)
+            else:
+                scanner = Scanner(runner.run, 500, 50)
+            (status, rate, drop) = scanner.find_max_rate()
+            l.info("Found for Client Count %d Max message Rate %d with drop %f" %
+                   (client_count, rate, drop))
+            # Delete all launched apps once the required drop is achieved for this set
+            runner.r.delete_all_launched_apps()
+        self.first_test.r.stop_appserver()
+        l.info("TestSuite Compleated.")
+        sys.exit(0)
+
+
+class RunSuitPacketDrop(object):
     def __init__(self, argv):
         l.info(" Starting ....")
         pwd = os.getcwd()
@@ -66,28 +110,30 @@ class RunSuit(object):
 
         def options():
             None
-        setattr(options, 'test_duration', 15)
+        setattr(options, 'test_duration', 10)
         setattr(options, 'msg_batch', 1000)
         setattr(options, 'msg_rate', 10000)
         setattr(options, 'config_file', pwd + '/hydra.ini')
+        setattr(options, 'keep_running', False)
 
-        # Parameters
-        client_set = [100, 200]
-        drop_percentage_set = [10]
+        # drop_percentage_set = [0, 5, 10, 20]
+        # client_set = [10, 20]
+        client_set = [10, 20, 40, 80, 160, 500, 1000, 2000, 4000, 8000]
+        drop_percentage_set = [0, 10]
         self.first_test = None
-        self
         for client_count in client_set:
-            setattr(options, 'total_sub_apps', client_count)
+            setattr(options, 'total_sub_apps', int(client_count / 10))
             if not self.first_test:
                 runner = TestRunner(options, None)
                 self.first_test = runner
                 self.first_test.r.start_appserver()
             else:
                 runner = TestRunner(options, None)
-            if client_count < 50:
+            if client_count < 100:
                 scanner = Scanner(runner.run, 10000, 50)
             else:
-                scanner = Scanner(runner.run, 1000, 50)
+                scanner = Scanner(runner.run, 500, 50)
+
             for drop_percentage in drop_percentage_set:
                 (status, step_cnt, res) = scanner.search(drop_percentage)
                 if status:
@@ -98,5 +144,13 @@ class RunSuit(object):
                            (client_count, drop_percentage, res))
                     # If there is a failure to achieve higher rates let's not do more runs with the same client count
                     break
+            # Delete all launched apps once the required drop is achieved for this set
+            runner.r.delete_all_launched_apps()
         self.first_test.r.stop_appserver()
+        l.info("TestSuite Compleated.")
         sys.exit(0)
+
+
+def RunSuit(argv):  # NOQA
+    return RunSuitMaxRate(argv)
+    # return RunSuitPacketDrop(argv)
