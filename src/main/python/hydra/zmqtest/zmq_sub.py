@@ -15,13 +15,21 @@ l = util.createlogger('HSub', logging.INFO)
 class HDZmqsRepSrv(HDaemonRepSrv):
     def __init__(self, port, run_data):
         self.run_data = run_data
+        self.msg_cnt = 0  # message count, other option is global, making progress
         HDaemonRepSrv.__init__(self, port)
         self.register_fn('stats', self.get_stats)
+        self.register_fn('reset', self.reset_stats)
 
     def get_stats(self, args):
         self.run_data['rate'] = self.run_data['msg_cnt'] / (
             self.run_data['last_msg_time'] - self.run_data['first_msg_time'])
         return ('ok', self.run_data)
+
+    def reset_stats(self, args):
+        l.info("RESETTING SUB STATS")
+        self.run_data = {'msg_cnt': 0, 'first_msg_time': 0, 'last_msg_time': 0}
+        self.msg_cnt = 0
+        return ('ok', 'stats reset')
 
 
 def run10(argv):
@@ -67,23 +75,15 @@ def run(argv):
     l.info("SUB client succesfully connected to PUB server at [%s:%s]" % (pub_ip, pub_port))
     socket.setsockopt(zmq.SUBSCRIBE, topicfilter)
 
-    # SK:Not sure what the purpose of adding client id is, The receiver can easily categorise based on who they
-    # received the data from, Disabling it for now, will add again if needed.
-    # Ideally socket will have a method to return client id, skimming through
-    # /usr/lib/python2.7/dist-packages/zmq/sugar/socket.py didnt yield a quick soln.. hacking...
-    # client_id = str(socket)
-    # client_id = client_id[client_id.rfind("0x") + 2:len(client_id) - 1]
-    # run_data[client_id] = {'msg_cnt':0, 'first_msg_time':0 , 'last_msg_time': 0}
-    # l.info("Client id [%s] initiating receive" % client_id)
-    cnt = 0
+    hd.msg_cnt = 0
     while True:
         string = socket.recv()
-        cnt = cnt + 1
-        if run_data['first_msg_time'] == 0:
-            run_data['first_msg_time'] = time.time()
+        hd.msg_cnt = hd.msg_cnt + 1
+        if hd.run_data['first_msg_time'] == 0:
+            hd.run_data['first_msg_time'] = time.time()
         index, messagedata = string.split()
         # l.info("%s, %s", index, messagedata)
         # Update data for THIS client, later to be queried
         # TODO: Add checks on index and message data.
-        run_data['msg_cnt'] = cnt
-        run_data['last_msg_time'] = time.time()
+        hd.run_data['msg_cnt'] = hd.msg_cnt
+        hd.run_data['last_msg_time'] = time.time()

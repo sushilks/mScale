@@ -45,6 +45,7 @@ class HAnalyser(object):
         return (r[0], r[1])
 
     def do_ping(self):
+        # TODO: (ABdullahS) See if it makes sense to reset the client here
         (status, response) = self.do_req_resp('ping')
         return (status == 'ok') and (response == 'pong')
 
