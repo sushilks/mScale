@@ -4,6 +4,7 @@ import zmq
 import time
 import logging
 import os
+import psutil
 from pprint import pprint, pformat   # NOQA
 from hydra.lib import util
 from hydra.lib.hdaemon import HDaemonRepSrv
@@ -22,11 +23,17 @@ class HDZmqpRepSrv(HDaemonRepSrv):
         self.register_fn('updatepub', self.update_pub_metrics)
 
     def start_test(self, args):
+        process = psutil.Process()
         self.run_data['start'] = True
         self.run_data['test_status'] = False
+        self.run_data['stats']['net'] = {'start': psutil.net_io_counters()}
+        self.run_data['stats']['cpu'] = {'start': process.cpu_times()}
+        self.run_data['stats']['mem'] = {'start': process.memory_info()}
+        self.run_data['stats']['time'] = {'start': time.time()}
         return ('ok', None)
 
     def get_stats(self, args):
+        l.info("Sending Stats:" + pformat(self.run_data['stats']))
         return ('ok', self.run_data['stats'])
 
     def test_status(self, args):
@@ -111,9 +118,15 @@ def run(argv):
             elapsed_time = time.time() - start_time
             if elapsed_time >= hd.test_duration:
                 break
+        run_data['stats']['time']['end'] = time.time()
         run_data['stats']['rate'] = msg_cnt / elapsed_time
         run_data['stats']['count'] = msg_cnt
+        process = psutil.Process()
+        run_data['stats']['net']['end'] = psutil.net_io_counters()
+        run_data['stats']['cpu']['end'] = process.cpu_times()
+        run_data['stats']['mem']['end'] = process.memory_info()
         run_data['test_status'] = True
+        # Go back to waiting for the next test
         run_data['start'] = False
         continue
         pub_socket.close()

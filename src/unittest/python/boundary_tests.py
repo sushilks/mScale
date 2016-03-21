@@ -121,6 +121,39 @@ class ScannerUnitTest(unittest.TestCase):
         self.assertEqual(step_cnt, 9)
         self.assertTrue(abs(res - 994) < 100)
 
+    def test11(self):
+        return True
+        data = [(500, 979, 0.0), (1000, 1016, 0.0), (2000, 2014, 0.0), (4000, 4013, 0.0),
+                (8000, 8009, 0.0), (16000, 16005, 0.0), (32000, 23077, 14.49),
+                (24000, 23957, 0.18), (28000, 24188, 13.17), (26000, 24570, 4.88),
+                (27000, 24521, 8.92), (27500, 27357, 0.0), (27750, 26011, 5.54),
+                (27875, 27606, 0.97), (27937, 26301, 4.4)]
+
+        def tfn1(val):
+            # create a random function
+            r = random.randint(10, 100)
+            if (val + r) > 1000:
+                return 10
+            return 0
+
+        def tfn2(val):
+            # create a random function
+            r = random.randint(10, 500)
+            if (val + r) > 10000:
+                return 20
+            return 10
+        self.mocgen.set_expected_responsefn(1000, tfn1)
+        self.mocgen.set_expected_responsefn(10000, tfn2)
+        (sts, step_cnt, res) = self.scanner.search(15)
+        # pprint("----> step_cnt %d res %d" % (step_cnt, res))
+        self.assertEqual(step_cnt, 16)
+        self.assertTrue(abs(res - 9994) < 100)
+        (sts, step_cnt, res) = self.scanner.search(5)
+        # pprint("----> step_cnt %d res %d" % (step_cnt, res))
+        self.assertEqual(step_cnt, 9)
+        self.assertTrue(abs(res - 994) < 100)
+        pprint(pformat(data))
+
 
 if __name__ == '__main__':
     unittest.main()

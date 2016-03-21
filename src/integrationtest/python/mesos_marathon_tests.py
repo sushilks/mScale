@@ -8,6 +8,7 @@ import numbers
 import requests
 import time
 import zmq
+import os
 
 from pprint import pprint, pformat
 from hydra.lib.runtestbase import RunTestBase
@@ -54,7 +55,8 @@ class hydraUnitTest(unittest.TestCase):  # NOQA
         # print("SETUP CLASS CALLED")
         # rt = cls()
         # cls._rt = .init('basicTest', 'hydra.ini')
-        cls.runtest = RunTestBase('basicTest', config_filename='hydra.ini',
+        pwd = os.getcwd()
+        cls.runtest = RunTestBase('basicTest', config_filename=pwd + '/hydra.ini',
                                   startappserver=False)
         # return rt
 

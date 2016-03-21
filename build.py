@@ -32,6 +32,7 @@ def set_properties(project):
     project.build_depends_on('netifaces')
     # project.build_depends_on('logging')
     project.build_depends_on('docopt')
+    project.build_depends_on('psutil')
     project.build_depends_on('pep8-naming')
 
     project.set_property('copy_resources_target', '$dir_dist')

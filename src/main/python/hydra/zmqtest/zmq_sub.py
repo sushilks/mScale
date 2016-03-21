@@ -4,6 +4,7 @@ import zmq
 import logging
 import os
 import time
+import psutil
 from hydra.lib import util
 from hydra.lib.hdaemon import HDaemonRepSrv
 from hydra.lib.childmgr import ChildManager
@@ -21,13 +22,21 @@ class HDZmqsRepSrv(HDaemonRepSrv):
         self.register_fn('reset', self.reset_stats)
 
     def get_stats(self, args):
+        process = psutil.Process()
+        self.run_data['stats']['net']['end'] = psutil.net_io_counters()
+        self.run_data['stats']['cpu']['end'] = process.cpu_times()
+        self.run_data['stats']['mem']['end'] = process.memory_info()
         self.run_data['rate'] = self.run_data['msg_cnt'] / (
             self.run_data['last_msg_time'] - self.run_data['first_msg_time'])
         return ('ok', self.run_data)
 
     def reset_stats(self, args):
         l.info("RESETTING SUB STATS")
-        self.run_data = {'msg_cnt': 0, 'first_msg_time': 0, 'last_msg_time': 0}
+        process = psutil.Process()
+        self.run_data = {'msg_cnt': 0, 'first_msg_time': 0, 'last_msg_time': 0, 'stats': {}}
+        self.run_data['stats']['net'] = {'start': psutil.net_io_counters()}
+        self.run_data['stats']['cpu'] = {'start': process.cpu_times()}
+        self.run_data['stats']['mem'] = {'start': process.memory_info()}
         self.msg_cnt = 0
         return ('ok', 'stats reset')
 
@@ -61,8 +70,9 @@ def run(argv):
 
     # Initalize HDaemonRepSrv
     sub_rep_port = os.environ.get('PORT0')
-    run_data = {'msg_cnt': 0, 'first_msg_time': 0, 'last_msg_time': 0}
+    run_data = {}
     hd = HDZmqsRepSrv(sub_rep_port, run_data)
+    hd.reset_stats(None)
     hd.run()
 
     # Socket to SUB to PUB server
