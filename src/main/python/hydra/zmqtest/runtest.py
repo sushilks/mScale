@@ -57,8 +57,10 @@ class ZMQSubAnalyser(HAnalyser):
     def __init__(self, server_ip, server_port):
         HAnalyser.__init__(self, server_ip, server_port)
 
-    def get_stats(self):
+    def get_stats(self, task_id):
         (status, resp) = self.do_req_resp('stats', 0)
+        if (status != 'ok'):
+            l.info("Failed to get stats from task_id=" + task_id)
         assert(status == 'ok')
         return resp
 
@@ -70,35 +72,39 @@ class ZMQSubAnalyser(HAnalyser):
 
 class RunTestZMQ(RunTestBase):
     def __init__(self, options, runtest=True):
-        self.test_duration = options.test_duration
-        self.msg_batch = options.msg_batch
-        self.msg_rate = options.msg_rate
-        self.total_sub_apps = options.total_sub_apps
-        self.config_file = options.config_file
-        self.keep_running = options.keep_running
+        self.options = options
+        # self.test_duration = options.test_duration
+        # self.msg_batch = options.msg_batch
+        # self.msg_rate = options.msg_rate
+        # self.total_sub_apps = options.total_sub_apps
+        # self.config_file = options.config_file
+        # self.keep_running = options.keep_running
 
         self.config = ConfigParser()
-        config_fn = self.config_file
+        config_fn = options.config_file
         RunTestBase.__init__(self, 'zmqScale', self.config, config_fn, startappserver=runtest)
         self.zstpub = '/zst-pub'
         self.zstsub = '/zst-sub'
         self.add_appid(self.zstpub)
         self.add_appid(self.zstsub)
+        self.boundary_setup(self.options, 'msg_rate', self.boundary_resultfn)
         if runtest:
             self.run_test()
             self.stop_appserver()
 
-    def update_metrics_run_test(self, options):
-        self.test_duration = options.test_duration
-        self.msg_batch = options.msg_batch
-        self.msg_rate = options.msg_rate
+    def rerun_test(self, options):
+        self.options = options
+        self.boundary_setup(self.options, 'msg_rate', self.boundary_resultfn)
+        # self.test_duration = options.test_duration
+        # self.msg_batch = options.msg_batch
+        # self.msg_rate = options.msg_rate
         l.info("Updating test metrics: test_duration=%s, msg_batch=%s, msg_rate=%s",
-               self.test_duration, self.msg_batch, self.msg_rate)
+               self.options.test_duration, self.options.msg_batch, self.options.msg_rate)
 
         # Update the PUB server with new metrics
-        pub_metrics = {'test_duration': self.test_duration,
-                       'msg_batch': self.msg_batch,
-                       'msg_requested_rate': self.msg_rate}
+        pub_metrics = {'test_duration': self.options.test_duration,
+                       'msg_batch': self.options.msg_batch,
+                       'msg_requested_rate': self.options.msg_rate}
         self.ha_pub.update_pub_metrics(pub_metrics)
         l.info("PUB server updated")
 
@@ -118,12 +124,26 @@ class RunTestZMQ(RunTestBase):
         all_clients = self.all_sub_clients_info.items()
         return self.result_parser(all_clients, pub_data)
 
-    def run_test(self, start_appserver=True):
+    def run_test(self, first_run=True):
         self.start_init()
-        if start_appserver:
-            self.start_appserver()
+        # if first_run:
+        #    self.start_appserver()
         res = self.start_test()
         return res
+
+    def boundary_resultfn(self, options, res):
+        message_rate = options.msg_rate
+        l.info("Completed run with message rate = %d and client count=%d " %
+               (message_rate, options.total_sub_apps * 10) +
+               "Reported Rate PUB:%f SUB:%f and Reported Drop Percentage : %f" %
+               (res['average_tx_rate'], res['average_rate'], res['average_packet_loss']))
+        l.info("\t\tCompleted-2: Pub-CPU:%3f%% PUB-TX:%.2fMbps PUB-RX:%.2fMbps " %
+               (res['pub_cpu'], res['pub_net_txrate'] / 1e6, res['pub_net_rxrate'] / 1e6))
+        run_pass = True
+        if (res['average_tx_rate'] < 0.7 * message_rate):
+            # if we are unable to get 70% of the tx rate
+            run_pass = False
+        return (run_pass, res['average_rate'], res['average_packet_loss'])
 
     def stop_and_delete_all_apps(self):
         self.delete_all_launched_apps()
@@ -192,6 +212,16 @@ class RunTestZMQ(RunTestBase):
             result['failing_clients_rate'] = (bad_client_rate / bad_clients)
         result['average_packet_loss'] = \
             ((msg_cnt_pub_tx - (1.0 * clients_packet_count / result['client_count'])) * 100.0 / msg_cnt_pub_tx)
+        l.info("PUB DATA = " + pformat(pub_data))
+        pub_total_cpu = (pub_data['cpu']['end'][0] + pub_data['cpu']['end'][1] -
+                         (pub_data['cpu']['start'][0] + pub_data['cpu']['start'][1]))
+        pub_total_time = pub_data['time']['end'] - pub_data['time']['start']
+        pub_total_nw_txbytes = pub_data['net']['end'][0] - pub_data['net']['start'][0]
+        pub_total_nw_rxbytes = pub_data['net']['end'][1] - pub_data['net']['start'][1]
+        result['pub_cpu'] = 100.0 * pub_total_cpu / pub_total_time
+        result['pub_net_txrate'] = pub_total_nw_txbytes / pub_total_time
+        result['pub_net_rxrate'] = pub_total_nw_rxbytes / pub_total_time
+        l.info(" RESULTS on TEST = " + pformat(result))
         return result
 
     def launch_zmq_pub(self):
@@ -202,9 +232,9 @@ class RunTestZMQ(RunTestBase):
             constraints.append(self.app_constraints(field=self.mesos_cluster[0]['cat'],
                                                     operator='CLUSTER', value=self.mesos_cluster[0]['match']))
         self.create_hydra_app(name=self.zstpub, app_path='hydra.zmqtest.zmq_pub.run',
-                              app_args='%s %s %s %s' % (self.test_duration,
-                                                        self.msg_batch,
-                                                        self.msg_rate, self.total_sub_apps),
+                              app_args='%s %s %s %s' % (self.options.test_duration,
+                                                        self.options.msg_batch,
+                                                        self.options.msg_rate, self.options.total_sub_apps),
                               cpus=0.01, mem=32,
                               ports=[0],
                               constraints=constraints)
@@ -235,14 +265,14 @@ class RunTestZMQ(RunTestBase):
         self.wait_app_ready(self.zstsub, 1)
 
         # scale
-        l.info("Scaling sub app to [%d]", self.total_sub_apps)
-        self.scale_app(self.zstsub, self.total_sub_apps)
-        self.wait_app_ready(self.zstsub, self.total_sub_apps)
+        l.info("Scaling sub app to [%d]", self.options.total_sub_apps)
+        self.scale_app(self.zstsub, self.options.total_sub_apps)
+        self.wait_app_ready(self.zstsub, self.options.total_sub_apps)
 
         # Extract ip, rep server port for data querying
         self.sub_app_ip_rep_port_map = {}  # key = task.id, value= {port: ip}
         tasks = self.get_app_tasks(self.zstsub)
-        assert(len(tasks) == self.total_sub_apps)
+        assert(len(tasks) == self.options.total_sub_apps)
         for task in tasks:
             sub_app_ip = self.get_ip_hostname(task.host)
             for sub_app_rep_port in task.ports:
@@ -266,7 +296,7 @@ class RunTestZMQ(RunTestBase):
             ip = info[1]
             ha_sub = ZMQSubAnalyser(ip, port)
             # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-            stats = ha_sub.get_stats()
+            stats = ha_sub.get_stats(task_id)
             ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
             self.all_sub_clients_info[str(ip) + ':' + str(port)] = stats
 

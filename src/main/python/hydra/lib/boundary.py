@@ -2,8 +2,12 @@ __author__ = 'sushil'
 
 # A class to do binary search and tune one
 # parameter.
-
+import logging
 from pprint import pprint, pformat  # NOQA
+from hydra.lib import util
+
+l = util.createlogger('runTestSuit', logging.INFO)
+# l.setLevel(logging.DEBUG)
 
 
 class Scanner(object):
@@ -54,3 +58,49 @@ class Scanner(object):
                 break
             value += value
         return (True, rate, drop)
+
+    def range(self, data):
+        res = {}
+        for r in data:
+            res[r] = self.runfn(r)
+        return res
+
+
+class BoundaryRunnerBase(object):
+    def __init__(self):
+        pass
+
+    def boundary_setup(self, options, arg1name, resfn):
+        self.boundary_options = options
+        self.boundary_arg1name = arg1name
+        self.boundary_run_result = {}
+        self.boundary_first_run = False
+        self.boundary_resfn = resfn
+
+    def boundary_run(self, arg1):
+        l.info("Starting run with %s = %d" % (self.boundary_arg1name, arg1))
+        if arg1 in self.boundary_run_result:
+            res = self.boundary_run_result[arg1]
+        else:
+            setattr(self.boundary_options, self.boundary_arg1name, arg1)
+            if not self.boundary_first_run:
+                res = self.run_test(True)
+                self.boundary_first_run = True
+            else:
+                # Update existing PUB and SUBs instead of launching new
+                options = self.boundary_options
+                setattr(options, self.boundary_arg1name, arg1)
+                res = self.rerun_test(self.boundary_options)
+            self.boundary_run_result[arg1] = res
+        return self.boundary_resfn(self.boundary_options, res)
+
+    def run(self, arg1):
+        return self.boundary_run(arg1)
+
+    def run_test(self):
+        print('this method needs to be implemented in the inherited class')
+        assert(False)
+
+    def rerun_test(self):
+        print('this method needs to be implemented in the inherited class')
+        assert(False)

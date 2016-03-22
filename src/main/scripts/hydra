@@ -8,6 +8,9 @@ classPath = {
     'cli' : 'hydra.lib.cli.cli',
     'zmq' : 'hydra.zmqtest.runtest.RunTest',
     'zmqsuit': 'hydra.zmqtest.runtestsuit.RunSuit',
+    'zmqrate': 'hydra.zmqtest.maxrate_test.Run',
+    'zmqdrop': 'hydra.zmqtest.runtestsuit.RunSuitPacketDrop',
+    'zmqfixed': 'hydra.zmqtest.fixed_test.Run',
     'zmq-pub' : 'hydra.zmqtest.zmq_pub.run',
     'zmq-sub' : 'hydra.zmqtest.zmq_sub.run',
 }

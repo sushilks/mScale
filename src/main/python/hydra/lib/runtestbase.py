@@ -10,6 +10,7 @@ import traceback
 import signal
 from pprint import pprint, pformat  # NOQA
 from hydra.lib import appserver, mmapi, util
+from hydra.lib.boundary import BoundaryRunnerBase
 try:
     # Python 2.x
     from ConfigParser import ConfigParser
@@ -35,7 +36,7 @@ def debug(sig, frame):
     i.interact(message)
 
 
-class RunTestBase(object):
+class RunTestBase(BoundaryRunnerBase):
     def __init__(self, test_name, config=None, config_filename=None,
                  startappserver=True):
         if not config:
@@ -52,7 +53,7 @@ class RunTestBase(object):
         self.mydev = config.get('hydra', 'dev')
         self.myip = netifaces.ifaddresses(self.mydev)[2][0]['addr']
         self.myaddr = 'http://' + self.myip + ':' + str(self.myport)
-
+        self.config = config
         signal.signal(signal.SIGUSR1, debug)
 
         # extract cluster information
@@ -73,6 +74,7 @@ class RunTestBase(object):
         self.__mt = None
         self.appItemToUpload = ['target', 'src']
         self.appserver_init_done = False
+        BoundaryRunnerBase.__init__(self)
         if startappserver:
             self.start_appserver()
 

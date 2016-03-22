@@ -69,6 +69,7 @@ class HDaemonRepSrv(object):
                     sts, msg = fn(None)
                 else:
                     sts, msg = fn(message[1])
+                l.info("Sending Response STATUS=" + pformat(sts) + " MSG=" + pformat(msg))
                 self.send_response(sts, msg)
 
     def stop(self):
