@@ -26,7 +26,7 @@ class MocGen(object):
     def generate(self, val):
         # find the closest value to val in exp_val
         if self.verbose:
-            print ('---')
+            print('---')
         fn = self.exp_value[max(k for k in self.exp_value if k <= val)]
         res = fn(val)
         if self.verbose:
