@@ -5,6 +5,7 @@ import logging
 import os
 import time
 import psutil
+import json
 from hydra.lib import util
 from hydra.lib.hdaemon import HDaemonRepSrv
 from hydra.lib.childmgr import ChildManager
@@ -21,22 +22,23 @@ class HDZmqsRepSrv(HDaemonRepSrv):
         self.register_fn('stats', self.get_stats)
         self.register_fn('reset', self.reset_stats)
 
-    def get_stats(self, args):
+    def get_stats(self):
         process = psutil.Process()
-        self.run_data['stats']['net']['end'] = psutil.net_io_counters()
-        self.run_data['stats']['cpu']['end'] = process.cpu_times()
-        self.run_data['stats']['mem']['end'] = process.memory_info()
-        self.run_data['rate'] = self.run_data['msg_cnt'] / (
-            self.run_data['last_msg_time'] - self.run_data['first_msg_time'])
-        return ('ok', self.run_data)
+        self.run_data['stats']['net:end'] = json.dumps(psutil.net_io_counters())
+        self.run_data['stats']['cpu:end'] = json.dumps(process.cpu_times())
+        self.run_data['stats']['mem:end'] = json.dumps(process.memory_info())
+        self.run_data['stats']['rate'] = self.run_data['stats']['msg_cnt'] / (
+            self.run_data['stats']['last_msg_time'] - self.run_data['stats']['first_msg_time'])
+        return ('ok', self.run_data['stats'])
 
-    def reset_stats(self, args):
+    def reset_stats(self):
         l.info("RESETTING SUB STATS")
         process = psutil.Process()
-        self.run_data = {'msg_cnt': 0, 'first_msg_time': 0, 'last_msg_time': 0, 'stats': {}}
-        self.run_data['stats']['net'] = {'start': psutil.net_io_counters()}
-        self.run_data['stats']['cpu'] = {'start': process.cpu_times()}
-        self.run_data['stats']['mem'] = {'start': process.memory_info()}
+        self.run_data = {'stats': {}}
+        self.run_data['stats'] = {'msg_cnt': 0, 'first_msg_time': 0, 'last_msg_time': 0}
+        self.run_data['stats']['net:start'] = json.dumps(psutil.net_io_counters())
+        self.run_data['stats']['cpu:start'] = json.dumps(process.cpu_times())
+        self.run_data['stats']['mem:start'] = json.dumps(process.memory_info())
         self.msg_cnt = 0
         return ('ok', 'stats reset')
 
@@ -70,9 +72,9 @@ def run(argv):
 
     # Initalize HDaemonRepSrv
     sub_rep_port = os.environ.get('PORT0')
-    run_data = {}
+    run_data = {'stats': {}}
     hd = HDZmqsRepSrv(sub_rep_port, run_data)
-    hd.reset_stats(None)
+    hd.reset_stats()
     hd.run()
 
     # Socket to SUB to PUB server
@@ -89,11 +91,11 @@ def run(argv):
     while True:
         string = socket.recv()
         hd.msg_cnt = hd.msg_cnt + 1
-        if hd.run_data['first_msg_time'] == 0:
-            hd.run_data['first_msg_time'] = time.time()
+        if hd.run_data['stats']['first_msg_time'] == 0:
+            hd.run_data['stats']['first_msg_time'] = time.time()
         index, messagedata = string.split()
         # l.info("%s, %s", index, messagedata)
         # Update data for THIS client, later to be queried
         # TODO: Add checks on index and message data.
-        hd.run_data['msg_cnt'] = hd.msg_cnt
-        hd.run_data['last_msg_time'] = time.time()
+        hd.run_data['stats']['msg_cnt'] = hd.msg_cnt
+        hd.run_data['stats']['last_msg_time'] = time.time()

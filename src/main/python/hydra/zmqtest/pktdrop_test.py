@@ -47,9 +47,9 @@ class RunSuitPacketDrop(object):
             else:
                 runner = RunTestZMQ(options, None)
             if client_count < 100:
-                scanner = Scanner(runner.run, 10000, 50)
+                scanner = Scanner(runner.run, 10000)
             else:
-                scanner = Scanner(runner.run, 500, 50)
+                scanner = Scanner(runner.run, 500)
 
             for drop_percentage in drop_percentage_set:
                 (status, step_cnt, res) = scanner.search(drop_percentage)
@@ -68,6 +68,6 @@ class RunSuitPacketDrop(object):
         sys.exit(0)
 
 
-def RunSuit(argv):  # NOQA
+def Run(argv):  # NOQA
     RunSuitPacketDrop()
     return True

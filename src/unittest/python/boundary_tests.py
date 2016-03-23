@@ -16,6 +16,8 @@ class MocGen(object):
         self.verbose = False
 
     def set_expected_response(self, range, val):
+        if self.verbose:
+            pprint(" RANGE = " + pformat(range) + " VAL = " + pformat(val))
         self.set_expected_responsefn(range, lambda x: val)
 
     def set_expected_responsefn(self, range, fn):
@@ -23,78 +25,86 @@ class MocGen(object):
 
     def generate(self, val):
         # find the closest value to val in exp_val
+        if self.verbose:
+            print ('---')
         fn = self.exp_value[max(k for k in self.exp_value if k <= val)]
         res = fn(val)
         if self.verbose:
             print('moc1 called with ' + pformat(val) + " Resp:" + pformat(res))
         return (True, val, res)
 
-    def run_for_exp(self, test, start_dt, exp_step_correction, exp_data):
+    def run_for_exp(self, test, start_dt, exp_step_correction, exp_data, perr):
         self.set_expected_response(start_dt, 1)
-        (status, step_cnt, res) = test.scanner.search(0)
+        (status, step_cnt, res_err, res) = test.scanner.search(0, perr)
         est = math.log(start_dt, 2) + test.scanner.inital_toggle_count + exp_step_correction
-        # print("RESULT = %d/%d" % (res, start_dt) + " after %d/%d steps" %
-        # (step_cnt, test.scanner.inital_toggle_count) +
-        #      " exp_cnt = %f exp_data %d" % (est, exp_data))
+        if self.verbose:
+            print("RESULT = %d/%d" % (res, start_dt) + " after %d/%d steps" %
+                  (step_cnt, test.scanner.inital_toggle_count) +
+                  " exp_cnt = %f exp_data %d" % (est, exp_data))
         est = int(est) - 1
         test.assertEqual(step_cnt, est)
-        test.assertEqual(res, exp_data)
+        test.assertEqual(int(res + 0.5), exp_data)
         test.assertEqual(status, True)
 
 
 class ScannerUnitTest(unittest.TestCase):
     def setUp(self):
         self.mocgen = MocGen()
-        self.scanner = Scanner(self.mocgen.generate, 1000, 2)
+        self.scanner = Scanner(self.mocgen.generate, 1000)
 
     def test1(self):
         dt = 12345
-        self.mocgen.run_for_exp(self, dt, 0, dt)
+        self.mocgen.run_for_exp(self, dt, 1, dt, 0.0001)
 
     def test2(self):
         dt = 2345
-        self.mocgen.run_for_exp(self, dt, 0, dt)
+        self.mocgen.run_for_exp(self, dt, 0, 2344, 0.001)
 
     def test3(self):
         dt = 345
-        self.mocgen.run_for_exp(self, dt, 2, dt)
+        self.mocgen.run_for_exp(self, dt, 2, 344, 0.01)
 
     def test4(self):
         dt = 99999
-        self.mocgen.run_for_exp(self, dt, 0, 99998)
+        self.mocgen.run_for_exp(self, dt, -2, 99992, 0.0001)
 
     def test5(self):
         dt = 1024
-        self.mocgen.run_for_exp(self, dt, 0, 1025)
+        self.mocgen.run_for_exp(self, dt, 1, 1023, 0.001)
 
     def test6(self):
         dt = 128
-        self.mocgen.run_for_exp(self, dt, 3, 126)
+        self.mocgen.run_for_exp(self, dt, 4, dt, 0.01)
 
     def test7(self):
         dt = 2000
-        self.mocgen.run_for_exp(self, dt, 0, 1998)
+        self.mocgen.run_for_exp(self, dt, 0, 1998, 0.001)
 
     def test8(self):
         dt = 3000
-        self.mocgen.run_for_exp(self, dt, 0, 2998)
+        self.mocgen.run_for_exp(self, dt, 0, 2998, 0.001)
 
     def test9(self):
         self.mocgen.set_expected_response(10000, 1)
         self.mocgen.set_expected_response(12012, 10)
         self.mocgen.set_expected_response(13120, 20)
-        (sts, step_cnt, res) = self.scanner.search(0)
-        self.assertEqual(step_cnt, 16)
-        self.assertEqual(res, 9998)
-        (sts, step_cnt, res) = self.scanner.search(1)
-        self.assertEqual(step_cnt, 16)
-        self.assertEqual(res, 12013)
-        (sts, step_cnt, res) = self.scanner.search(5)
-        self.assertEqual(step_cnt, 16)
-        self.assertEqual(res, 12013)
-        (sts, step_cnt, res) = self.scanner.search(15)
-        self.assertEqual(step_cnt, 16)
-        self.assertEqual(res, 13119)
+        perr = 0.001
+        (sts, step_cnt, res_err, res) = self.scanner.search(0, perr)
+        self.assertEqual(step_cnt, 14)
+        res = int(res + 0.5)
+        self.assertEqual(res, 9992)
+        (sts, step_cnt, res_err, res) = self.scanner.search(1, perr)
+        self.assertEqual(step_cnt, 14)
+        res = int(res + 0.5)
+        self.assertEqual(res, 12008)
+        (sts, step_cnt, res_err, res) = self.scanner.search(5, perr)
+        self.assertEqual(step_cnt, 14)
+        res = int(res + 0.5)
+        self.assertEqual(res, 12008)
+        (sts, step_cnt, res_err, res) = self.scanner.search(15, 0.0001)
+        res = int(res + 0.5)
+        self.assertEqual(res, 13120)
+        self.assertEqual(step_cnt, 17)
 
     def test10(self):
         def tfn1(val):
@@ -112,13 +122,13 @@ class ScannerUnitTest(unittest.TestCase):
             return 10
         self.mocgen.set_expected_responsefn(1000, tfn1)
         self.mocgen.set_expected_responsefn(10000, tfn2)
-        (sts, step_cnt, res) = self.scanner.search(15)
+        (sts, step_cnt, res_err, res) = self.scanner.search(15, 0.001)
         # pprint("----> step_cnt %d res %d" % (step_cnt, res))
-        self.assertEqual(step_cnt, 16)
+        self.assertEqual(step_cnt, 14)
         self.assertTrue(abs(res - 9994) < 100)
-        (sts, step_cnt, res) = self.scanner.search(5)
+        (sts, step_cnt, res_err, res) = self.scanner.search(5, 0.0001)
         # pprint("----> step_cnt %d res %d" % (step_cnt, res))
-        self.assertEqual(step_cnt, 9)
+        self.assertEqual(step_cnt, 14)
         self.assertTrue(abs(res - 994) < 100)
 
     def test11(self):
@@ -144,11 +154,11 @@ class ScannerUnitTest(unittest.TestCase):
             return 10
         self.mocgen.set_expected_responsefn(1000, tfn1)
         self.mocgen.set_expected_responsefn(10000, tfn2)
-        (sts, step_cnt, res) = self.scanner.search(15)
+        (sts, step_cnt, res_err, res) = self.scanner.search(15)
         # pprint("----> step_cnt %d res %d" % (step_cnt, res))
         self.assertEqual(step_cnt, 16)
         self.assertTrue(abs(res - 9994) < 100)
-        (sts, step_cnt, res) = self.scanner.search(5)
+        (sts, step_cnt, res_err, res) = self.scanner.search(5)
         # pprint("----> step_cnt %d res %d" % (step_cnt, res))
         self.assertEqual(step_cnt, 9)
         self.assertTrue(abs(res - 994) < 100)
