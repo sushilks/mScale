@@ -62,6 +62,7 @@ class Scanner(object):
     def range(self, data):
         res = {}
         for r in data:
+            l.info(self.runfn)
             res[r] = self.runfn(r)
         return res
 
@@ -91,6 +92,8 @@ class BoundaryRunnerBase(object):
                 options = self.boundary_options
                 setattr(options, self.boundary_arg1name, arg1)
                 res = self.rerun_test(self.boundary_options)
+            l.info("** AFTER RE RUN, SHOULD BE TRUE  **")
+            l.info(self.boundary_first_run)
             self.boundary_run_result[arg1] = res
         return self.boundary_resfn(self.boundary_options, res)
 
