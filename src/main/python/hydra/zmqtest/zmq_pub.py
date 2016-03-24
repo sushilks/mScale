@@ -126,7 +126,7 @@ def run(argv):
         run_data['stats']['net:end'] = json.dumps(psutil.net_io_counters())
         run_data['stats']['cpu:end'] = json.dumps(process.cpu_times())
         run_data['stats']['mem:end'] = json.dumps(process.memory_info())
-        run_data['test_status'] = 'done'
+        run_data['test_status'] = 'stopping'
         # Go back to waiting for the next test
         run_data['start'] = False
         continue

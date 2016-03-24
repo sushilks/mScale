@@ -114,7 +114,10 @@ Usage:
 ```
 
 ### NOTES
-
+Mesos-Marathon Installation [LINK](https://open.mesosphere.com/getting-started/install/)
+Marathon-Python Package [LINK](http://thefactory.github.io/marathon-python/marathon.html#marathon.models.deployment.MarathonDeployment)
+Mesos Endpoint API [LINK](http://mesos.apache.org/documentation/latest/endpoints/)
+Marathon Docs [LINK](https://mesosphere.github.io/marathon/docs/)
 When working with mesos,
 
 To reset the slave and make it forget about old tasks

@@ -42,7 +42,9 @@ class ZMQPubAnalyser(HAnalyser):
                 print("Status = " + pformat(status))
                 print("resp = " + pformat(resp))
             assert(status == 'ok')
-            if resp == 'done':
+            print("Wait for testend :: Status = " + pformat(status) +
+                  "resp = " + pformat(resp))
+            if resp == 'done' or resp == 'stopping' or resp == 'stopped':
                 break
             time.sleep(5)
 
@@ -54,7 +56,8 @@ class ZMQPubAnalyser(HAnalyser):
         assert(status == 'ok')
         itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'time:start', 'time:end']
         for itm in itms:
-            resp[itm] = json.loads(resp[itm])
+            if itm in resp and type(resp[itm]) is str:
+                resp[itm] = json.loads(resp[itm])
         return resp
 
     def update_pub_metrics(self, **kwargs):
@@ -171,6 +174,10 @@ class RunTestZMQ(RunTestBase):
         self.ping_all_sub()
 
         # Signal PUB to start sending all messages, blocks until PUB notifies
+        # Update the PUB server with new metrics
+        self.ha_pub.update_pub_metrics(test_duration=self.options.test_duration,
+                                       msg_batch=self.options.msg_batch,
+                                       msg_requested_rate=self.options.msg_rate)
         pub_data = self.signal_pub_send_msgs()
         l.debug("PUB_DATA::" + pformat(pub_data))
         l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['count'],
@@ -228,11 +235,17 @@ class RunTestZMQ(RunTestBase):
             result['failing_clients_rate'] = (bad_client_rate / bad_clients)
         result['average_packet_loss'] = \
             ((msg_cnt_pub_tx - (1.0 * clients_packet_count / result['client_count'])) * 100.0 / msg_cnt_pub_tx)
-        pub_total_cpu = (pub_data['cpu:end'][0] + pub_data['cpu:end'][1] -
-                         (pub_data['cpu:start'][0] + pub_data['cpu:start'][1]))
+        if 'cpu:start' in pub_data:
+            pub_total_cpu = (pub_data['cpu:end'][0] + pub_data['cpu:end'][1] -
+                             (pub_data['cpu:start'][0] + pub_data['cpu:start'][1]))
+        else:
+            pub_total_cpu = 0
         pub_total_time = pub_data['time:end'] - pub_data['time:start']
-        pub_total_nw_txbytes = pub_data['net:end'][0] - pub_data['net:start'][0]
-        pub_total_nw_rxbytes = pub_data['net:end'][1] - pub_data['net:start'][1]
+        if 'net:start' in pub_data:
+            pub_total_nw_txbytes = pub_data['net:end'][0] - pub_data['net:start'][0]
+            pub_total_nw_rxbytes = pub_data['net:end'][1] - pub_data['net:start'][1]
+        else:
+            pub_total_nw_rxbytes = pub_total_nw_txbytes = 0
         result['pub_cpu'] = 100.0 * pub_total_cpu / pub_total_time
         result['pub_net_txrate'] = pub_total_nw_txbytes / pub_total_time
         result['pub_net_rxrate'] = pub_total_nw_rxbytes / pub_total_time
@@ -246,13 +259,21 @@ class RunTestZMQ(RunTestBase):
         if 0 in self.mesos_cluster:
             constraints.append(self.app_constraints(field=self.mesos_cluster[0]['cat'],
                                                     operator='CLUSTER', value=self.mesos_cluster[0]['match']))
-        self.create_hydra_app(name=self.zstpub, app_path='hydra.zmqtest.zmq_pub.run',
-                              app_args='%s %s %s %s' % (self.options.test_duration,
-                                                        self.options.msg_batch,
-                                                        self.options.msg_rate, self.options.total_sub_apps),
-                              cpus=0.01, mem=32,
-                              ports=[0],
-                              constraints=constraints)
+
+        if not self.options.c_pub:
+            self.create_hydra_app(name=self.zstpub, app_path='hydra.zmqtest.zmq_pub.run',
+                                  app_args='%s %s %s %s' % (self.options.test_duration,
+                                                            self.options.msg_batch,
+                                                            self.options.msg_rate, self.options.total_sub_apps),
+                                  cpus=0.01, mem=32,
+                                  ports=[0],
+                                  constraints=constraints)
+        else:
+            self.create_binary_app(name=self.zstpub,
+                                  app_script='./src/main/c/zmq/zmq_pub',
+                                  cpus=0.01, mem=32,
+                                  ports=[0],
+                                  constraints=constraints)
         self.wait_app_ready(self.zstpub, 1)
         # Find launched pub server's ip, rep PORT
         self.pub_ip = self.find_ip_uniqueapp(self.zstpub)
@@ -362,12 +383,13 @@ class RunTest(object):
                  '--config_file=<path_to_config_file> --keep_running')
         parser = OptionParser(description='zmq scale test master',
                               version="0.1", usage=usage)
-        parser.add_option("--test_duration", dest='test_duration', type='float', default=10)
+        parser.add_option("--test_duration", dest='test_duration', type='int', default=10)
         parser.add_option("--msg_batch", dest='msg_batch', type='int', default=100)
-        parser.add_option("--msg_rate", dest='msg_rate', type='float', default=10000)
+        parser.add_option("--msg_rate", dest='msg_rate', type='int', default=10000)
         parser.add_option("--total_sub_apps", dest='total_sub_apps', type='int', default=100)
         parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
         parser.add_option("--keep_running", dest='keep_running', action="store_true", default=False)
+        parser.add_option("--c_pub", dest='c_pub', action="store_true", default=False)
 
         (options, args) = parser.parse_args()
         if ((len(args) != 0)):

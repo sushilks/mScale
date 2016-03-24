@@ -8,14 +8,15 @@ from datetime import datetime
 from hydra.lib import util
 from hydra.zmqtest.runtest import RunTestZMQ
 from hydra.lib.boundary import Scanner
-
+import time
 l = util.createlogger('runTestSuit', logging.INFO)
 # l.setLevel(logging.DEBUG)
 
 
 class RunSuitFixed(object):
     def __init__(self, argv):
-        l.info(" Starting Max Rate ....")
+        l.info(" Starting Fixed Rate ....")
+        print("print Starting Fixed Rate ....")
         pwd = os.getcwd()
         fname = 'zmqsuit.test.log'
         ofile = open(pwd + '/' + fname, 'w')
@@ -34,7 +35,7 @@ class RunSuitFixed(object):
         self.first_test = None
         # Parameters
         # client_set = [5, 10, 50, 100, 200, 500, 1000, 2000, 5000, 10000]
-        client_set = [180]
+        client_set = [100]
         # client_set = [5, 10, 50, 100, 200, 400]
 
         for client_count in client_set:
@@ -57,5 +58,7 @@ class RunSuitFixed(object):
 
 
 def Run(argv):  # NOQA
-    RunSuitFixed(argv)
+    print(" START 1")
+    r = RunSuitFixed(argv)
+    print(" R = " + r)
     return True

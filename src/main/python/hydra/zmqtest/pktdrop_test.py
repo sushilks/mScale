@@ -69,5 +69,5 @@ class RunSuitPacketDrop(object):
 
 
 def Run(argv):  # NOQA
-    RunSuitPacketDrop()
+    RunSuitPacketDrop(argv)
     return True
