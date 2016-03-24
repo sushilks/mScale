@@ -56,7 +56,7 @@ class ZMQPubAnalyser(HAnalyser):
         assert(status == 'ok')
         itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'time:start', 'time:end']
         for itm in itms:
-            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):
+            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):  # NOQA
                 resp[itm] = json.loads(resp[itm])
         return resp
 
@@ -77,7 +77,7 @@ class ZMQSubAnalyser(HAnalyser):
         assert(status == 'ok')
         itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end']
         for itm in itms:
-            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):
+            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):  # NOQA
                 resp[itm] = json.loads(resp[itm])
         return resp
 
