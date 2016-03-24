@@ -30,14 +30,17 @@ class RunSuitMaxRate(object):
         setattr(options, 'msg_rate', 10000)
         setattr(options, 'config_file', pwd + '/hydra.ini')
         setattr(options, 'keep_running', False)
+        setattr(options, 'c_sub', True)
+        setattr(options, 'c_pub', True)
+
         self.first_test = None
 
         # Parameters
         # client_set = [10, 20]
         # client_set = [10, 20, 40, 80, 160, 500, 1000, 2000, 4000, 8000]
         # client_set = [5, 10, 50, 100, 200, 500, 1000, 2000, 5000, 10000]
-        # client_set = [10, 20, 40, 80, 160, 500, 1000, 2000, 4000, 8000]
-        client_set = [40, 60, 80, 100, 120, 140, 160, 180, 200]
+        client_set = [10, 20, 40, 80, 160, 500, 1000, 2000, 4000, 8000]
+        #client_set = [40, 60, 80, 100, 120, 140, 160, 180, 200]
 
         for client_count in client_set:
             setattr(options, 'total_sub_apps', int(client_count / 10))
