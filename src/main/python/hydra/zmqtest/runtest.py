@@ -271,10 +271,10 @@ class RunTestZMQ(RunTestBase):
                                   constraints=constraints)
         else:
             self.create_binary_app(name=self.zstpub,
-                                  app_script='./src/main/scripts/zmq_pub',
-                                  cpus=0.01, mem=32,
-                                  ports=[0],
-                                  constraints=constraints)
+                                   app_script='./src/main/scripts/zmq_pub',
+                                   cpus=0.01, mem=32,
+                                   ports=[0],
+                                   constraints=constraints)
         self.wait_app_ready(self.zstpub, 1)
         # Find launched pub server's ip, rep PORT
         self.pub_ip = self.find_ip_uniqueapp(self.zstpub)
@@ -290,9 +290,9 @@ class RunTestZMQ(RunTestBase):
     def launch_zmq_sub(self):
         l.info("Launching the sub app")
         constraints = []
-        t_app_path='hydra.zmqtest.zmq_sub.run10';
+        t_app_path = 'hydra.zmqtest.zmq_sub.run10'
         if not self.options.c_pub:
-            t_app_path='hydra.zmqtest.zmq_sub.run10cpp';
+            t_app_path = 'hydra.zmqtest.zmq_sub.run10cpp'
 
         # Use cluster 1 for launching the SUB
         if 1 in self.mesos_cluster:

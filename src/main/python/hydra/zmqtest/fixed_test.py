@@ -8,7 +8,7 @@ from datetime import datetime
 from hydra.lib import util
 from hydra.zmqtest.runtest import RunTestZMQ
 from hydra.lib.boundary import Scanner
-import time
+
 l = util.createlogger('runTestSuit', logging.INFO)
 # l.setLevel(logging.DEBUG)
 
