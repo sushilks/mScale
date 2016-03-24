@@ -56,7 +56,7 @@ class ZMQPubAnalyser(HAnalyser):
         assert(status == 'ok')
         itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'time:start', 'time:end']
         for itm in itms:
-            if itm in resp and type(resp[itm]) is str:
+            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):
                 resp[itm] = json.loads(resp[itm])
         return resp
 
@@ -77,7 +77,8 @@ class ZMQSubAnalyser(HAnalyser):
         assert(status == 'ok')
         itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end']
         for itm in itms:
-            resp[itm] = json.loads(resp[itm])
+            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):
+                resp[itm] = json.loads(resp[itm])
         return resp
 
     def reset_stats(self):
@@ -270,7 +271,7 @@ class RunTestZMQ(RunTestBase):
                                   constraints=constraints)
         else:
             self.create_binary_app(name=self.zstpub,
-                                  app_script='./src/main/c/zmq/zmq_pub',
+                                  app_script='./src/main/scripts/zmq_pub',
                                   cpus=0.01, mem=32,
                                   ports=[0],
                                   constraints=constraints)
@@ -289,11 +290,15 @@ class RunTestZMQ(RunTestBase):
     def launch_zmq_sub(self):
         l.info("Launching the sub app")
         constraints = []
+        t_app_path='hydra.zmqtest.zmq_sub.run10';
+        if not self.options.c_pub:
+            t_app_path='hydra.zmqtest.zmq_sub.run10cpp';
+
         # Use cluster 1 for launching the SUB
         if 1 in self.mesos_cluster:
             constraints.append(self.app_constraints(field=self.mesos_cluster[1]['cat'],
                                                     operator='CLUSTER', value=self.mesos_cluster[1]['match']))
-        self.create_hydra_app(name=self.zstsub, app_path='hydra.zmqtest.zmq_sub.run10',
+        self.create_hydra_app(name=self.zstsub, app_path=t_app_path,
                               app_args='%s 15556' % (self.pub_ip),  # pub_ip, pub_port
                               cpus=0.01, mem=32,
                               ports=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -390,6 +395,7 @@ class RunTest(object):
         parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
         parser.add_option("--keep_running", dest='keep_running', action="store_true", default=False)
         parser.add_option("--c_pub", dest='c_pub', action="store_true", default=False)
+        parser.add_option("--c_sub", dest='c_sub', action="store_true", default=False)
 
         (options, args) = parser.parse_args()
         if ((len(args) != 0)):

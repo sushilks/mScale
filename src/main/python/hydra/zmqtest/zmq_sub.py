@@ -43,11 +43,10 @@ class HDZmqsRepSrv(HDaemonRepSrv):
         return ('ok', 'stats reset')
 
 
-def run10(argv):
+def run10_inst(cmd):
     pwd = os.getcwd()
     l.info("CWD = " + pformat(pwd))
     cmgr = ChildManager()
-    cmd = './hydra hydra.zmqtest.zmq_sub.run'.split(' ') + argv[1:]
     cwd = None
     for idx in range(0, 10):
         myenv = os.environ.copy()
@@ -56,6 +55,16 @@ def run10(argv):
         cmgr.add_child('p' + str(idx), cmd, cwd, myenv)
     cmgr.launch_children()
     cmgr.wait()
+
+
+def run10cpp(argv):
+    cmd = './zmq_sub'.split(' ') + argv[1:]
+    run10_inst(cmd)
+
+
+def run10(argv):
+    cmd = './hydra hydra.zmqtest.zmq_sub.run'.split(' ') + argv[1:]
+    run10_inst(cmd)
 
 
 def run(argv):
