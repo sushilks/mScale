@@ -46,7 +46,7 @@ class RunSuitFixed(object):
             else:
                 runner = RunTestZMQ(options, None)
 
-            scanner = Scanner(runner.run, 500, 50)
+            scanner = Scanner(runner.run, 500)
             res = scanner.range(range(20000, 32000, 1000))
             l.info("Found for Client Count %d :" % client_count)
             l.info(" :: " + pformat(res))

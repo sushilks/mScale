@@ -1,0 +1,39 @@
+// syntax = "proto2";
+package hydra;
+// Proto for holding command messages
+//   Sent to the hdaemon running on the tests
+//   This is the primary mechanism for the master
+//   to control the test instances and collect
+//   stats after the completion of the test.
+message CommandMessage {
+ enum CommandType {
+   SUBCMD = 0;
+   STOP  = 2;
+ }
+ message  CommandArgs {
+    required string name = 1;
+    optional string strValue = 2;
+    optional int64 intValue = 3;
+    optional float floatValue = 4;
+ }
+
+ message Command {
+   required string cmd_name = 1;
+   repeated CommandArgs argument = 2;
+ }
+ required CommandType type = 1;
+ optional Command cmd = 2;
+}
+
+// Proto to hold the response type for the
+//   Command.
+message ResponseMessage {
+  message Resp {
+   required string name = 1;
+   optional string strValue = 2;
+   optional int64  intValue = 3;
+   optional float  floatValue = 4;
+  }
+  required string status = 1;
+  repeated Resp resp = 2;
+}

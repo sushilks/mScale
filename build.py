@@ -11,6 +11,7 @@ use_plugin("python.flake8")
 #use_plugin("python.coverage")
 use_plugin("python.distutils")
 use_plugin("python.pycharm")
+use_plugin("exec")
 
 name = "hydra"
 url = 'https://github.com/sushilks/hydra'
@@ -33,6 +34,7 @@ def set_properties(project):
     # project.build_depends_on('logging')
     project.build_depends_on('docopt')
     project.build_depends_on('psutil')
+    project.build_depends_on('protobuf')
     project.build_depends_on('pep8-naming')
 
     project.set_property('copy_resources_target', '$dir_dist')
@@ -46,6 +48,9 @@ def set_properties(project):
     project.set_property('flake8_verbose_output', True)
     project.set_property('flake8_break_build', True)
     project.set_property('flake8_include_test_sources', True)
+
+    project.set_property('publish_command','./make_test_exec.sh')
+
 
     project.get_property('distutils_commands').append('bdist_wheel')
     project.set_property('distutils_classifiers', [

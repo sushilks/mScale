@@ -5,6 +5,7 @@ from pprint import pprint, pformat  # NOQA
 from optparse import OptionParser
 import logging
 import time
+import json
 from hydra.lib import util
 from hydra.lib.h_analyser import HAnalyser
 from hydra.lib.runtestbase import RunTestBase
@@ -24,48 +25,60 @@ tout_10s = 10000
 
 
 class ZMQPubAnalyser(HAnalyser):
-    def __init__(self, server_ip, server_port):
-        HAnalyser.__init__(self, server_ip, server_port)
+    def __init__(self, server_ip, server_port, task_id):
+        HAnalyser.__init__(self, server_ip, server_port, task_id)
 
     def start_test(self):
         # TODO: (AbdullahS): Make sure pub actually started sending data
         l.info("Sending Start test to PUB")
-        (status, resp) = self.do_req_resp('start', timeout=tout_60s)
+        (status, resp) = self.do_req_resp(cmd='start', timeout=tout_60s)
         l.info("Start test came back with status " + pformat(status) + " resp = " + pformat(resp))
         assert(status == 'ok')
 
     def wait_for_testend(self):
         while True:
-            (status, resp) = self.do_req_resp('teststatus', tout_30s)
+            (status, resp) = self.do_req_resp(cmd='teststatus', timeout=tout_30s)
+            if status != 'ok':
+                print("Status = " + pformat(status))
+                print("resp = " + pformat(resp))
             assert(status == 'ok')
-            if resp:
+            if resp == 'done':
                 break
-            time.sleep(1)
+            time.sleep(5)
 
     def get_stats(self):
-        (status, resp) = self.do_req_resp('stats')
+        (status, resp) = self.do_req_resp(cmd='stats')
+        if status != 'ok':
+            print("Status = " + pformat(status))
+            print("resp = " + pformat(resp))
         assert(status == 'ok')
+        itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'time:start', 'time:end']
+        for itm in itms:
+            resp[itm] = json.loads(resp[itm])
         return resp
 
-    def update_pub_metrics(self, pub_metrics={}):
-        (status, resp) = self.do_req_resp('updatepub', msg_args=pub_metrics)
+    def update_pub_metrics(self, **kwargs):
+        (status, resp) = self.do_req_resp(cmd='updatepub', **kwargs)
         assert(status == 'ok')
         return resp
 
 
 class ZMQSubAnalyser(HAnalyser):
-    def __init__(self, server_ip, server_port):
-        HAnalyser.__init__(self, server_ip, server_port)
+    def __init__(self, server_ip, server_port, task_id):
+        HAnalyser.__init__(self, server_ip, server_port, task_id)
 
     def get_stats(self, task_id):
-        (status, resp) = self.do_req_resp('stats', 0)
+        (status, resp) = self.do_req_resp(cmd='stats')
         if (status != 'ok'):
             l.info("Failed to get stats from task_id=" + task_id)
         assert(status == 'ok')
+        itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end']
+        for itm in itms:
+            resp[itm] = json.loads(resp[itm])
         return resp
 
     def reset_stats(self):
-        (status, resp) = self.do_req_resp('reset', 0)
+        (status, resp) = self.do_req_resp(cmd='reset')
         assert(status == 'ok')
         return resp
 
@@ -102,10 +115,9 @@ class RunTestZMQ(RunTestBase):
                self.options.test_duration, self.options.msg_batch, self.options.msg_rate)
 
         # Update the PUB server with new metrics
-        pub_metrics = {'test_duration': self.options.test_duration,
-                       'msg_batch': self.options.msg_batch,
-                       'msg_requested_rate': self.options.msg_rate}
-        self.ha_pub.update_pub_metrics(pub_metrics)
+        self.ha_pub.update_pub_metrics(test_duration=self.options.test_duration,
+                                       msg_batch=self.options.msg_batch,
+                                       msg_requested_rate=self.options.msg_rate)
         l.info("PUB server updated")
 
         # Reset all clients stats
@@ -135,7 +147,7 @@ class RunTestZMQ(RunTestBase):
         message_rate = options.msg_rate
         l.info("Completed run with message rate = %d and client count=%d " %
                (message_rate, options.total_sub_apps * 10) +
-               "Reported Rate PUB:%f SUB:%f and Reported Drop Percentage : %f" %
+               "Reported Rate PUB:%.0f SUB:%.0f and Reported Drop Percentage : %.4f" %
                (res['average_tx_rate'], res['average_rate'], res['average_packet_loss']))
         l.info("\t\tCompleted-2: Pub-CPU:%3f%% PUB-TX:%.2fMbps PUB-RX:%.2fMbps " %
                (res['pub_cpu'], res['pub_net_txrate'] / 1e6, res['pub_net_rxrate'] / 1e6))
@@ -160,6 +172,7 @@ class RunTestZMQ(RunTestBase):
 
         # Signal PUB to start sending all messages, blocks until PUB notifies
         pub_data = self.signal_pub_send_msgs()
+        l.debug("PUB_DATA::" + pformat(pub_data))
         l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['count'],
                                                                     pub_data['rate']))
 
@@ -189,7 +202,10 @@ class RunTestZMQ(RunTestBase):
             client_rate += info['rate']
             clients_packet_count += info['msg_cnt']
             if info['msg_cnt'] != msg_cnt_pub_tx:
-                l.info("[%s] Count Mismatch Info: %s" % (client, pformat(info)))
+                if (bad_clients < 4):
+                    l.info("[%s] Count Mismatch Info: %s" % (client, pformat(info)))
+                else:
+                    l.info("[%s] Count Mismatch Suppressing details (Use DCOS to get data)." % (client))
                 bad_clients += 1
                 bad_client_rate += info['rate']
         if bad_clients > 0:
@@ -212,16 +228,15 @@ class RunTestZMQ(RunTestBase):
             result['failing_clients_rate'] = (bad_client_rate / bad_clients)
         result['average_packet_loss'] = \
             ((msg_cnt_pub_tx - (1.0 * clients_packet_count / result['client_count'])) * 100.0 / msg_cnt_pub_tx)
-        l.info("PUB DATA = " + pformat(pub_data))
-        pub_total_cpu = (pub_data['cpu']['end'][0] + pub_data['cpu']['end'][1] -
-                         (pub_data['cpu']['start'][0] + pub_data['cpu']['start'][1]))
-        pub_total_time = pub_data['time']['end'] - pub_data['time']['start']
-        pub_total_nw_txbytes = pub_data['net']['end'][0] - pub_data['net']['start'][0]
-        pub_total_nw_rxbytes = pub_data['net']['end'][1] - pub_data['net']['start'][1]
+        pub_total_cpu = (pub_data['cpu:end'][0] + pub_data['cpu:end'][1] -
+                         (pub_data['cpu:start'][0] + pub_data['cpu:start'][1]))
+        pub_total_time = pub_data['time:end'] - pub_data['time:start']
+        pub_total_nw_txbytes = pub_data['net:end'][0] - pub_data['net:start'][0]
+        pub_total_nw_rxbytes = pub_data['net:end'][1] - pub_data['net:start'][1]
         result['pub_cpu'] = 100.0 * pub_total_cpu / pub_total_time
         result['pub_net_txrate'] = pub_total_nw_txbytes / pub_total_time
         result['pub_net_rxrate'] = pub_total_nw_rxbytes / pub_total_time
-        l.info(" RESULTS on TEST = " + pformat(result))
+        l.debug(" RESULTS on TEST = " + pformat(result))
         return result
 
     def launch_zmq_pub(self):
@@ -248,7 +263,7 @@ class RunTestZMQ(RunTestBase):
         l.info("[zmq_pub] ZMQ pub server running at [%s]", self.pub_ip)
         l.info("[zmq_pub] ZMQ REP server running at [%s:%s]", self.pub_ip, self.pub_rep_taskport)
         # Init ZMQPubAnalyser
-        self.ha_pub = ZMQPubAnalyser(self.pub_ip, self.pub_rep_taskport)
+        self.ha_pub = ZMQPubAnalyser(self.pub_ip, self.pub_rep_taskport, tasks[0].id)
 
     def launch_zmq_sub(self):
         l.info("Launching the sub app")
@@ -294,7 +309,7 @@ class RunTestZMQ(RunTestBase):
         for task_id, info in self.sub_app_ip_rep_port_map.items():
             port = info[0]
             ip = info[1]
-            ha_sub = ZMQSubAnalyser(ip, port)
+            ha_sub = ZMQSubAnalyser(ip, port, task_id)
             # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
             stats = ha_sub.get_stats(task_id)
             ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
@@ -307,7 +322,7 @@ class RunTestZMQ(RunTestBase):
         for task_id, info in self.sub_app_ip_rep_port_map.items():
             port = info[0]
             ip = info[1]
-            ha = HAnalyser(ip, port)
+            ha = HAnalyser(ip, port, task_id)
             # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
             res = ha.do_ping()
             if not res:
@@ -326,7 +341,7 @@ class RunTestZMQ(RunTestBase):
         for task_id, info in sub_app_ip_rep_port_map.items():
             port = info[0]
             ip = info[1]
-            ha_sub = ZMQSubAnalyser(ip, port)
+            ha_sub = ZMQSubAnalyser(ip, port, task_id)
             # Signal it to reset all client stats
             l.debug("Resetting stats for %s:%s", ip, port)
             ha_sub.reset_stats()
@@ -359,6 +374,7 @@ class RunTest(object):
             parser.print_help()
             sys.exit(1)
         r = RunTestZMQ(options, False)
+        r.start_appserver()
         res = r.run_test()
         r.delete_all_launched_apps()
         print("RES = " + pformat(res))
