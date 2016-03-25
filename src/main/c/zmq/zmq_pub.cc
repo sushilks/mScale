@@ -19,6 +19,21 @@ class TestControl {
     msg_requested_rate = 1000;
     msg_cnt = 0;
   }
+  uint64_t start_test() {
+    floatStats.clear();
+    intStats.clear();
+    uint64_t start_time = std::time(0);
+    intStats["time:start"] = start_time;
+    msg_cnt = 0;
+    return start_time;
+  }
+  void stop_test() {
+    // do stats calculation here
+    intStats["time:end"] = std::time(0);
+    uint64_t elapsed_time = intStats["time:end"] - intStats["time:start"];
+    floatStats["rate"] = 1.0 * msg_cnt / elapsed_time;
+    intStats["count"] = msg_cnt;
+  }
   bool publishing;
   bool start_publishing;
   std::map <std::string, uint64_t> intStats;
@@ -86,18 +101,18 @@ void process_message(const std::string& msg, TestControl* tctrl, std::string* re
         if (arg.name() == "test_duration") {
           assert(arg.has_intvalue());
           tctrl->test_duration = arg.intvalue();
-          printf("    -> updatedpub test_duration=%d\n", tctrl->test_duration);
+          printf("\t    -> updatedpub test_duration=%d\n", tctrl->test_duration);
         } else if (arg.name() == "msg_batch") {
           assert(arg.has_intvalue());
           tctrl->msg_batch = arg.intvalue();
-          printf("    -> updatedpub msg_batch=%d\n", tctrl->msg_batch);
+          printf("\t    -> updatedpub msg_batch=%d\n", tctrl->msg_batch);
         } else if (arg.name() == "msg_requested_rate") {
           assert(arg.has_intvalue() || arg.has_floatvalue());
           if (arg.has_intvalue())
             tctrl->msg_requested_rate = arg.intvalue();
           else
             tctrl->msg_requested_rate = arg.floatvalue();
-          printf("    -> updatedpub msg_requested_rate=%d\n", tctrl->msg_requested_rate);
+          printf("\t    -> updatedpub msg_requested_rate=%d\n", tctrl->msg_requested_rate);
         }
       }
       rmsg.set_status("ok");
@@ -157,6 +172,11 @@ int main (void) {
   zmq::socket_t socket_rep(context, ZMQ_REP);
   zmq::socket_t socket_pub(context, ZMQ_PUB);
 
+  int hwm = 0;
+  socket_pub.setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+  //int sbuf = 1024 * 16;
+  //  socket_sub.setsockopt(ZMQ_SNDBUF, &sbuf, sizeof(sbuf));
+
   std::string strPort = std::string(getenv("PORT0"));
   printf("Starting Rep Server on port %s\n", strPort.c_str());
   fflush(NULL);
@@ -185,27 +205,17 @@ int main (void) {
         zmq::message_t reply(resp.c_str(), resp.size());
         socket_rep.send(reply);
     }
+
     if (!tctrl.publishing && tctrl.start_publishing) {
         tctrl.publishing = true;
-        tctrl.floatStats.clear();
-        tctrl.intStats.clear();
-        start_time = std::time(0);
-        tctrl.intStats["time:start"] = start_time;
+        start_time = tctrl.start_test();
         cnt = 0;
-        tctrl.msg_cnt = 0;
         printf("Starting the test\n"); fflush(NULL);
     } else if (tctrl.publishing && !tctrl.start_publishing) {
       tctrl.publishing = false;
-      // do stats calculation here
-      tctrl.intStats["time:end"] = std::time(0);
-      uint64_t elapsed_time = tctrl.intStats["time:end"] - tctrl.intStats["time:start"];
-      tctrl.floatStats["rate"] = 1.0 * tctrl.msg_cnt / elapsed_time;
-      tctrl.intStats["count"] = tctrl.msg_cnt;
-      printf(" Elaps %ld %ld %ld\n",
-             elapsed_time, tctrl.intStats["time:end"], tctrl.intStats["time:start"]);
+      tctrl.stop_test();
       printf("Stopped the test\n"); fflush(NULL);
-    }
-    if (!tctrl.publishing) {
+    } else if (!tctrl.publishing) {
       // to prevent spinning while test is idle
       sleep(1);
     }
@@ -215,8 +225,8 @@ int main (void) {
       if (cnt >= (tctrl.msg_batch-1)) {
         // check cnt and delay if needed
         if (cnt == (tctrl.msg_batch - 1))
-            break; // break once before sleep to allow poll to
-        // use up some of the delay
+           break; // break once before sleep to allow poll to
+          // use up some of the delay
           if (cnt >= tctrl.msg_batch) {
            time_t duration = std::time(0) - start_time;
            time_t exp_time = tctrl.msg_cnt / tctrl.msg_requested_rate;
@@ -241,7 +251,9 @@ int main (void) {
        zmq::message_t message(strlen(message_ch));
        memcpy(message.data(), message_ch, strlen(message_ch));
        //message.rebuild(message_ch, strlen(message_ch));
-       socket_pub.send(message);
+       rc = socket_pub.send(message);
+       if (!rc)
+         printf(" ERROR Failed to send message %s\n", message_ch);
        ++tctrl.msg_cnt;
      } // while(publishing)
    } // while(true)

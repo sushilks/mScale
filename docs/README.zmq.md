@@ -55,7 +55,7 @@ send the packet. i.e. the number of packet send by publisher = number of clients
 The last column on the table shows this number under "Publisher Packet Rate", varies around 2.5Mpps. 
 The publisher packet rate is almost linear for all the samples. 
 
-We did notice some anomaly around 80 client range with packet drops rate that's unexpected, On repeated runs 
+We did notice some change in behaviour around 80 client range with packet drops rate that's unexpected, On repeated runs 
 it was notices that the amount of drops varied across different runs however the drop was always there.
 The cpu usages during these experiments always peeked with PUB using ~200%. 
 The publisher node had a network bandwidth usage of around 50~70MBps for the duration of the tests.
@@ -66,7 +66,9 @@ I am suspecting that the drop is correlated to amount of cpu that's available be
  
  In any case the python results are useful for python implementations as around 80 client range there can be some drop 
   expected when pushing packets out at max rate.
-  
+ 
+ Keep in mind ZMQ does not guarantee delivery in pub-sub model and packet drops are expected. Here we are just 
+ characterising the drop behaviour.
 
 For this the command line is
 `>hydra zmqrate`

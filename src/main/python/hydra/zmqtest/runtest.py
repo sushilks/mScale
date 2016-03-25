@@ -39,11 +39,11 @@ class ZMQPubAnalyser(HAnalyser):
         while True:
             (status, resp) = self.do_req_resp(cmd='teststatus', timeout=tout_30s)
             if status != 'ok':
-                print("Status = " + pformat(status))
-                print("resp = " + pformat(resp))
+                l.error("Status = " + pformat(status))
+                l.error("resp = " + pformat(resp))
             assert(status == 'ok')
-            print("Wait for testend :: Status = " + pformat(status) +
-                  "resp = " + pformat(resp))
+            l.debug("Wait for testend :: Status = " + pformat(status) +
+                    "resp = " + pformat(resp))
             if resp == 'done' or resp == 'stopping' or resp == 'stopped':
                 break
             time.sleep(5)
@@ -51,8 +51,8 @@ class ZMQPubAnalyser(HAnalyser):
     def get_stats(self):
         (status, resp) = self.do_req_resp(cmd='stats')
         if status != 'ok':
-            print("Status = " + pformat(status))
-            print("resp = " + pformat(resp))
+            l.error("Status = " + pformat(status))
+            l.error("resp = " + pformat(resp))
         assert(status == 'ok')
         itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'time:start', 'time:end']
         for itm in itms:
@@ -61,6 +61,7 @@ class ZMQPubAnalyser(HAnalyser):
         return resp
 
     def update_pub_metrics(self, **kwargs):
+        l.info("Updating the test metric on pub: " + pformat(kwargs))
         (status, resp) = self.do_req_resp(cmd='updatepub', **kwargs)
         assert(status == 'ok')
         return resp
@@ -75,7 +76,8 @@ class ZMQSubAnalyser(HAnalyser):
         if (status != 'ok'):
             l.info("Failed to get stats from task_id=" + task_id)
         assert(status == 'ok')
-        itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end']
+        itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'first_msg_time',
+                'last_msg_time']
         for itm in itms:
             if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):  # NOQA
                 resp[itm] = json.loads(resp[itm])
@@ -108,6 +110,9 @@ class RunTestZMQ(RunTestBase):
         if runtest:
             self.run_test()
             self.stop_appserver()
+
+    def set_options(self, options):
+        self.options = options
 
     def rerun_test(self, options):
         self.options = options
@@ -142,6 +147,9 @@ class RunTestZMQ(RunTestBase):
 
     def run_test(self, first_run=True):
         self.start_init()
+        if hasattr(self, 'sub_app_ip_rep_port_map'):
+            # If Sub's have been launched Reset first
+            self.reset_sub_stats(self.sub_app_ip_rep_port_map)
         # if first_run:
         #    self.start_appserver()
         res = self.start_test()
@@ -170,9 +178,6 @@ class RunTestZMQ(RunTestBase):
 
         # Launch zmq sub up to self.total_sub_apps
         self.launch_zmq_sub()
-
-        # probe all the clients to see if they are ready.
-        self.ping_all_sub()
 
         # Signal PUB to start sending all messages, blocks until PUB notifies
         # Update the PUB server with new metrics
@@ -291,7 +296,7 @@ class RunTestZMQ(RunTestBase):
         l.info("Launching the sub app")
         constraints = []
         t_app_path = 'hydra.zmqtest.zmq_sub.run10'
-        if not self.options.c_pub:
+        if self.options.c_sub:
             t_app_path = 'hydra.zmqtest.zmq_sub.run10cpp'
 
         # Use cluster 1 for launching the SUB
@@ -306,6 +311,9 @@ class RunTestZMQ(RunTestBase):
         self.wait_app_ready(self.zstsub, 1)
 
         # scale
+        self.scale_sub_app()
+
+    def scale_sub_app(self):
         l.info("Scaling sub app to [%d]", self.options.total_sub_apps)
         self.scale_app(self.zstsub, self.options.total_sub_apps)
         self.wait_app_ready(self.zstsub, self.options.total_sub_apps)
@@ -320,6 +328,8 @@ class RunTestZMQ(RunTestBase):
                 self.sub_app_ip_rep_port_map[task.id + '_PORT' + str(sub_app_rep_port)] = \
                     [sub_app_rep_port, sub_app_ip]
         # l.info(self.sub_app_ip_rep_port_map)
+        # probe all the clients to see if they are ready.
+        self.ping_all_sub()
 
     def signal_pub_send_msgs(self):
         l.info("Sending signal to PUB to start sending all messages..")
@@ -332,14 +342,30 @@ class RunTestZMQ(RunTestBase):
         l.info("Attempting to fetch all client data..")
         # TODO: (AbdullahS): Add more stuff, timestamp, client ip etc
         self.all_sub_clients_info = {}  # stores a mapping of client_id: {msg_count: x}
+        first_itr = True
+        no_delay_needed_count = 0
         for task_id, info in self.sub_app_ip_rep_port_map.items():
             port = info[0]
             ip = info[1]
             ha_sub = ZMQSubAnalyser(ip, port, task_id)
             # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
             stats = ha_sub.get_stats(task_id)
+            while first_itr:
+                time.sleep(.1)
+                stats2 = ha_sub.get_stats(task_id)
+                #  if it's the first read make sure that the sub has stopped receiving data
+                if (stats['msg_cnt'] == stats2['msg_cnt']):
+                    # first_itr = False
+                    no_delay_needed_count += 1
+                    if (no_delay_needed_count > 100):
+                        # No more delays if 100 successive read's where
+                        # stable on msg_cnt
+                        first_itr = False
+                    break
+                no_delay_needed_count = 0
+                stats = stats2
             ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
-            self.all_sub_clients_info[str(ip) + ':' + str(port)] = stats
+            self.all_sub_clients_info[str(ip) + ':' + str(port)] = stats  # copy.deepcopy(stats)
 
     def ping_all_sub(self):
         l.info('Pinging all the clients to make sure they are started....')
@@ -354,6 +380,7 @@ class RunTestZMQ(RunTestBase):
             if not res:
                 l.info("Ping failed to [%s] %s:%s. removing from client list" % (task_id, ip, port))
                 remove_list.append(task_id)
+                ha.stop()
             cnt += res
             ha.stop()  # closes the ANalyser socket, can not be used anymore
 

@@ -48,7 +48,8 @@ void process_message(const std::string& msg, TestControl* tctrl, std::string* re
       rmsg.set_status("ok");
     } else if (cmd_name == "stats") {
       rmsg.set_status("ok");
-      uint64_t duration = tctrl->intStats["first_msg_time"] - tctrl->intStats["last_msg_time"];
+      //tctrl->intStats["last_msg_time"] = std::time(0);
+      float duration = tctrl->intStats["last_msg_time"] - tctrl->intStats["first_msg_time"];
       tctrl->intStats["msg_cnt"] = tctrl->msg_cnt;
       tctrl->floatStats["rate"] = 1.0 * tctrl->msg_cnt / duration;
       for (auto it = tctrl->intStats.begin();
@@ -57,6 +58,7 @@ void process_message(const std::string& msg, TestControl* tctrl, std::string* re
         r = rmsg.add_resp();
         r->set_name(it->first);
         r->set_intvalue(it->second);
+        printf(" -> STATS : Reporting Back int [%s]=%ld\n",it->first.c_str(), it->second);
       }
       for (auto it = tctrl->floatStats.begin();
            it != tctrl->floatStats.end();
@@ -64,6 +66,7 @@ void process_message(const std::string& msg, TestControl* tctrl, std::string* re
         r = rmsg.add_resp();
         r->set_name(it->first);
         r->set_floatvalue(it->second);
+        printf(" -> STATS : Reporting Back float [%s]=%f\n",it->first.c_str(), it->second);
       }
     } else {
       // INVALID COMMAND.
@@ -105,6 +108,11 @@ int main (int argc, char** argv) {
   zmq::socket_t socket_rep(context, ZMQ_REP);
   zmq::socket_t socket_sub(context, ZMQ_SUB);
 
+  /*  int hwm = 0;
+  socket_sub.setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+  int rbuf = 1024 * 16;
+  socket_sub.setsockopt(ZMQ_RCVBUF, &rbuf, sizeof(rbuf));
+  */
   std::string strPort = std::string(getenv("PORT0"));
 
 
@@ -121,6 +129,7 @@ int main (int argc, char** argv) {
   socket_rep.bind("tcp://*:" + strPort);
   socket_sub.connect("tcp://" + pub_ip + ":" + pub_port);
   socket_sub.setsockopt(ZMQ_SUBSCRIBE, "", 0);
+
 
   TestControl tctrl;
   uint32_t cnt = 0;
