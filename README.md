@@ -17,6 +17,12 @@ I used ubuntu 14.04 as base when installing and had to additional java-8 repo
 
 `sudo add-apt-repository ppa:openjdk-r/ppa`
 
+download libprotobuf7 from http://launchpadlibrarian.net/160197953/libprotobuf7_2.4.1-3ubuntu4_amd64.deb
+and install 
+
+`sudo dpkg -i ./libprotobuf7_2.4.1-3ubuntu4_amd64.deb`
+
+
 Following modification are needed on the slaves
 > Add grouping to slaves so that you can steer the workload
 > Add additional port resources
@@ -114,6 +120,13 @@ Usage:
 ```
 
 ### NOTES
+Mesos-Marathon Installation [LINK](https://open.mesosphere.com/getting-started/install/)
+
+Marathon-Python Package [LINK](http://thefactory.github.io/marathon-python/marathon.html#marathon.models.deployment.MarathonDeployment)
+
+Mesos Endpoint API [LINK](http://mesos.apache.org/documentation/latest/endpoints/)
+
+Marathon Docs [LINK](https://mesosphere.github.io/marathon/docs/)
 
 When working with mesos,
 
@@ -122,12 +135,15 @@ To reset the slave and make it forget about old tasks
 `sudo rm -rf /tmp/mesos/meta/slaves/latest`
 
 To get logs from a compleated task (Remove --completed if the task is still running)
+
 `./bin/dcos task log --completed zst-sub.e700f205-ea75-11e5-b869-42010a0a01c1 --lines=50 src/main/scripts/p0.stderr.log`
 
 TO get the content of the running task sandbox
+
 `./bin/dcos task ls  zst-sub.5907bc1f-ea15-11e5-b869-42010a0a01c1`
 
 
 To configure DCOS use the following commands
+
 `./bin/dcos config set core.mesos_master_url http://10.10.0.223:5050`
 `./bin/dcos config set marathon.url http://10.10.0.223:8080`

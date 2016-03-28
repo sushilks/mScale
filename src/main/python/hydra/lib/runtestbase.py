@@ -191,6 +191,14 @@ class RunTestBase(BoundaryRunnerBase):
                               constraints=constraints,
                               uris=[self.get_app_uri()]))
 
+    def create_binary_app(self, name, app_script, cpus, mem, ports=None, constraints=None):
+        return self.__mt.create_app(
+            name, MarathonApp(cmd=app_script,
+                              cpus=cpus, mem=mem,
+                              ports=ports,
+                              constraints=constraints,
+                              uris=[self.get_app_uri()]))
+
     def wait_app_ready(self, name, cnt):
         return self.__mt.wait_app_ready(name, cnt)
 

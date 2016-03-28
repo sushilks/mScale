@@ -83,29 +83,31 @@ class Scanner(object):
 
 class BoundaryRunnerBase(object):
     def __init__(self):
+        self.boundary_first_run = True
         pass
 
     def boundary_setup(self, options, arg1name, resfn):
         self.boundary_options = options
         self.boundary_arg1name = arg1name
         self.boundary_run_result = {}
-        self.boundary_first_run = False
         self.boundary_resfn = resfn
 
     def boundary_run(self, arg1):
-        l.info("Starting run with %s = %d" % (self.boundary_arg1name, arg1))
+        l.info("Starting run with %s = %d First_Run=%d" %
+               (self.boundary_arg1name, arg1, self.boundary_first_run))
         if arg1 in self.boundary_run_result:
             res = self.boundary_run_result[arg1]
         else:
             setattr(self.boundary_options, self.boundary_arg1name, arg1)
-            if not self.boundary_first_run:
+            if self.boundary_first_run:
                 res = self.run_test(True)
-                self.boundary_first_run = True
+                self.boundary_first_run = False
             else:
                 # Update existing PUB and SUBs instead of launching new
                 options = self.boundary_options
                 setattr(options, self.boundary_arg1name, arg1)
                 res = self.rerun_test(self.boundary_options)
+            l.info(" Run Result = " + pformat(res))
             self.boundary_run_result[arg1] = res
         return self.boundary_resfn(self.boundary_options, res)
 

@@ -56,7 +56,7 @@ class HAnalyser(object):
             rep = self.socket.recv()
         else:
             # Timed out
-            l.info("Timed out waiting for server at %s:%s" % (self.server_ip, self.port))
+            l.error("Timed out waiting for server at %s:%s" % (self.server_ip, self.port))
             return (False, {})
         self.resp_msg.ParseFromString(rep)
         l.debug("Got response %s" % self.resp_msg)
