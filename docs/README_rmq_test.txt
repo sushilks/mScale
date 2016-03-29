@@ -23,6 +23,10 @@ sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*"
 
 reference: https://www.rabbitmq.com/man/rabbitmqctl.1.man.html
 
+
+Finally install rabbitmq python client pika:
+sudo pip install pika
+
 =====================================================================================
 
 
