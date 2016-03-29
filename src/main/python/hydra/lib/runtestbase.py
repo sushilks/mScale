@@ -11,6 +11,9 @@ import signal
 from pprint import pprint, pformat  # NOQA
 from hydra.lib import appserver, mmapi, util
 from hydra.lib.boundary import BoundaryRunnerBase
+from hydra.lib.h_analyser import HAnalyser
+
+
 try:
     # Python 2.x
     from ConfigParser import ConfigParser
@@ -37,15 +40,17 @@ def debug(sig, frame):
 
 
 class RunTestBase(BoundaryRunnerBase):
-    def __init__(self, test_name, config=None, config_filename=None,
+    def __init__(self, test_name, options, config=None,
                  startappserver=True):
         if not config:
             config = ConfigParser()
-        if config_filename:
-            if not os.path.isfile(config_filename):
-                l.error("Unable to open config file %s" % config_filename)
-                raise Exception("Unable to open config file %s" % config_filename)
-            config.read(config_filename)
+        config_filename='hydra.ini'
+        if hasattr(options, 'config_file'):
+            config_filename=options.config_file
+        if not os.path.isfile(config_filename):
+            l.error("Unable to open config file %s" % config_filename)
+            raise Exception("Unable to open config file %s" % config_filename)
+        config.read(config_filename)
         self.pwd = os.getcwd()
         self.testName = test_name
         self.appserver_running = False
@@ -54,6 +59,8 @@ class RunTestBase(BoundaryRunnerBase):
         self.myip = netifaces.ifaddresses(self.mydev)[2][0]['addr']
         self.myaddr = 'http://' + self.myip + ':' + str(self.myport)
         self.config = config
+        self.options = options
+        self.apps = {}
         signal.signal(signal.SIGUSR1, debug)
 
         # extract cluster information
@@ -77,6 +84,9 @@ class RunTestBase(BoundaryRunnerBase):
         BoundaryRunnerBase.__init__(self)
         if startappserver:
             self.start_appserver()
+
+    def set_options(self, options):
+        self.options = options
 
     def start_appserver(self):
         if not self.appserver_running:
@@ -147,16 +157,6 @@ class RunTestBase(BoundaryRunnerBase):
     def get_app_tasks(self, app):
         a1 = self.__mt.get_app(app)
         return a1.tasks
-
-    def find_ip_uniqueapp(self, app):
-        a1 = self.__mt.wait_app_ready(app, 1)
-        for task in a1.tasks:
-            l.info("TASK " + task.id + " Running on host : " + task.host + ' IP = ' +
-                   self.__mesos.get_slave_ip_from_hn(task.host))
-            return self.__mesos.get_slave_ip_from_hn(task.host)
-        l.warn("Unable to find IP address for app " + app)
-        return None
-
     def get_ip_hostname(self, hostname):
         return self.__mesos.get_slave_ip_from_hn(hostname)
 
@@ -165,6 +165,8 @@ class RunTestBase(BoundaryRunnerBase):
                function_path + ' ' + arguments
 
     def delete_app(self, app, timeout=1, wait=True):
+        if app in self.apps:
+            del self.apps[app]
         a = self.__mt.get_app(app)
         if a and (a.tasks_running > 50):
             l.info("Found %d instances of old running app. Scaling down to 1" % a.tasks_running)
@@ -184,25 +186,148 @@ class RunTestBase(BoundaryRunnerBase):
         return MarathonConstraint(field=field, operator=operator, value=value)
 
     def create_hydra_app(self, name, app_path, app_args, cpus, mem, ports=None, constraints=None):
-        return self.__mt.create_app(
+        assert(name not in self.apps)
+        r =  self.__mt.create_app(
             name, MarathonApp(cmd=self.get_cmd(app_path, app_args),
                               cpus=cpus, mem=mem,
                               ports=ports,
                               constraints=constraints,
                               uris=[self.get_app_uri()]))
+        self.apps[name] = { 'app': r, 'type': 'script'}
+        self.wait_app_ready(name, 1)
+        self.refresh_app_info(name)
+        return r
 
     def create_binary_app(self, name, app_script, cpus, mem, ports=None, constraints=None):
-        return self.__mt.create_app(
+        assert(name not in self.apps)
+        r = self.__mt.create_app(
             name, MarathonApp(cmd=app_script,
                               cpus=cpus, mem=mem,
                               ports=ports,
                               constraints=constraints,
                               uris=[self.get_app_uri()]))
+        self.apps[name] = { 'app': r, 'type': 'binary'}
+        self.wait_app_ready(name, 1)
+        self.refresh_app_info(name)
+        return r
+
+    def scale_and_verify_app(self, name, scale_cnt, ping=True):
+        l.info("Scaling %s app to [%d]", name, scale_cnt)
+        assert(name in self.apps)
+        self.__scale_app(name, scale_cnt)
+        self.wait_app_ready(name, scale_cnt)
+
+        inst_cnt = self.refresh_app_info(name)
+        assert(inst_cnt == scale_cnt)
+        # probe all the clients to see if they are ready.
+        if ping:
+            self.ping_all_app_inst(name)
+
+    def reset_all_app_stats(self, name):
+        l.info("Attempting to reset client stats for %s...", name)
+        assert(name in self.apps)
+        for task_id, info in self.apps[name]['ip_port_map'].items():
+            port = info[0]
+            ip = info[1]
+            ha_sub = HAnalyser(ip, port, task_id)
+            # Signal it to reset all client stats
+            ha_sub.reset_stats()
+            ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
+
+
+    def ping_all_app_inst(self, name):
+        l.info('Pinging all the instances of %s to make sure they are started....', name)
+        cnt = 0
+        remove_list = []
+        for task_id, info in self.apps[name]['ip_port_map'].items():
+            port = info[0]
+            ip = info[1]
+            ha = HAnalyser(ip, port, task_id)
+            # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
+            res = ha.do_ping()
+            if not res:
+                l.info("Ping failed to [%s] %s:%s. removing from client list" % (task_id, ip, port))
+                remove_list.append(task_id)
+                ha.stop()
+            cnt += res
+            ha.stop()  # closes the Analyser socket, can not be used anymore
+        l.info('Done pinging all the clients. Got pong response from %d out of %d' %
+               (cnt, len(self.apps[name]['ip_port_map'].items())))
+        for item in remove_list:
+            del self.apps[name]['ip_port_map'][item]
+
+    def refresh_app_info(self, name):
+        assert(name in self.apps)
+        self.apps[name] = {'ip_port_map': {},
+                           'stats': {},
+                           'property': {}}
+        ip_port_map = self.apps[name]['ip_port_map']
+        tasks = self.get_app_tasks(name)
+        for task in tasks:
+            app_ip = self.get_ip_hostname(task.host)
+            for app_rep_port in task.ports:
+                ip_port_map[task.id + '_PORT' + str(app_rep_port)] = \
+                    [app_rep_port, app_ip]
+        return len(tasks)
+
+    def fetch_app_stats(self, name):
+        assert(name in self.apps)
+        ipm = self.apps[name]['ip_port_map']
+        self.apps[name]['stats'] = {}
+        all_sub_clients_info = {}  # stores a mapping of client_id: {msg_count: x}
+        first_itr = True
+        no_delay_needed_count = 0
+        for task_id, info in ipm.items():
+            port = info[0]
+            ip = info[1]
+            ha_sub = HAnalyser(ip, port, task_id)
+            # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
+            stats = ha_sub.get_stats()
+            while first_itr:
+                time.sleep(.1)
+                stats2 = ha_sub.get_stats()
+                #  if it's the first read make sure that the sub has stopped receiving data
+                if (stats['msg_cnt'] == stats2['msg_cnt']):
+                    # first_itr = False
+                    no_delay_needed_count += 1
+                    if (no_delay_needed_count > 40):
+                        # No more delays if 100 successive read's where
+                        # stable on msg_cnt
+                        first_itr = False
+                    break
+                no_delay_needed_count = 0
+                stats = stats2
+            ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
+            stats['task_id'] = task_id
+            self.apps[name]['stats'][str(ip) + ':' + str(port)] = stats  # copy.deepcopy(stats)
+
+
+    def get_app_ipport_map(self, name):
+        assert(name in self.apps)
+        return self.apps[name]['ip_port_map']
+
+    def get_app_stats(self, name):
+        assert(name in self.apps)
+        return self.apps[name]['stats']
+
+    def get_app_property(self, name, pname):
+        assert(name in self.apps)
+        if pname in self.apps[name]['property']:
+            return self.apps[name]['property'][pname]
+        return None
+
+    def set_app_property(self, name, key, value):
+        assert(name in self.apps)
+        self.apps[name]['property'][key] = value
+
+    def get_app_instcnt(self, name):
+        assert(name in self.apps)
+        return len(self.apps[name]['ip_port_map'])
 
     def wait_app_ready(self, name, cnt):
         return self.__mt.wait_app_ready(name, cnt)
 
-    def scale_app(self, name, cnt):
+    def __scale_app(self, name, cnt):
         return self.__mt.scale_app(name, cnt)
 
     def get_app(self, name):
@@ -219,3 +344,13 @@ class RunTestBase(BoundaryRunnerBase):
 
     def list_tasks(self, app_id, **kwargs):
         return self.__mt.list_tasks(app_id, **kwargs)
+'''
+    def find_ip_uniqueapp(self, app):
+        a1 = self.__mt.wait_app_ready(app, 1)
+        for task in a1.tasks:
+            l.info("TASK " + task.id + " Running on host : " + task.host + ' IP = ' +
+                   self.__mesos.get_slave_ip_from_hn(task.host))
+            return self.__mesos.get_slave_ip_from_hn(task.host)
+        l.warn("Unable to find IP address for app " + app)
+        return None
+'''

@@ -40,13 +40,13 @@ void process_message(const std::string& msg, TestControl* tctrl, std::string* re
       r = rmsg.add_resp();
       r->set_name("__r");
       r->set_strvalue("pong");
-    } else if (cmd_name == "reset") {
+    } else if (cmd_name == "resetstats") {
       // update test properties
       tctrl->msg_cnt = 0;
       tctrl->intStats["first_msg_time"] = 0;
       tctrl->intStats["last_msg_time"] = 0;
       rmsg.set_status("ok");
-    } else if (cmd_name == "stats") {
+    } else if (cmd_name == "getstats") {
       rmsg.set_status("ok");
       //tctrl->intStats["last_msg_time"] = std::time(0);
       float duration = tctrl->intStats["last_msg_time"] - tctrl->intStats["first_msg_time"];
@@ -162,6 +162,9 @@ int main (int argc, char** argv) {
         tctrl.intStats["first_msg_time"] = std::time(0);
       tctrl.msg_cnt++;
       tctrl.intStats["last_msg_time"] = std::time(0);
+      // To reduce the rate of receive an artificial delay can be introduced here.
+      // ....
+
     }
    } // while(true)
   return 0;

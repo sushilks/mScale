@@ -30,16 +30,46 @@ class HDaemonRepSrv(object):
     def run(self):
         l.info("spawning run thread...")
         self.register_fn('ping', self.ping_task)
+        self.register_fn('teststart', self.test_start)
+        self.register_fn('teststop', self.test_stop)
+        self.register_fn('getstats', self.get_stats)
+        self.register_fn('resetstats', self.reset_stats)
+        self.register_fn('teststatus', self.test_status)
+        self.register_fn('updateconfig', self.update_config)
         self.h_threading.start_thread(self.thread_cb, self.start)
 
     def register_fn(self, token, fn):
         l.debug("Registering function for [%s]" % token)
         if token in self.cbfn:
-            raise Exception('token [%s] is already registered' % token)
+            l.info('token [%s] is already registered' % token)
         self.cbfn[token] = fn
 
     def ping_task(self):
         return ('ok', 'pong')
+
+    def test_start(self):
+        l.info('TEST START NEED TO BE IMPLEMENTED')
+        return('ok', None)
+
+    def test_stop(self):
+        l.info('TEST STOP NEED TO BE IMPLEMENTED')
+        return('ok', None)
+
+    def test_status(self):
+        l.info('TEST STATUS NEED TO BE IMPLEMENTED')
+        return('ok', None)
+
+    def get_stats(self):
+        l.info('GET STATS NEED TO BE IMPLEMENTED')
+        return('ok', None)
+
+    def reset_stats(self):
+        l.info('RESET STATS NEED TO BE IMPLEMENTED')
+        return('ok', None)
+
+    def update_config(self):
+        l.info('UPDATE CONFIG NEED TO BE IMPLEMENTED')
+        return('ok')
 
     def send_response(self, status, msg):
         self.socket.send(json.dumps([status, msg]))

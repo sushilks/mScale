@@ -99,14 +99,29 @@ class BoundaryRunnerBase(object):
             res = self.boundary_run_result[arg1]
         else:
             setattr(self.boundary_options, self.boundary_arg1name, arg1)
-            if self.boundary_first_run:
-                res = self.run_test(True)
-                self.boundary_first_run = False
-            else:
-                # Update existing PUB and SUBs instead of launching new
-                options = self.boundary_options
-                setattr(options, self.boundary_arg1name, arg1)
-                res = self.rerun_test(self.boundary_options)
+            try_cnt = 0
+            while True:
+                try:
+                    if self.boundary_first_run:
+                        res = self.run_test(True)
+                        self.boundary_first_run = False
+                    else:
+                        # Update existing PUB and SUBs instead of launching new
+                        options = self.boundary_options
+                        setattr(options, self.boundary_arg1name, arg1)
+                        res = self.rerun_test(self.boundary_options)
+                    break
+                except:
+                    # Print all useful info
+                    e = sys.exc_info()[0]
+                    l.error("<p>EXCEPTION while running test from boundary.py  Error: %s</p>" % e)
+                    l.info("Will retry to launch the test Retry count %d" % try_cnt)
+                    self.delete_all_launched_apps()
+                    self.boundary_first_run = True
+                    try_cnt += 1
+                    if (try_cnt > 4):
+                        raise
+
             l.info(" Run Result = " + pformat(res))
             self.boundary_run_result[arg1] = res
         return self.boundary_resfn(self.boundary_options, res)
