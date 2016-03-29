@@ -86,10 +86,6 @@ class HDaemonRepSrv(object):
                     else:
                         kwargs[targ.name] = True
                 try:
-                    l.info("===============")
-                    l.info(fn)
-                    l.info(kwargs)
-                    l.info("===============")
                     sts, msghash_t = fn(**kwargs)
                 except:
                     sts = 'exception'
