@@ -6,7 +6,6 @@ import os
 import sys
 from datetime import datetime
 from hydra.lib import util
-#from hydra.zmqtest.runtest import RunTestZMQ
 from hydra.rmqtest.runtest import RunTestRMQ
 from hydra.lib.boundary import Scanner
 
@@ -28,16 +27,12 @@ class RunSuitFixed(object):
             None
         setattr(options, 'test_duration', 30)
         setattr(options, 'msg_batch', 50)
-        setattr(options, 'msg_rate', 10000)
-        setattr(options, 'total_sub_apps', 30)
+        setattr(options, 'msg_rate', 1000)
         setattr(options, 'config_file', pwd + '/hydra.ini')
         setattr(options, 'keep_running', False)
         self.first_test = None
         # Parameters
-        # client_set = [5, 10, 50, 100, 200, 500, 1000, 2000, 5000, 10000]
-        client_set = [10]
-        # client_set = [5, 10, 50, 100, 200, 400]
-
+        client_set = [100]
         for client_count in client_set:
             setattr(options, 'total_sub_apps', int(client_count / 10))
             if not self.first_test:
@@ -46,10 +41,8 @@ class RunSuitFixed(object):
                 self.first_test.start_appserver()
             else:
                 runner = RunTestRMQ(options, None)
-
-            scanner = Scanner(runner.run, 500, 50)
-            #res = scanner.range(range(20000, 32000, 1000))
-            res = scanner.range(range(10000, 20000, 2000))
+            scanner = Scanner(runner.run, 500)
+            res = scanner.range(range(10000, 14000, 2000))
             l.info("Found for Client Count %d :" % client_count)
             l.info(" :: " + pformat(res))
             runner.delete_all_launched_apps()

@@ -108,8 +108,6 @@ class BoundaryRunnerBase(object):
                 options = self.boundary_options
                 setattr(options, self.boundary_arg1name, arg1)
                 res = self.rerun_test(self.boundary_options)
-            l.info("** AFTER RE RUN, SHOULD BE TRUE  **")
-            l.info(self.boundary_first_run)
             l.info(" Run Result = " + pformat(res))
             self.boundary_run_result[arg1] = res
         return self.boundary_resfn(self.boundary_options, res)

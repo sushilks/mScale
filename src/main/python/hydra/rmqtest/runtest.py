@@ -5,11 +5,11 @@ from pprint import pprint, pformat  # NOQA
 from optparse import OptionParser
 import logging
 import time
+import json
 from hydra.lib import util
 from hydra.lib.h_analyser import HAnalyser
 from hydra.lib.runtestbase import RunTestBase
-from hydra.rmqtest.rmq_pub import run as run_rmq_pub
-from hydra.rmqtest.rmq_sub import run as run_rmq_sub
+
 try:
     # Python 2.x
     from ConfigParser import ConfigParser
@@ -32,25 +32,38 @@ class RMQPubAnalyser(HAnalyser):
     def start_test(self):
         # TODO: (AbdullahS): Make sure pub actually started sending data
         l.info("Sending Start test to PUB")
-        (status, resp) = self.do_req_resp('start', timeout=tout_60s)
+        (status, resp) = self.do_req_resp(cmd='start', timeout=tout_60s)
         l.info("Start test came back with status " + pformat(status) + " resp = " + pformat(resp))
         assert(status == 'ok')
 
     def wait_for_testend(self):
         while True:
-            (status, resp) = self.do_req_resp('teststatus', tout_30s)
+            (status, resp) = self.do_req_resp(cmd='teststatus', timeout=tout_30s)
+            if status != 'ok':
+                l.error("Status = " + pformat(status))
+                l.error("resp = " + pformat(resp))
             assert(status == 'ok')
-            if resp:
+            l.debug("Wait for testend :: Status = " + pformat(status) +
+                    "resp = " + pformat(resp))
+            if resp == 'done' or resp == 'stopping' or resp == 'stopped':
                 break
-            time.sleep(1)
+            time.sleep(5)
 
     def get_stats(self):
-        (status, resp) = self.do_req_resp('stats')
+        (status, resp) = self.do_req_resp(cmd='stats')
+        if status != 'ok':
+            l.error("Status = " + pformat(status))
+            l.error("resp = " + pformat(resp))
         assert(status == 'ok')
+        itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'time:start', 'time:end']
+        for itm in itms:
+            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):  # NOQA
+                resp[itm] = json.loads(resp[itm])
         return resp
 
-    def update_pub_metrics(self, pub_metrics={}):
-        (status, resp) = self.do_req_resp('updatepub', msg_args=pub_metrics)
+    def update_pub_metrics(self, **kwargs):
+        l.info("Updating the test metric on pub: " + pformat(kwargs))
+        (status, resp) = self.do_req_resp(cmd='updatepub', **kwargs)
         assert(status == 'ok')
         return resp
 
@@ -60,14 +73,19 @@ class RMQSubAnalyser(HAnalyser):
         HAnalyser.__init__(self, server_ip, server_port)
 
     def get_stats(self, task_id):
-        (status, resp) = self.do_req_resp('stats', 0)
+        (status, resp) = self.do_req_resp(cmd='stats')
         if (status != 'ok'):
             l.info("Failed to get stats from task_id=" + task_id)
         assert(status == 'ok')
+        itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'first_msg_time',
+                'last_msg_time']
+        for itm in itms:
+            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):  # NOQA
+                resp[itm] = json.loads(resp[itm])
         return resp
 
     def reset_stats(self):
-        (status, resp) = self.do_req_resp('reset', 0)
+        (status, resp) = self.do_req_resp(cmd='reset')
         assert(status == 'ok')
         return resp
 
@@ -89,8 +107,6 @@ class RunTestRMQ(RunTestBase):
             self.stop_appserver()
 
     def rerun_test(self, options):
-        l.info("== RE RUNNNN ====")
-        raw_input("--------------------------")
         self.options = options
         self.boundary_setup(self.options, 'msg_rate', self.boundary_resultfn)
         # self.test_duration = options.test_duration
@@ -100,10 +116,9 @@ class RunTestRMQ(RunTestBase):
                self.options.test_duration, self.options.msg_batch, self.options.msg_rate)
 
         # Update the PUB server with new metrics
-        pub_metrics = {'test_duration': self.options.test_duration,
-                       'msg_batch': self.options.msg_batch,
-                       'msg_requested_rate': self.options.msg_rate}
-        self.ha_pub.update_pub_metrics(pub_metrics)
+        self.ha_pub.update_pub_metrics(test_duration=self.options.test_duration,
+                                       msg_batch=self.options.msg_batch,
+                                       msg_requested_rate=self.options.msg_rate)
         l.info("PUB server updated")
 
         # Reset all clients stats
@@ -124,7 +139,7 @@ class RunTestRMQ(RunTestBase):
 
     def run_test(self, first_run=True):
         self.start_init()
-        #if first_run:
+        # if first_run:
         #    self.start_appserver()
         res = self.start_test()
         return res
@@ -147,24 +162,21 @@ class RunTestRMQ(RunTestBase):
         self.delete_all_launched_apps()
 
     def start_test(self):
-        l.info("== START FIRST ====")
-        raw_input("--------------------------")
-
         # Launch zmq pub
         self.launch_rmq_pub()
 
         # Launch zmq sub up to self.total_sub_apps
         self.launch_rmq_sub()
 
-        ## probe all the clients to see if they are ready.
+        # probe all the clients to see if they are ready.
         self.ping_all_sub()
 
-        ## Signal PUB to start sending all messages, blocks until PUB notifies
+        # Signal PUB to start sending all messages, blocks until PUB notifies
         pub_data = self.signal_pub_send_msgs()
         l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['count'],
                                                                     pub_data['rate']))
 
-        ##  Fetch all client SUB data
+        #  Fetch all client SUB data
         self.fetch_all_sub_clients_data()
 
         l.info("Successfully finished gathering all data")
@@ -213,16 +225,21 @@ class RunTestRMQ(RunTestBase):
             result['failing_clients_rate'] = (bad_client_rate / bad_clients)
         result['average_packet_loss'] = \
             ((msg_cnt_pub_tx - (1.0 * clients_packet_count / result['client_count'])) * 100.0 / msg_cnt_pub_tx)
-        l.info("PUB DATA = " + pformat(pub_data))
-        pub_total_cpu = (pub_data['cpu']['end'][0] + pub_data['cpu']['end'][1] -
-                         (pub_data['cpu']['start'][0] + pub_data['cpu']['start'][1]))
-        pub_total_time = pub_data['time']['end'] - pub_data['time']['start']
-        pub_total_nw_txbytes = pub_data['net']['end'][0] - pub_data['net']['start'][0]
-        pub_total_nw_rxbytes = pub_data['net']['end'][1] - pub_data['net']['start'][1]
+        if 'cpu:start' in pub_data:
+            pub_total_cpu = (pub_data['cpu:end'][0] + pub_data['cpu:end'][1] -
+                             (pub_data['cpu:start'][0] + pub_data['cpu:start'][1]))
+        else:
+            pub_total_cpu = 0
+        pub_total_time = pub_data['time:end'] - pub_data['time:start']
+        if 'net:start' in pub_data:
+            pub_total_nw_txbytes = pub_data['net:end'][0] - pub_data['net:start'][0]
+            pub_total_nw_rxbytes = pub_data['net:end'][1] - pub_data['net:start'][1]
+        else:
+            pub_total_nw_rxbytes = pub_total_nw_txbytes = 0
         result['pub_cpu'] = 100.0 * pub_total_cpu / pub_total_time
         result['pub_net_txrate'] = pub_total_nw_txbytes / pub_total_time
         result['pub_net_rxrate'] = pub_total_nw_rxbytes / pub_total_time
-        l.info(" RESULTS on TEST = " + pformat(result))
+        l.debug(" RESULTS on TEST = " + pformat(result))
         return result
 
     def launch_rmq_pub(self):
@@ -280,7 +297,7 @@ class RunTestRMQ(RunTestBase):
             for sub_app_rep_port in task.ports:
                 self.sub_app_ip_rep_port_map[task.id + '_PORT' + str(sub_app_rep_port)] = \
                     [sub_app_rep_port, sub_app_ip]
-        l.info(self.sub_app_ip_rep_port_map)
+        # l.info(self.sub_app_ip_rep_port_map)
 
     def signal_pub_send_msgs(self):
         l.info("Sending signal to PUB to start sending all messages..")

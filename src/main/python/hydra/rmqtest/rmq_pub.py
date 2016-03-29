@@ -1,15 +1,16 @@
 __author__ = 'AbdullahS'
 
-import zmq
 import time
 import logging
 import os
 import psutil
 import pika
+import json
 from pprint import pprint, pformat   # NOQA
 from hydra.lib import util
 from hydra.lib.hdaemon import HDaemonRepSrv
 l = util.createlogger('HPub', logging.INFO)
+# l = util.createlogger('HPub', logging.DEBUG)
 
 
 class HDRmqpRepSrv(HDaemonRepSrv):
@@ -23,22 +24,21 @@ class HDRmqpRepSrv(HDaemonRepSrv):
         self.register_fn('teststatus', self.test_status)
         self.register_fn('updatepub', self.update_pub_metrics)
 
-    def start_test(self, args):
+    def start_test(self):
         process = psutil.Process()
-        self.msg_cnt = 0
         self.run_data['start'] = True
-        self.run_data['test_status'] = False
-        self.run_data['stats']['net'] = {'start': psutil.net_io_counters()}
-        self.run_data['stats']['cpu'] = {'start': process.cpu_times()}
-        self.run_data['stats']['mem'] = {'start': process.memory_info()}
-        self.run_data['stats']['time'] = {'start': time.time()}
+        self.run_data['test_status'] = 'running'
+        self.run_data['stats'] = {'net:start': json.dumps(psutil.net_io_counters()),
+                                  'cpu:start': json.dumps(process.cpu_times()),
+                                  'mem:start': json.dumps(process.memory_info()),
+                                  'time:start': json.dumps(time.time())}
         return ('ok', None)
 
-    def get_stats(self, args):
+    def get_stats(self):
         l.info("Sending Stats:" + pformat(self.run_data['stats']))
         return ('ok', self.run_data['stats'])
 
-    def test_status(self, args):
+    def test_status(self):
         return ('ok', self.run_data['test_status'])
 
     def init_pub_metrics(self):
@@ -47,10 +47,10 @@ class HDRmqpRepSrv(HDaemonRepSrv):
         self.msg_batch = self.pub_metrics['msg_batch']
         self.msg_requested_rate = self.pub_metrics['msg_requested_rate']
 
-    def update_pub_metrics(self, args):
-        self.test_duration = float(args['test_duration'])
-        self.msg_batch = int(args['msg_batch'])
-        self.msg_requested_rate = float(args['msg_requested_rate'])
+    def update_pub_metrics(self, test_duration, msg_batch, msg_requested_rate):
+        self.test_duration = float(test_duration)
+        self.msg_batch = int(msg_batch)
+        self.msg_requested_rate = float(msg_requested_rate)
         l.info("PUB updated metrics: test_duration=%f, msg_batch=%f, msg_requested_rate=%f", self.test_duration,
                self.msg_batch, self.msg_requested_rate)
         return ('ok', None)
@@ -81,7 +81,7 @@ def run(argv):
     l.info("Starting RabbitMQ REP server at port [%s]", pub_rep_port)
     run_data = {'start': False,
                 'stats': {'rate': 0, 'count': 0},
-                'test_status': False}
+                'test_status': 'stopped'}
     pub_metrics = {'test_duration': test_duration,
                    'msg_batch': msg_batch,
                    'msg_requested_rate': msg_requested_rate}
@@ -96,18 +96,19 @@ def run(argv):
         l.info("PUB server initiating test_duration [%f] messages, with batches [%d] with msg rate[%f]",
                hd.test_duration, hd.msg_batch, hd.msg_requested_rate)
         cnt = 0
+        msg_cnt = 0
         start_time = time.time()
         while True:
-            messagedata = "msg%d" % hd.msg_cnt
-            message = "%d %s" % (hd.msg_cnt, messagedata)
+            messagedata = "msg%d" % msg_cnt
+            message = "%d %s" % (msg_cnt, messagedata)
             channel.basic_publish(exchange='pub', routing_key='', body=message)
             # l.info(message)
             cnt += 1
-            hd.msg_cnt += 1
+            msg_cnt += 1
             if cnt >= hd.msg_batch:
                 # compute the delay
                 duration = time.time() - start_time
-                expected_time = hd.msg_cnt / hd.msg_requested_rate
+                expected_time = msg_cnt / hd.msg_requested_rate
                 delay = 0.0
                 if expected_time > duration:
                     delay = expected_time - duration
@@ -118,18 +119,18 @@ def run(argv):
             elapsed_time = time.time() - start_time
             if elapsed_time >= hd.test_duration:
                 break
-        run_data['stats']['time']['end'] = time.time()
-        run_data['stats']['rate'] = hd.msg_cnt / elapsed_time
-        run_data['stats']['count'] = hd.msg_cnt
+        run_data['stats']['time:end'] = json.dumps(time.time())
+        run_data['stats']['rate'] = msg_cnt / elapsed_time
+        run_data['stats']['count'] = msg_cnt
         process = psutil.Process()
-        run_data['stats']['net']['end'] = psutil.net_io_counters()
-        run_data['stats']['cpu']['end'] = process.cpu_times()
-        run_data['stats']['mem']['end'] = process.memory_info()
-        run_data['test_status'] = True
+        run_data['stats']['net:end'] = json.dumps(psutil.net_io_counters())
+        run_data['stats']['cpu:end'] = json.dumps(process.cpu_times())
+        run_data['stats']['mem:end'] = json.dumps(process.memory_info())
+        run_data['test_status'] = 'stopping'
         # Go back to waiting for the next test
         run_data['start'] = False
         continue
         r_pub_conn.close()
         l.info("PUB Server stopping after sending %d messages elapsed time %f and message rate %f" %
-               (hd.msg_cnt, elapsed_time, run_data['stats']['rate']))
+               (msg_cnt, elapsed_time, run_data['stats']['rate']))
         break

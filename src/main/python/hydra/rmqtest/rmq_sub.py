@@ -1,6 +1,5 @@
 __author__ = 'AbdullahS'
 
-import zmq
 import logging
 import os
 import time
@@ -15,14 +14,13 @@ l = util.createlogger('HSub', logging.INFO)
 
 
 class HDRmqsRepSrv(HDaemonRepSrv):
-    def __init__(self, port, run_data):
-        self.run_data = run_data
+    def __init__(self, port):
         self.msg_cnt = 0  # message count, other option is global, making progress
         HDaemonRepSrv.__init__(self, port)
         self.register_fn('stats', self.get_stats)
         self.register_fn('reset', self.reset_stats)
 
-    def get_stats(self, args):
+    def get_stats(self):
         process = psutil.Process()
         self.run_data['stats']['net']['end'] = psutil.net_io_counters()
         self.run_data['stats']['cpu']['end'] = process.cpu_times()
@@ -31,7 +29,7 @@ class HDRmqsRepSrv(HDaemonRepSrv):
             self.run_data['last_msg_time'] - self.run_data['first_msg_time'])
         return ('ok', self.run_data)
 
-    def reset_stats(self, args):
+    def reset_stats(self):
         l.info("RESETTING SUB STATS")
         process = psutil.Process()
         self.run_data = {'msg_cnt': 0, 'first_msg_time': 0, 'last_msg_time': 0, 'stats': {}}
@@ -47,7 +45,7 @@ class HDRmqsRepSrv(HDaemonRepSrv):
             self.run_data['first_msg_time'] = time.time()
         index, messagedata = body.split()
         # l.info("%s, %s", index, messagedata)
-        ## Update data for THIS client, later to be queried
+        # Update data for THIS client, later to be queried
         self.run_data['msg_cnt'] = self.msg_cnt
         self.run_data['last_msg_time'] = time.time()
 
@@ -78,9 +76,8 @@ def run(argv):
 
     # Initalize HDaemonRepSrv
     sub_rep_port = os.environ.get('PORT0')
-    run_data = {}
-    hd = HDRmqsRepSrv(sub_rep_port, run_data)
-    hd.reset_stats(None)
+    hd = HDRmqsRepSrv(sub_rep_port)
+    hd.reset_stats()
     hd.run()
 
     l.info("RabbitMQ SUB client connecting to RabbitMQ PUB server at [%s]" % (pub_ip))
