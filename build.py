@@ -36,6 +36,7 @@ def set_properties(project):
     project.build_depends_on('psutil')
     project.build_depends_on('protobuf')
     project.build_depends_on('pep8-naming')
+    project.build_depends_on('pika')
 
     project.set_property('copy_resources_target', '$dir_dist')
     project.get_property('copy_resources_glob').append('LICENSE')

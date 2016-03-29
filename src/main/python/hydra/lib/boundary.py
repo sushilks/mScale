@@ -77,6 +77,7 @@ class Scanner(object):
     def range(self, data):
         res = {}
         for r in data:
+            l.info(self.runfn)
             res[r] = self.runfn(r)
         return res
 
