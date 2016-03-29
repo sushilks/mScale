@@ -63,15 +63,22 @@ class Scanner(object):
     def find_max_rate(self):
         value = self.start_value
         max_value_rate = None
+        last_rate = 0.1
         while True:
             (status, rate, drop) = self.runfn(value)
             if not max_value_rate or max_value_rate < rate:
                 max_value_rate = rate
                 max_value_drop = drop
-            if rate < value * 0.7:
+            if (1.0 * (rate - last_rate) / last_rate) < 0.1:
+            #if rate < value * 0.7:
                 # max rate is likely rate
                 break
+            if (rate < 1):
+                # Corner case when due to bug the rate has fallen down
+                #   two low.
+                break
             value += value
+            last_rate = rate
         return (True, max_value_rate, max_value_drop)
 
     def range(self, data):

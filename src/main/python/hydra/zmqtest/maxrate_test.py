@@ -39,11 +39,9 @@ class RunSuitMaxRate(object):
         self.first_test = None
 
         # Parameters
-        # client_set = [10, 20, 40, 80, 160]
-        # client_set = [10, 20, 40, 80, 160, 500, 1000, 2000, 4000, 8000]
-        # client_set = [5, 10, 50, 100, 200, 500, 1000, 2000, 5000, 10000]
-        client_set = [40, 80, 160, 500, 1000, 2000, 4000, 8000]
-        # client_set = [100, 500, 1000, 2000, 4000, 8000]
+        client_set = [30, 60, 90, 180, 500, 1000, 2000, 4000, 8000]
+        client_set = [1000, 2000, 4000, 8000]
+
         slow_clients_percent = 1   # percentage of slow clients
         slow_clients_rate_pc = 0.5  # percentage of zero drop rate for slow clients
         reconnecting_clients_percent = 1 # Percentage of reconnecting clients
@@ -79,7 +77,7 @@ class RunSuitMaxRate(object):
             if True and maxrate_drop != 0:
                 l.info("Searching for no-drop rate")
                 scanner_drop = Scanner(runner.run, maxrate_rate / 2)
-                (status, step_cnt, nodrop, nodrop_rate) = scanner_drop.search(0.01, 0.01)
+                (status, step_cnt, nodrop, nodrop_rate) = scanner_drop.search(0.9, 0.01)
                 l.info("Found for Client Count %d Max message Rate %d with no drop (%f)" %
                        (client_count, nodrop_rate, nodrop))
             else:
