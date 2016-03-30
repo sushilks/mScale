@@ -18,12 +18,12 @@ class HDZmqpRepSrv(HDaemonRepSrv):
         self.pub_metrics = pub_metrics
         self.init_pub_metrics()
         HDaemonRepSrv.__init__(self, port)
-        self.register_fn('start', self.start_test)
-        self.register_fn('stats', self.get_stats)
+        self.register_fn('teststart', self.test_start)
+        self.register_fn('getstats', self.get_stats)
         self.register_fn('teststatus', self.test_status)
-        self.register_fn('updatepub', self.update_pub_metrics)
+        self.register_fn('updateconfig', self.update_config)
 
-    def start_test(self):
+    def test_start(self):
         process = psutil.Process()
         self.run_data['start'] = True
         self.run_data['test_status'] = 'running'
@@ -46,7 +46,7 @@ class HDZmqpRepSrv(HDaemonRepSrv):
         self.msg_batch = self.pub_metrics['msg_batch']
         self.msg_requested_rate = self.pub_metrics['msg_requested_rate']
 
-    def update_pub_metrics(self, test_duration, msg_batch, msg_requested_rate):
+    def update_config(self, test_duration, msg_batch, msg_requested_rate):
         self.test_duration = float(test_duration)
         self.msg_batch = int(msg_batch)
         self.msg_requested_rate = float(msg_requested_rate)
@@ -74,6 +74,12 @@ def run(argv):
     # init and bind pub server
     pub_context = zmq.Context()
     pub_socket = pub_context.socket(zmq.PUB)
+    # Setting the HWM to 0 will cause very little packet drops
+    #   at the cost of performance.
+    # pub_socket.set_hwm(0)
+
+    l.info("ZMQ HWM is set to :" + pformat(pub_socket.get_hwm()))
+
     pub_socket.bind("tcp://*:%s" % pub_port)
 
     # init simple zmq rep server, this is used to listen
@@ -81,7 +87,7 @@ def run(argv):
     pub_rep_port = os.environ.get('PORT0')
     l.info("Starting zmq REP server at port [%s]", pub_rep_port)
     run_data = {'start': False,
-                'stats': {'rate': 0, 'count': 0},
+                'stats': {'rate': 0, 'msg_cnt': 0},
                 'test_status': 'stopped'}
     pub_metrics = {'test_duration': test_duration,
                    'msg_batch': msg_batch,
@@ -121,7 +127,7 @@ def run(argv):
                 break
         run_data['stats']['time:end'] = json.dumps(time.time())
         run_data['stats']['rate'] = msg_cnt / elapsed_time
-        run_data['stats']['count'] = msg_cnt
+        run_data['stats']['msg_cnt'] = msg_cnt
         process = psutil.Process()
         run_data['stats']['net:end'] = json.dumps(psutil.net_io_counters())
         run_data['stats']['cpu:end'] = json.dumps(process.cpu_times())

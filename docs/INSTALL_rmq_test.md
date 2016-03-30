@@ -1,31 +1,32 @@
 ===============================================================================
-Hydra RabbitMQ scale test
+# Hydra RabbitMQ scale test
 
 ===============================================================================
-**** RabbitMQ server install *****:
+
+## **** RabbitMQ server install *****:
 
  The following needs to be done on each slave:
-   - Add the following line to your /etc/apt/sources.list
-     deb http://www.rabbitmq.com/debian/ testing main
-   - wget https://www.rabbitmq.com/rabbitmq-signing-key-public.asc
-   - sudo apt-key add rabbitmq-signing-key-public.asc
-   - sudo apt-get install rabbitmq-server
+ reference: https://www.rabbitmq.com/install-debian.html
 
-reference: https://www.rabbitmq.com/install-debian.html
-
-You can check the rabbitmq status by using the ctl:
-sudo rabbitmqctl status
-
-*** Add a user with appropriate permissions for the default vhost for rabbitmq ****
+```
+echo 'INSTALL rabbitmq'
+echo 'deb http://www.rabbitmq.com/debian/ testing main' | sudo tee /etc/apt/sources.list.d/rabbitmq.list
+wget -O- https://www.rabbitmq.com/rabbitmq-signing-key-public.asc | sudo apt-key add -
+sudo apt-get update
+sudo apt-get install -y rabbitmq-server
+echo '*** Add a user with appropriate permissions for the default vhost for rabbitmq ****'
 sudo rabbitmqctl add_user hydra hydra
 sudo rabbitmqctl set_user_tags hydra administrator
 sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*"
+echo 'Finally install rabbitmq python client pika:'
+sudo pip install pika
+```
+
+You can check the rabbitmq status by using the ctl:
+
+`sudo rabbitmqctl status`
 
 reference: https://www.rabbitmq.com/man/rabbitmqctl.1.man.html
-
-
-Finally install rabbitmq python client pika:
-sudo pip install pika
 
 =====================================================================================
 

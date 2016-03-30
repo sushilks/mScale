@@ -32,7 +32,7 @@ class TestControl {
     intStats["time:end"] = std::time(0);
     uint64_t elapsed_time = intStats["time:end"] - intStats["time:start"];
     floatStats["rate"] = 1.0 * msg_cnt / elapsed_time;
-    intStats["count"] = msg_cnt;
+    intStats["msg_cnt"] = msg_cnt;
   }
   bool publishing;
   bool start_publishing;
@@ -64,7 +64,7 @@ void process_message(const std::string& msg, TestControl* tctrl, std::string* re
       r = rmsg.add_resp();
       r->set_name("__r");
       r->set_strvalue("pong");
-    } else if (cmd_name == "start") {
+    } else if (cmd_name == "teststart") {
       // START of test.
       r = rmsg.add_resp();
       r->set_name("__r");
@@ -92,7 +92,7 @@ void process_message(const std::string& msg, TestControl* tctrl, std::string* re
       r->set_name("__r");
       r->set_strvalue(tstatus);
       printf("\t -> TestStatus:%s\n", tstatus.c_str());
-    } else if (cmd_name == "updatepub") {
+    } else if (cmd_name == "updateconfig") {
       // update test properties
       for (int i = 0; i < cmsg.cmd().argument_size(); ++i) {
         hydra::CommandMessage_CommandArgs arg = cmsg.cmd().argument(i);
@@ -116,7 +116,7 @@ void process_message(const std::string& msg, TestControl* tctrl, std::string* re
         }
       }
       rmsg.set_status("ok");
-    } else if (cmd_name == "stats") {
+    } else if (cmd_name == "getstats") {
       rmsg.set_status("ok");
       for (auto it = tctrl->intStats.begin();
            it != tctrl->intStats.end();
@@ -172,11 +172,19 @@ int main (void) {
   zmq::socket_t socket_rep(context, ZMQ_REP);
   zmq::socket_t socket_pub(context, ZMQ_PUB);
 
-  int hwm = 0;
-  socket_pub.setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
-  //int sbuf = 1024 * 16;
-  //  socket_sub.setsockopt(ZMQ_SNDBUF, &sbuf, sizeof(sbuf));
-
+  if (0) {
+    // with the watermark disabled
+    // no drops will be there
+    // however a slow client can cause the publisher to slow down.
+    int hwm = 0;
+    socket_pub.setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+  }
+  {
+    int ghwm;
+    size_t ghwm_s = sizeof(ghwm);
+    socket_pub.getsockopt(ZMQ_SNDHWM, &ghwm, &ghwm_s);
+    printf("ZMQ SNDHWM is set to %d\n", ghwm);
+  }
   std::string strPort = std::string(getenv("PORT0"));
   printf("Starting Rep Server on port %s\n", strPort.c_str());
   fflush(NULL);

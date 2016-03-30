@@ -3,6 +3,8 @@ __author__ = 'sushil'
 # A class to do binary search and tune one
 # parameter.
 import logging
+import sys
+import traceback
 from pprint import pprint, pformat  # NOQA
 from hydra.lib import util
 
@@ -63,15 +65,21 @@ class Scanner(object):
     def find_max_rate(self):
         value = self.start_value
         max_value_rate = None
+        last_rate = 0.1
         while True:
             (status, rate, drop) = self.runfn(value)
             if not max_value_rate or max_value_rate < rate:
                 max_value_rate = rate
                 max_value_drop = drop
-            if rate < value * 0.7:
+            if (1.0 * (rate - last_rate) / last_rate) < 0.1:
                 # max rate is likely rate
                 break
+            if (rate < 1):
+                # Corner case when due to bug the rate has fallen down
+                #   two low.
+                break
             value += value
+            last_rate = rate
         return (True, max_value_rate, max_value_drop)
 
     def range(self, data):
@@ -100,14 +108,30 @@ class BoundaryRunnerBase(object):
             res = self.boundary_run_result[arg1]
         else:
             setattr(self.boundary_options, self.boundary_arg1name, arg1)
-            if self.boundary_first_run:
-                res = self.run_test(True)
-                self.boundary_first_run = False
-            else:
-                # Update existing PUB and SUBs instead of launching new
-                options = self.boundary_options
-                setattr(options, self.boundary_arg1name, arg1)
-                res = self.rerun_test(self.boundary_options)
+            try_cnt = 0
+            while True:
+                try:
+                    if self.boundary_first_run:
+                        res = self.run_test(True)
+                        self.boundary_first_run = False
+                    else:
+                        # Update existing PUB and SUBs instead of launching new
+                        options = self.boundary_options
+                        setattr(options, self.boundary_arg1name, arg1)
+                        res = self.rerun_test(self.boundary_options)
+                    break
+                except:
+                    # Print all useful info
+                    e = sys.exc_info()[0]
+                    l.error("<p>EXCEPTION while running test from boundary.py  Error: %s</p>" % e)
+                    print(traceback.format_exc())
+                    l.info("Will retry to launch the test Retry count %d" % try_cnt)
+                    self.delete_all_launched_apps()
+                    self.boundary_first_run = True
+                    try_cnt += 1
+                    if (try_cnt > 4):
+                        raise
+
             l.info(" Run Result = " + pformat(res))
             self.boundary_run_result[arg1] = res
         return self.boundary_resfn(self.boundary_options, res)

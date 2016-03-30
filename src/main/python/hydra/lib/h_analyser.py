@@ -2,8 +2,10 @@ __author__ = 'AbdullahS, sushil'
 
 from pprint import pprint, pformat   # NOQA
 import zmq
+import time
 import logging
 import sys
+import json
 from hydra.lib import util, hdaemon_pb2
 
 l = util.createlogger('HDaemon', logging.INFO)
@@ -12,9 +14,15 @@ l = util.createlogger('HDaemon', logging.INFO)
 zmq_context = zmq.Context()
 zmq_poller = zmq.Poller()
 
+tout_60s = 60000
+tout_30s = 30000
+tout_10s = 10000
+
 
 class HAnalyser(object):
-    def __init__(self, server_ip, server_port, task_id=''):
+    def __init__(self, server_ip, server_port, task_id='', debug=False):
+        if debug:
+            l.setLevel(logging.DEBUG)
         l.debug("Hydra Analyser initiated...")
         self.server_ip = server_ip
         self.port = server_port
@@ -85,6 +93,56 @@ class HAnalyser(object):
         # TODO: (ABdullahS) See if it makes sense to reset the client here
         (status, response) = self.do_req_resp('ping')
         return (status == 'ok') and (response == 'pong')
+
+    def start_test(self):
+        l.info("Sending Start test to %s", self.task_id)
+        (status, resp) = self.do_req_resp(cmd='teststart', timeout=tout_60s)
+        l.info("Start test came back with status " + pformat(status) + " resp = " + pformat(resp))
+        assert(status == 'ok')
+
+    def stop_test(self):
+        l.info("Sending Stop test to %s", self.task_id)
+        (status, resp) = self.do_req_resp(cmd='teststop', timeout=tout_60s)
+        l.info("Stop test came back with status " + pformat(status) + " resp = " + pformat(resp))
+        assert(status == 'ok')
+
+    def wait_for_testend(self):
+        while True:
+            (status, resp) = self.do_req_resp(cmd='teststatus', timeout=tout_60s)
+            if status != 'ok':
+                l.error("Status = " + pformat(status))
+                l.error("resp = " + pformat(resp))
+                raise Exception("Error while waiting for test Status.")
+            l.debug("Wait for testend :: Status = " + pformat(status) +
+                    "resp = " + pformat(resp))
+            if resp == 'done' or resp == 'stopping' or resp == 'stopped':
+                break
+            time.sleep(5)
+
+    def get_stats(self):
+        (status, resp) = self.do_req_resp(cmd='getstats')
+        if status != 'ok':
+            l.error("Failed to get stats from task_id=" + self.task_id +
+                    "  Status = " + pformat(status) + " resp = " + pformat(resp))
+        assert(status == 'ok')
+        for itm in resp.keys():
+            if (type(resp[itm]) is str or type(resp[itm]) is unicode):  # NOQA
+                try:
+                    resp[itm] = json.loads(resp[itm])
+                except:
+                    pass
+        return resp
+
+    def reset_stats(self):
+        (status, resp) = self.do_req_resp(cmd='resetstats')
+        assert(status == 'ok')
+        return resp
+
+    def update_config(self, **kwargs):
+        l.debug("Updating the test metric on %s: " % self.task_id + pformat(kwargs))
+        (status, resp) = self.do_req_resp(cmd='updateconfig', **kwargs)
+        assert(status == 'ok')
+        return resp
 
     def stop(self):
         self.socket.close()
