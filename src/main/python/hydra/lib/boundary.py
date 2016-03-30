@@ -3,6 +3,8 @@ __author__ = 'sushil'
 # A class to do binary search and tune one
 # parameter.
 import logging
+import sys
+import traceback
 from pprint import pprint, pformat  # NOQA
 from hydra.lib import util
 
@@ -70,7 +72,6 @@ class Scanner(object):
                 max_value_rate = rate
                 max_value_drop = drop
             if (1.0 * (rate - last_rate) / last_rate) < 0.1:
-            #if rate < value * 0.7:
                 # max rate is likely rate
                 break
             if (rate < 1):
@@ -123,6 +124,7 @@ class BoundaryRunnerBase(object):
                     # Print all useful info
                     e = sys.exc_info()[0]
                     l.error("<p>EXCEPTION while running test from boundary.py  Error: %s</p>" % e)
+                    print(traceback.format_exc())
                     l.info("Will retry to launch the test Retry count %d" % try_cnt)
                     self.delete_all_launched_apps()
                     self.boundary_first_run = True

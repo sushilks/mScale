@@ -18,8 +18,11 @@ tout_60s = 60000
 tout_30s = 30000
 tout_10s = 10000
 
+
 class HAnalyser(object):
-    def __init__(self, server_ip, server_port, task_id=''):
+    def __init__(self, server_ip, server_port, task_id='', debug=False):
+        if debug:
+            l.setLevel(logging.DEBUG)
         l.debug("Hydra Analyser initiated...")
         self.server_ip = server_ip
         self.port = server_port

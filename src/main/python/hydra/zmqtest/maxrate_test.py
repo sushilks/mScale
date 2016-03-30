@@ -44,8 +44,8 @@ class RunSuitMaxRate(object):
 
         slow_clients_percent = 1   # percentage of slow clients
         slow_clients_rate_pc = 0.5  # percentage of zero drop rate for slow clients
-        reconnecting_clients_percent = 1 # Percentage of reconnecting clients
-        reconnecting_clients_rate = 2  # 2 reconnect per sec
+        reconnecting_clients_percent = 1  # Percentage of reconnecting clients
+        reconnecting_clients_rate = 2     # reconnect per sec
 
         for client_count in client_set:
             setattr(options, 'total_sub_apps', int(client_count / 10))
@@ -82,7 +82,7 @@ class RunSuitMaxRate(object):
                        (client_count, nodrop_rate, nodrop))
             else:
                 nodrop_rate = rate
-            #if True and nodrop2:
+            # if True and nodrop2:
             #    l.info("Searching for < 1% drop rate")
             #    scanner_drop = Scanner(runner.run, rate / 1.5)
             #    (status, step_cnt, drop, rate) = scanner_drop.search(1, 0.01)
@@ -129,8 +129,6 @@ class RunSuitMaxRate(object):
                 (status, step_cnt, f2_nodrop, f2_nodrop_rate) = scanner_flakey2.search(0.01, 0.01)
                 l.info("Found for Client Count %d Max message Rate %d with Reconnect Client and no drop (%f)" %
                        (client_count, f2_nodrop_rate, f2_nodrop))
-
-
 
             # Delete all launched apps once the required drop is achieved for this set
         runner.delete_all_launched_apps()

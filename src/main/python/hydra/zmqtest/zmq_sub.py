@@ -146,7 +146,7 @@ def run(argv):
                 num_reconnects = int(hd.reconnect_rate * current_duration)
                 if (num_reconnects > hd.reconnect_cnt):
                     l.info("expected Reconnect = " + pformat(num_reconnects) + " reconnect_cnt = " +
-                    pformat(hd.reconnect_cnt))
+                           pformat(hd.reconnect_cnt))
                     break
         hd.reconnect_cnt += 1
         l.info('Closing Socket. Will try to reconnect. Current msg cnt=' + pformat(hd.msg_cnt))

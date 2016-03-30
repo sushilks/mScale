@@ -67,9 +67,9 @@ class HDaemonRepSrv(object):
         l.info('RESET STATS NEED TO BE IMPLEMENTED')
         return('ok', None)
 
-    def update_config(self):
+    def update_config(self, **kwargs):
         l.info('UPDATE CONFIG NEED TO BE IMPLEMENTED')
-        return('ok')
+        return('ok', None)
 
     def send_response(self, status, msg):
         self.socket.send(json.dumps([status, msg]))

@@ -4,8 +4,6 @@ import sys
 from pprint import pprint, pformat  # NOQA
 from optparse import OptionParser
 import logging
-import time
-import json
 from hydra.lib import util
 from hydra.lib.h_analyser import HAnalyser
 from hydra.lib.runtestbase import RunTestBase
@@ -20,74 +18,19 @@ except ImportError:
 l = util.createlogger('runTest', logging.INFO)
 # l.setLevel(logging.DEBUG)
 
-tout_60s = 30000
+tout_60s = 60000
 tout_30s = 30000
 tout_10s = 10000
 
 
 class RMQPubAnalyser(HAnalyser):
-    def __init__(self, server_ip, server_port):
-        HAnalyser.__init__(self, server_ip, server_port)
-
-    def start_test(self):
-        # TODO: (AbdullahS): Make sure pub actually started sending data
-        l.info("Sending Start test to PUB")
-        (status, resp) = self.do_req_resp(cmd='start', timeout=tout_60s)
-        l.info("Start test came back with status " + pformat(status) + " resp = " + pformat(resp))
-        assert(status == 'ok')
-
-    def wait_for_testend(self):
-        while True:
-            (status, resp) = self.do_req_resp(cmd='teststatus', timeout=tout_30s)
-            if status != 'ok':
-                l.error("Status = " + pformat(status))
-                l.error("resp = " + pformat(resp))
-            assert(status == 'ok')
-            l.debug("Wait for testend :: Status = " + pformat(status) +
-                    "resp = " + pformat(resp))
-            if resp == 'done' or resp == 'stopping' or resp == 'stopped':
-                break
-            time.sleep(5)
-
-    def get_stats(self):
-        (status, resp) = self.do_req_resp(cmd='stats')
-        if status != 'ok':
-            l.error("Status = " + pformat(status))
-            l.error("resp = " + pformat(resp))
-        assert(status == 'ok')
-        itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'time:start', 'time:end']
-        for itm in itms:
-            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):  # NOQA
-                resp[itm] = json.loads(resp[itm])
-        return resp
-
-    def update_pub_metrics(self, **kwargs):
-        l.info("Updating the test metric on pub: " + pformat(kwargs))
-        (status, resp) = self.do_req_resp(cmd='updatepub', **kwargs)
-        assert(status == 'ok')
-        return resp
+    def __init__(self, server_ip, server_port, task_id):
+        HAnalyser.__init__(self, server_ip, server_port, task_id)
 
 
 class RMQSubAnalyser(HAnalyser):
     def __init__(self, server_ip, server_port):
         HAnalyser.__init__(self, server_ip, server_port)
-
-    def get_stats(self, task_id):
-        (status, resp) = self.do_req_resp(cmd='stats')
-        if (status != 'ok'):
-            l.info("Failed to get stats from task_id=" + task_id)
-        assert(status == 'ok')
-        itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'first_msg_time',
-                'last_msg_time']
-        for itm in itms:
-            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):  # NOQA
-                resp[itm] = json.loads(resp[itm])
-        return resp
-
-    def reset_stats(self):
-        (status, resp) = self.do_req_resp(cmd='reset')
-        assert(status == 'ok')
-        return resp
 
 
 class RunTestRMQ(RunTestBase):
@@ -95,8 +38,7 @@ class RunTestRMQ(RunTestBase):
         self.options = options
 
         self.config = ConfigParser()
-        config_fn = options.config_file
-        RunTestBase.__init__(self, 'RMQScale', self.config, config_fn, startappserver=runtest)
+        RunTestBase.__init__(self, 'RMQScale', self.options, self.config, startappserver=runtest)
         self.rmqpub = '/rmq-pub'
         self.rmqsub = '/rmq-sub'
         self.add_appid(self.rmqpub)
@@ -116,32 +58,39 @@ class RunTestRMQ(RunTestBase):
                self.options.test_duration, self.options.msg_batch, self.options.msg_rate)
 
         # Update the PUB server with new metrics
-        self.ha_pub.update_pub_metrics(test_duration=self.options.test_duration,
-                                       msg_batch=self.options.msg_batch,
-                                       msg_requested_rate=self.options.msg_rate)
+        self.ha_pub.update_config(test_duration=self.options.test_duration,
+                                  msg_batch=self.options.msg_batch,
+                                  msg_requested_rate=self.options.msg_rate)
         l.info("PUB server updated")
 
-        # Reset all clients stats
-        # TODO: (ABdullahS): Make this more intelligent in next step
-        #                    i-e add scaling up and down
-        self.reset_sub_stats(self.sub_app_ip_rep_port_map)
+        self.reset_all_app_stats(self.rmqsub)
 
         # Signal message sending
-        pub_data = self.signal_pub_send_msgs()
-        l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['count'],
+        l.info("Sending signal to PUB to start sending all messages..")
+        self.ha_pub.start_test()
+        self.ha_pub.wait_for_testend()
+        self.fetch_app_stats(self.rmqpub)
+        assert(len(self.apps[self.rmqpub]['stats']) == 1)
+        pub_data = self.apps[self.rmqpub]['stats'].values()[0]
+        l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['msg_cnt'],
                                                                     pub_data['rate']))
 
         # Fetch all sub client data
-        self.fetch_all_sub_clients_data()
+        self.fetch_app_stats(self.rmqsub)
 
-        all_clients = self.all_sub_clients_info.items()
-        return self.result_parser(all_clients, pub_data)
+        return self.result_parser()
 
     def run_test(self, first_run=True):
         self.start_init()
-        # if first_run:
-        #    self.start_appserver()
-        res = self.start_test()
+        if hasattr(self, 'sub_app_ip_rep_port_map'):
+            # If Sub's have been launched Reset first
+            self.reset_all_app_stats(self.rmqsub)
+        # Launch zmq pub
+        self.launch_rmq_pub()
+        # Launch zmq sub up to self.total_sub_apps
+        self.launch_rmq_sub()
+        # rerun the test
+        res = self.rerun_test(self.options)
         return res
 
     def boundary_resultfn(self, options, res):
@@ -161,30 +110,7 @@ class RunTestRMQ(RunTestBase):
     def stop_and_delete_all_apps(self):
         self.delete_all_launched_apps()
 
-    def start_test(self):
-        # Launch zmq pub
-        self.launch_rmq_pub()
-
-        # Launch zmq sub up to self.total_sub_apps
-        self.launch_rmq_sub()
-
-        # probe all the clients to see if they are ready.
-        self.ping_all_sub()
-
-        # Signal PUB to start sending all messages, blocks until PUB notifies
-        pub_data = self.signal_pub_send_msgs()
-        l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['count'],
-                                                                    pub_data['rate']))
-
-        #  Fetch all client SUB data
-        self.fetch_all_sub_clients_data()
-
-        l.info("Successfully finished gathering all data")
-
-        all_clients = self.all_sub_clients_info.items()
-        return self.result_parser(all_clients, pub_data)
-
-    def result_parser(self, all_clients, pub_data):
+    def result_parser(self):
         result = {
             'client_count': 0,
             'average_packets': 0,
@@ -192,12 +118,17 @@ class RunTestRMQ(RunTestBase):
             'failing_clients': 0,
             'average_packet_loss': 0
         }
-        msg_cnt_pub_tx = pub_data['count']
+        pub_data = self.apps[self.rmqpub]['stats'].values()[0]
+        msg_cnt_pub_tx = pub_data['msg_cnt']
         bad_clients = 0
         client_rate = 0
         bad_client_rate = 0
         clients_packet_count = 0
-        for client, info in all_clients:
+        stats = self.get_app_stats(self.rmqsub)
+        num_subs = len(stats)
+
+        for client in stats.keys():
+            info = stats[client]
             # l.info(" CLIENT = " + pformat(client) + " DATA = " + pformat(info))
             client_rate += info['rate']
             clients_packet_count += info['msg_cnt']
@@ -207,15 +138,15 @@ class RunTestRMQ(RunTestBase):
                 bad_client_rate += info['rate']
         if bad_clients > 0:
             l.info("Total number of clients experiencing packet drop = %d out of %d clients" %
-                   (bad_clients, len(all_clients)))
+                   (bad_clients, num_subs))
             l.info('Average rate seen at the failing clients %f' % (bad_client_rate / bad_clients))
         else:
-            l.info("No client experienced packet drops out of %d clients" % len(all_clients))
+            l.info("No client experienced packet drops out of %d clients" % num_subs)
         l.info("Total packet's send by PUB:%d and average packets received by client:%d" %
-               (msg_cnt_pub_tx, clients_packet_count / len(all_clients)))
+               (msg_cnt_pub_tx, clients_packet_count / num_subs))
         l.info('Average rate seen at the pub %f and at clients %f' %
-               (pub_data['rate'], (client_rate / len(all_clients))))
-        result['client_count'] = len(all_clients)
+               (pub_data['rate'], (client_rate / num_subs)))
+        result['client_count'] = num_subs
         result['packet_tx'] = msg_cnt_pub_tx
         result['average_packets'] = clients_packet_count / result['client_count']
         result['average_rate'] = client_rate / result['client_count']
@@ -257,17 +188,15 @@ class RunTestRMQ(RunTestBase):
                               cpus=0.01, mem=32,
                               ports=[0],
                               constraints=constraints)
-        self.wait_app_ready(self.rmqpub, 1)
-        # Find launched pub server's ip, rep PORT
-        self.pub_ip = self.find_ip_uniqueapp(self.rmqpub)
-        tasks = self.get_app_tasks(self.rmqpub)
-        assert(len(tasks) == 1)
-        assert(len(tasks[0].ports) == 1)
-        self.pub_rep_taskport = str(tasks[0].ports[0])
+        ipm = self.get_app_ipport_map(self.rmqpub)
+        assert(len(ipm) == 1)
+        self.pub_ip = ipm.values()[0][1]
+        self.pub_rep_taskport = str(ipm.values()[0][0])
+
         l.info("[rmq_pub] RMQ pub server running at [%s]", self.pub_ip)
         l.info("[rmq_pub] RMQ REP server running at [%s:%s]", self.pub_ip, self.pub_rep_taskport)
         # Init RMQPubAnalyser
-        self.ha_pub = RMQPubAnalyser(self.pub_ip, self.pub_rep_taskport)
+        self.ha_pub = RMQPubAnalyser(self.pub_ip, self.pub_rep_taskport, ipm.keys()[0])
 
     def launch_rmq_sub(self):
         l.info("Launching the sub app")
@@ -281,75 +210,11 @@ class RunTestRMQ(RunTestBase):
                               cpus=0.01, mem=32,
                               ports=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                               constraints=constraints)
-        self.wait_app_ready(self.rmqsub, 1)
-
         # scale
-        l.info("Scaling sub app to [%d]", self.options.total_sub_apps)
-        self.scale_app(self.rmqsub, self.options.total_sub_apps)
-        self.wait_app_ready(self.rmqsub, self.options.total_sub_apps)
+        self.scale_sub_app()
 
-        # Extract ip, rep server port for data querying
-        self.sub_app_ip_rep_port_map = {}  # key = task.id, value= {port: ip}
-        tasks = self.get_app_tasks(self.rmqsub)
-        assert(len(tasks) == self.options.total_sub_apps)
-        for task in tasks:
-            sub_app_ip = self.get_ip_hostname(task.host)
-            for sub_app_rep_port in task.ports:
-                self.sub_app_ip_rep_port_map[task.id + '_PORT' + str(sub_app_rep_port)] = \
-                    [sub_app_rep_port, sub_app_ip]
-        # l.info(self.sub_app_ip_rep_port_map)
-
-    def signal_pub_send_msgs(self):
-        l.info("Sending signal to PUB to start sending all messages..")
-        # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-        self.ha_pub.start_test()
-        self.ha_pub.wait_for_testend()
-        return self.ha_pub.get_stats()
-
-    def fetch_all_sub_clients_data(self):
-        l.info("Attempting to fetch all client data..")
-        # TODO: (AbdullahS): Add more stuff, timestamp, client ip etc
-        self.all_sub_clients_info = {}  # stores a mapping of client_id: {msg_count: x}
-        for task_id, info in self.sub_app_ip_rep_port_map.items():
-            port = info[0]
-            ip = info[1]
-            ha_sub = RMQSubAnalyser(ip, port)
-            # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-            stats = ha_sub.get_stats(task_id)
-            ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
-            self.all_sub_clients_info[str(ip) + ':' + str(port)] = stats
-
-    def ping_all_sub(self):
-        l.info('Pinging all the clients to make sure they are started....')
-        cnt = 0
-        remove_list = []
-        for task_id, info in self.sub_app_ip_rep_port_map.items():
-            port = info[0]
-            ip = info[1]
-            ha = HAnalyser(ip, port)
-            # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-            res = ha.do_ping()
-            if not res:
-                l.info("Ping failed to [%s] %s:%s. removing from client list" % (task_id, ip, port))
-                remove_list.append(task_id)
-            cnt += res
-            ha.stop()  # closes the ANalyser socket, can not be used anymore
-
-        for item in remove_list:
-            del self.sub_app_ip_rep_port_map[item]
-        l.info('Done pinging all the clients. Got pong response from %d out of %d' %
-               (cnt, len(self.sub_app_ip_rep_port_map.items())))
-
-    def reset_sub_stats(self, sub_app_ip_rep_port_map):
-        l.info("Attempting to reset client stats ...")
-        for task_id, info in sub_app_ip_rep_port_map.items():
-            port = info[0]
-            ip = info[1]
-            ha_sub = RMQSubAnalyser(ip, port)
-            # Signal it to reset all client stats
-            l.debug("Resetting stats for %s:%s", ip, port)
-            ha_sub.reset_stats()
-            ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
+    def scale_sub_app(self):
+        self.scale_and_verify_app(self.rmqsub, self.options.total_sub_apps)
 
     def delete_all_launched_apps(self):
         l.info("Deleting all launched apps")

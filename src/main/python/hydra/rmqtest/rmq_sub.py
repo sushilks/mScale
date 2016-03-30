@@ -17,16 +17,20 @@ class HDRmqsRepSrv(HDaemonRepSrv):
     def __init__(self, port):
         self.msg_cnt = 0  # message count, other option is global, making progress
         HDaemonRepSrv.__init__(self, port)
-        self.register_fn('stats', self.get_stats)
-        self.register_fn('reset', self.reset_stats)
+        self.register_fn('getstats', self.get_stats)
+        self.register_fn('resetstats', self.reset_stats)
 
     def get_stats(self):
         process = psutil.Process()
         self.run_data['stats']['net']['end'] = psutil.net_io_counters()
         self.run_data['stats']['cpu']['end'] = process.cpu_times()
         self.run_data['stats']['mem']['end'] = process.memory_info()
-        self.run_data['rate'] = self.run_data['msg_cnt'] / (
-            self.run_data['last_msg_time'] - self.run_data['first_msg_time'])
+        duration = self.run_data['last_msg_time'] - self.run_data['first_msg_time']
+        if duration == 0:
+            self.run_data['rate'] = 0
+        else:
+            self.run_data['rate'] = self.run_data['msg_cnt'] / duration
+
         return ('ok', self.run_data)
 
     def reset_stats(self):

@@ -4,10 +4,7 @@ import sys
 from pprint import pprint, pformat  # NOQA
 from optparse import OptionParser
 import logging
-import time
 from sets import Set
-import json
-from random import randint
 from hydra.lib import util
 from hydra.lib.h_analyser import HAnalyser
 from hydra.lib.runtestbase import RunTestBase
@@ -29,67 +26,12 @@ tout_10s = 10000
 class ZMQPubAnalyser(HAnalyser):
     def __init__(self, server_ip, server_port, task_id):
         HAnalyser.__init__(self, server_ip, server_port, task_id)
-'''
-    def start_test(self):
-        # TODO: (AbdullahS): Make sure pub actually started sending data
-        l.info("Sending Start test to PUB")
-        (status, resp) = self.do_req_resp(cmd='start', timeout=tout_60s)
-        l.info("Start test came back with status " + pformat(status) + " resp = " + pformat(resp))
-        assert(status == 'ok')
 
-    def wait_for_testend(self):
-        while True:
-            (status, resp) = self.do_req_resp(cmd='teststatus', timeout=tout_60s)
-            if status != 'ok':
-                l.error("Status = " + pformat(status))
-                l.error("resp = " + pformat(resp))
-            assert(status == 'ok')
-            l.debug("Wait for testend :: Status = " + pformat(status) +
-                    "resp = " + pformat(resp))
-            if resp == 'done' or resp == 'stopping' or resp == 'stopped':
-                break
-            time.sleep(5)
-
-    def get_stats(self):
-        (status, resp) = self.do_req_resp(cmd='stats')
-        if status != 'ok':
-            l.error("Status = " + pformat(status))
-            l.error("resp = " + pformat(resp))
-        assert(status == 'ok')
-        itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'time:start', 'time:end']
-        for itm in itms:
-            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):  # NOQA
-                resp[itm] = json.loads(resp[itm])
-        return resp
-
-    def update_pub_metrics(self, **kwargs):
-        l.info("Updating the test metric on pub: " + pformat(kwargs))
-        (status, resp) = self.do_req_resp(cmd='updatepub', **kwargs)
-        assert(status == 'ok')
-        return resp
-'''
 
 class ZMQSubAnalyser(HAnalyser):
     def __init__(self, server_ip, server_port, task_id):
         HAnalyser.__init__(self, server_ip, server_port, task_id)
-'''
-    def get_stats(self, task_id):
-        (status, resp) = self.do_req_resp(cmd='stats')
-        if (status != 'ok'):
-            l.info("Failed to get stats from task_id=" + task_id)
-        assert(status == 'ok')
-        itms = ['cpu:end', 'cpu:start', 'mem:end', 'mem:start', 'net:start', 'net:end', 'first_msg_time',
-                'last_msg_time']
-        for itm in itms:
-            if itm in resp and (type(resp[itm]) is str or type(resp[itm]) is unicode):  # NOQA
-                resp[itm] = json.loads(resp[itm])
-        return resp
 
-    def reset_stats(self):
-        (status, resp) = self.do_req_resp(cmd='reset')
-        assert(status == 'ok')
-        return resp
-'''
 
 class RunTestZMQ(RunTestBase):
     def __init__(self, options, runtest=True):
@@ -112,16 +54,6 @@ class RunTestZMQ(RunTestBase):
             self.run_test()
             self.stop_appserver()
 
-    def random_select_instances(self, cnt):
-        ipm = self.get_app_ipport_map(self.zstsub)
-        cset = []
-        assert(cnt < len(ipm))
-        for idx in range(0, cnt):
-            r = randint(0, len(ipm)-1)
-            cset += [ipm.keys()[r]]
-        return cset
-
-
     def rerun_test(self, options):
         self.set_options(options)
         self.boundary_setup(self.options, 'msg_rate', self.boundary_resultfn)
@@ -133,14 +65,10 @@ class RunTestZMQ(RunTestBase):
 
         # Update the PUB server with new metrics
         self.ha_pub.update_config(test_duration=self.options.test_duration,
-                                       msg_batch=self.options.msg_batch,
-                                       msg_requested_rate=self.options.msg_rate)
+                                  msg_batch=self.options.msg_batch,
+                                  msg_requested_rate=self.options.msg_rate)
         l.info("PUB server updated")
 
-        # Reset all clients stats
-        # TODO: (ABdullahS): Make this more intelligent in next step
-        #                    i-e add scaling up and down
-        # self.reset_sub_stats(self.sub_app_ip_rep_port_map)
         self.reset_all_app_stats(self.zstsub)
         # Select which sub's are going to be slow
         # and send them there rate.
@@ -151,14 +79,16 @@ class RunTestZMQ(RunTestBase):
         if slow_num:
             slow_clients = self.get_app_property(self.zstsub, 'slow_clients')
             if not slow_clients or int(slow_num) != len(slow_clients):
-                #reset all the clients
-                self.set_app_property(self.zstsub, 'slow_clients', Set(self.random_select_instances(slow_num)))
+                # reset all the clients
+                self.set_app_property(self.zstsub, 'slow_clients',
+                                      Set(self.random_select_instances(self.zstsub, slow_num)))
                 update_sub_config = True
         rec_num = int(acnt * options.rec_clients_percent / 100)
         if rec_num:
             rec_clients = self.get_app_property(self.zstsub, 'reconnecting_clients')
             if not rec_clients or rec_num != len(rec_clients):
-                self.set_app_property(self.zstsub, 'reconnecting_clients', Set(self.random_select_instances(rec_num)))
+                self.set_app_property(self.zstsub, 'reconnecting_clients',
+                                      Set(self.random_select_instances(self.zstsub, rec_num)))
                 update_sub_config = True
         if update_sub_config:
             # Now update all the slow clients
@@ -172,15 +102,13 @@ class RunTestZMQ(RunTestBase):
                 recv_rate = 0
                 reconnect_rate = 0
                 if slow_set and key in slow_set:
-                    print("Task ID " + key +" Is going to be slow")
+                    print("Task ID " + key + " Is going to be slow")
                     recv_rate = options.slow_clients_rate
                 if rec_set and key in rec_set:
-                    print("Task ID " + key +" Is going to be reconnecting")
+                    print("Task ID " + key + " Is going to be reconnecting")
                     reconnect_rate = options.rec_clients_rate
                 ha.update_config(recv_rate=recv_rate, reconnect_rate=reconnect_rate)
                 ha.stop()
-
-
 
         # Signal message sending
         l.info("Sending signal to PUB to start sending all messages..")
@@ -193,7 +121,6 @@ class RunTestZMQ(RunTestBase):
                                                                     pub_data['rate']))
 
         # Fetch all sub client data
-        #self.fetch_all_sub_clients_data()
         self.fetch_app_stats(self.zstsub)
 
         return self.result_parser()
@@ -203,18 +130,10 @@ class RunTestZMQ(RunTestBase):
         if hasattr(self, 'sub_app_ip_rep_port_map'):
             # If Sub's have been launched Reset first
             self.reset_all_app_stats(self.zstsub)
-            # self.reset_sub_stats(self.sub_app_ip_rep_port_map)
-        # if first_run:
-        #    self.start_appserver()
-        # res = self.start_test()
-                # Launch zmq pub
         self.launch_zmq_pub()
-
         # Launch zmq sub up to self.total_sub_apps
         self.launch_zmq_sub()
-
         res = self.rerun_test(self.options)
-
         return res
 
     def boundary_resultfn(self, options, res):
@@ -404,124 +323,6 @@ class RunTestZMQ(RunTestBase):
         self.delete_app(self.zstpub)
         l.info("Deleting SUBs")
         self.delete_app(self.zstsub)
-
-'''
-    def scale_sub_app(self):
-        l.info("Scaling sub app to [%d]", self.options.total_sub_apps)
-        self.scale_app(self.zstsub, self.options.total_sub_apps)
-        self.wait_app_ready(self.zstsub, self.options.total_sub_apps)
-
-        # Extract ip, rep server port for data querying
-        self.sub_app_ip_rep_port_map = {}  # key = task.id, value= {port: ip}
-        tasks = self.get_app_tasks(self.zstsub)
-        assert(len(tasks) == self.options.total_sub_apps)
-        for task in tasks:
-            sub_app_ip = self.get_ip_hostname(task.host)
-            for sub_app_rep_port in task.ports:
-                self.sub_app_ip_rep_port_map[task.id + '_PORT' + str(sub_app_rep_port)] = \
-                    [sub_app_rep_port, sub_app_ip]
-        # l.info(self.sub_app_ip_rep_port_map)
-        # probe all the clients to see if they are ready.
-        self.ping_all_sub()
-
-    def signal_pub_send_msgs(self):
-        l.info("Sending signal to PUB to start sending all messages..")
-        # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-        self.ha_pub.start_test()
-        self.ha_pub.wait_for_testend()
-        return self.ha_pub.get_stats()
-
-    def fetch_all_sub_clients_data(self):
-        l.info("Attempting to fetch all client data..")
-        # TODO: (AbdullahS): Add more stuff, timestamp, client ip etc
-        self.all_sub_clients_info = {}  # stores a mapping of client_id: {msg_count: x}
-        first_itr = True
-        no_delay_needed_count = 0
-        for task_id, info in self.sub_app_ip_rep_port_map.items():
-            port = info[0]
-            ip = info[1]
-            ha_sub = ZMQSubAnalyser(ip, port, task_id)
-            # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-            stats = ha_sub.get_stats(task_id)
-            while first_itr:
-                time.sleep(.1)
-                stats2 = ha_sub.get_stats(task_id)
-                #  if it's the first read make sure that the sub has stopped receiving data
-                if (stats['msg_cnt'] == stats2['msg_cnt']):
-                    # first_itr = False
-                    no_delay_needed_count += 1
-                    if (no_delay_needed_count > 100):
-                        # No more delays if 100 successive read's where
-                        # stable on msg_cnt
-                        first_itr = False
-                    break
-                no_delay_needed_count = 0
-                stats = stats2
-            ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
-            self.all_sub_clients_info[str(ip) + ':' + str(port)] = stats  # copy.deepcopy(stats)
-
-    def ping_all_sub(self):
-        l.info('Pinging all the clients to make sure they are started....')
-        cnt = 0
-        remove_list = []
-        for task_id, info in self.sub_app_ip_rep_port_map.items():
-            port = info[0]
-            ip = info[1]
-            ha = HAnalyser(ip, port, task_id)
-            # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
-            res = ha.do_ping()
-            if not res:
-                l.info("Ping failed to [%s] %s:%s. removing from client list" % (task_id, ip, port))
-                remove_list.append(task_id)
-                ha.stop()
-            cnt += res
-            ha.stop()  # closes the ANalyser socket, can not be used anymore
-
-        for item in remove_list:
-            del self.sub_app_ip_rep_port_map[item]
-        l.info('Done pinging all the clients. Got pong response from %d out of %d' %
-               (cnt, len(self.sub_app_ip_rep_port_map.items())))
-    def reset_sub_stats(self, sub_app_ip_rep_port_map):
-        l.info("Attempting to reset client stats ...")
-        for task_id, info in sub_app_ip_rep_port_map.items():
-            port = info[0]
-            ip = info[1]
-            ha_sub = ZMQSubAnalyser(ip, port, task_id)
-            # Signal it to reset all client stats
-            l.debug("Resetting stats for %s:%s", ip, port)
-            ha_sub.reset_stats()
-            ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
-
-    def start_test(self):
-        # Launch zmq pub
-        self.launch_zmq_pub()
-
-        # Launch zmq sub up to self.total_sub_apps
-        self.launch_zmq_sub()
-
-        # Signal PUB to start sending all messages, blocks until PUB notifies
-        # Update the PUB server with new metrics
-        self.ha_pub.update_config(test_duration=self.options.test_duration,
-                                       msg_batch=self.options.msg_batch,
-                                       msg_requested_rate=self.options.msg_rate)
-        l.info("Sending signal to PUB to start sending all messages..")
-        self.ha_pub.start_test()
-        self.ha_pub.wait_for_testend()
-        self.fetch_app_stats(self.zstpub)
-        assert(len(self.apps[self.zstpub]['stats']) == 1)
-        pub_data = self.apps[self.zstpub]['stats'].values()[0]
-        l.debug("PUB_DATA::" + pformat(pub_data))
-        l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['msg_cnt'],
-                                                                    pub_data['rate']))
-
-        #  Fetch all client SUB data
-        #self.fetch_all_sub_clients_data()
-        self.fetch_app_stats(self.zstsub)
-
-        l.info("Successfully finished gathering all data")
-
-        return self.result_parser()
-'''
 
 
 class RunTest(object):
