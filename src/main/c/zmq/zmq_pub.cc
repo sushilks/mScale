@@ -237,8 +237,8 @@ int main (void) {
           // use up some of the delay
           if (cnt >= tctrl.msg_batch) {
            time_t duration = std::time(0) - start_time;
-           time_t exp_time = tctrl.msg_cnt / tctrl.msg_requested_rate;
-           time_t delay = 0;
+           double exp_time = (double) tctrl.msg_cnt  / tctrl.msg_requested_rate;
+           double delay = 0;
 
            if (duration > tctrl.test_duration) {
              tctrl.start_publishing = false;
@@ -247,7 +247,7 @@ int main (void) {
            if (exp_time > duration)
              delay = exp_time - duration;
            if (delay > 1) delay = 1;
-           sleep(delay);
+           usleep(delay * 1e6);
            cnt = 0;
          }
        }

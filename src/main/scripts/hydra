@@ -2,6 +2,8 @@
 
 import sys
 from sys import path
+from pprint import pformat
+
 path.append("../python")
 
 classPath = {
@@ -15,6 +17,9 @@ classPath = {
     'rmq' : 'hydra.rmqtest.runtest.RunTest',
     'rmqfixed': 'hydra.rmqtest.fixed_test.run',
 }
+if len(sys.argv) < 2 or sys.argv[1] == '-h' or sys.argv[1] == '--help':
+    print("Options are %s " % sys.argv[0] + " " + pformat(classPath.keys()))
+    sys.exit(1)
 arg1 = sys.argv[1]
 if arg1 in classPath.keys():
     arg1 = classPath[arg1]

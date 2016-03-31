@@ -77,6 +77,7 @@ class RunTestBase(BoundaryRunnerBase):
                           config.get('mesos', 'port')
         self.marathon_addr = 'http://' + config.get('marathon', 'ip') + ':' + \
                              config.get('marathon', 'port')
+        self.app_prefix = config.get('marathon', 'app_prefix')
         self.appIdList = []
         self.__mesos = None
         self.__mt = None
@@ -88,6 +89,9 @@ class RunTestBase(BoundaryRunnerBase):
 
     def set_options(self, options):
         self.options = options
+
+    def format_appname(self, name):
+        return self.app_prefix + name
 
     def start_appserver(self):
         if not self.appserver_running:
