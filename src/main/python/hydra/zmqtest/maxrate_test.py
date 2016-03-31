@@ -39,7 +39,7 @@ class RunSuitMaxRate(object):
 
         # Parameters
         client_set = [30, 60, 90, 180, 500, 1000, 2000, 4000, 8000]
-        #client_set = [1000, 2000, 4000, 8000]
+        # client_set = [1000, 2000, 4000, 8000]
 
         slow_clients_percent = 10   # percentage of slow clients
         slow_clients_rate_pc = 0.5  # percentage of zero drop rate for slow clients
