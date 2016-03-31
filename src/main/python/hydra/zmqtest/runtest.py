@@ -45,8 +45,8 @@ class RunTestZMQ(RunTestBase):
 
         self.config = ConfigParser()
         RunTestBase.__init__(self, 'zmqScale', options, self.config, startappserver=runtest)
-        self.zstpub = options.app_prefix + '/zst-pub'
-        self.zstsub = options.app_prefix + '/zst-sub'
+        self.zstpub = self.format_appname('/zst-pub')
+        self.zstsub = self.format_appname('/zst-sub')
         self.add_appid(self.zstpub)
         self.add_appid(self.zstsub)
         self.boundary_setup(self.options, 'msg_rate', self.boundary_resultfn)
@@ -347,7 +347,6 @@ class RunTest(object):
         parser.add_option("--slow_clients_rate", dest='slow_clients_rate', type='int', default=1000)
         parser.add_option("--reconnecting_clients_percent", dest='rec_clients_percent', type='float', default=0)
         parser.add_option("--reconnecting_clients_rate", dest='rec_clients_rate', type='float', default=0.5)
-        parser.add_option("--app_prefix", dest="app_prefix", type="str", default="")
 
         (options, args) = parser.parse_args()
         if ((len(args) != 0)):

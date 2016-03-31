@@ -146,7 +146,6 @@ def Run(argv):  # NOQA
     parser.add_option("--c_pub", dest='c_pub', action="store_true", default=False)
     parser.add_option("--c_sub", dest='c_sub', action="store_true", default=False)
     parser.add_option("--flaky_clients", dest='flaky_clients', action="store_true", default=False)
-    parser.add_option("--app_prefix", dest="app_prefix", type="string", default="")
     parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
     (options, args) = parser.parse_args()
 
