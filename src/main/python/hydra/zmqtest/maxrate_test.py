@@ -27,7 +27,6 @@ class RunSuitMaxRate(object):
         # setattr(options, 'test_duration', 15)
         # setattr(options, 'msg_batch', 100)
         setattr(options, 'msg_rate', 10000)
-        setattr(options, 'config_file', pwd + '/hydra.ini')
         setattr(options, 'keep_running', False)
         setattr(options, 'slow_clients_percent', 0)
         setattr(options, 'rec_clients_percent', 0)
@@ -40,11 +39,11 @@ class RunSuitMaxRate(object):
 
         # Parameters
         client_set = [30, 60, 90, 180, 500, 1000, 2000, 4000, 8000]
-        client_set = [1000, 2000, 4000, 8000]
+        #client_set = [1000, 2000, 4000, 8000]
 
-        slow_clients_percent = 1   # percentage of slow clients
+        slow_clients_percent = 10   # percentage of slow clients
         slow_clients_rate_pc = 0.5  # percentage of zero drop rate for slow clients
-        reconnecting_clients_percent = 1  # Percentage of reconnecting clients
+        reconnecting_clients_percent = 10  # Percentage of reconnecting clients
         reconnecting_clients_rate = 2     # reconnect per sec
 
         for client_count in client_set:
@@ -77,7 +76,7 @@ class RunSuitMaxRate(object):
             if True and maxrate_drop != 0:
                 l.info("Searching for no-drop rate")
                 scanner_drop = Scanner(runner.run, maxrate_rate / 2)
-                (status, step_cnt, nodrop, nodrop_rate) = scanner_drop.search(0.9, 0.01)
+                (status, step_cnt, nodrop, nodrop_rate) = scanner_drop.search(0.5, 0.01)
                 l.info("Found for Client Count %d Max message Rate %d with no drop (%f)" %
                        (client_count, nodrop_rate, nodrop))
             else:
@@ -116,7 +115,7 @@ class RunSuitMaxRate(object):
                 setattr(options, 'rec_clients_rate', reconnecting_clients_rate)
                 runner.set_options(options)
                 scanner_flakey1 = Scanner(runner.run, maxrate_rate / 2)
-                (status, step_cnt, f1_nodrop, f1_nodrop_rate) = scanner_flakey1.search(0.01, 0.01)
+                (status, step_cnt, f1_nodrop, f1_nodrop_rate) = scanner_flakey1.search(0.5, 0.01)
                 l.info("Found for Client Count %d Max message Rate %d with Slow Client and no drop (%f)" %
                        (client_count, f1_nodrop_rate, f1_nodrop))
                 l.info("Searching for no-drop rate with flakey clients")
@@ -126,7 +125,7 @@ class RunSuitMaxRate(object):
                 setattr(options, 'rec_clients_rate', reconnecting_clients_rate)
                 runner.set_options(options)
                 scanner_flakey2 = Scanner(runner.run, maxrate_rate / 2)
-                (status, step_cnt, f2_nodrop, f2_nodrop_rate) = scanner_flakey2.search(0.01, 0.01)
+                (status, step_cnt, f2_nodrop, f2_nodrop_rate) = scanner_flakey2.search(0.5, 0.01)
                 l.info("Found for Client Count %d Max message Rate %d with Reconnect Client and no drop (%f)" %
                        (client_count, f2_nodrop_rate, f2_nodrop))
 
@@ -147,6 +146,8 @@ def Run(argv):  # NOQA
     parser.add_option("--c_pub", dest='c_pub', action="store_true", default=False)
     parser.add_option("--c_sub", dest='c_sub', action="store_true", default=False)
     parser.add_option("--flaky_clients", dest='flaky_clients', action="store_true", default=False)
+    parser.add_option("--app_prefix", dest="app_prefix", type="string", default="")
+    parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
     (options, args) = parser.parse_args()
 
     RunSuitMaxRate(options)

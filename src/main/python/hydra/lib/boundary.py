@@ -71,7 +71,7 @@ class Scanner(object):
             if not max_value_rate or max_value_rate < rate:
                 max_value_rate = rate
                 max_value_drop = drop
-            if (1.0 * (rate - last_rate) / last_rate) < 0.1:
+            if (1.0 * (rate - last_rate) / last_rate) < 0.02:
                 # max rate is likely rate
                 break
             if (rate < 1):
@@ -123,7 +123,7 @@ class BoundaryRunnerBase(object):
                 except:
                     # Print all useful info
                     e = sys.exc_info()[0]
-                    l.error("<p>EXCEPTION while running test from boundary.py  Error: %s</p>" % e)
+                    l.error("EXCEPTION while running test from boundary.py  Error: %s" % e)
                     print(traceback.format_exc())
                     l.info("Will retry to launch the test Retry count %d" % try_cnt)
                     self.delete_all_launched_apps()
