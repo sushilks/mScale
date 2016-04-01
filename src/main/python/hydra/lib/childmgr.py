@@ -33,9 +33,13 @@ class ChildManager(object):
         }
 
     def launch_children(self):
+        print("launching children")
         for name in self.jobs:
             self.jobs[name]['fout'] = open('./' + name + '.stdout.log', 'w+')
             self.jobs[name]['ferr'] = open('./' + name + '.stderr.log', 'w+')
+            print("=========================")
+            print(self.jobs[name]['cmd'])
+            print("=========================")
             self.jobs[name]['process'] = subprocess.Popen(args=self.jobs[name]['cmd'],
                                                           cwd=self.jobs[name]['cwd'],
                                                           env=self.jobs[name]['env'],
@@ -44,6 +48,7 @@ class ChildManager(object):
                                                           close_fds=True)
             atexit.register(self.jobs[name]['process'].terminate)
             self.jobs[name]['running'] = True
+        print("children launched")
 
     def check_children(self):
         print("Waiting for launched CHILD")

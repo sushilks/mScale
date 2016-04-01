@@ -9,7 +9,7 @@ import json
 from hydra.lib import util, hdaemon_pb2
 
 l = util.createlogger('HDaemon', logging.INFO)
-# l.setLevel(logging.DEBUG)
+#l.setLevel(logging.DEBUG)
 
 zmq_context = zmq.Context()
 zmq_poller = zmq.Poller()

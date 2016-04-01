@@ -25,7 +25,8 @@ class RunSuitFixed(object):
 
         def options():
             None
-        setattr(options, 'test_duration', 30)
+        #setattr(options, 'test_duration', 30)
+        setattr(options, 'test_duration', 10)
         setattr(options, 'msg_batch', 50)
         setattr(options, 'msg_rate', 1000)
         setattr(options, 'config_file', pwd + '/hydra.ini')

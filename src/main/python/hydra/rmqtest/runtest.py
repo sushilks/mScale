@@ -182,9 +182,9 @@ class RunTestRMQ(RunTestBase):
             constraints.append(self.app_constraints(field=self.mesos_cluster[0]['cat'],
                                                     operator='CLUSTER', value=self.mesos_cluster[0]['match']))
         self.create_hydra_app(name=self.rmqpub, app_path='hydra.rmqtest.rmq_pub.run',
-                              app_args='%s %s %s %s' % (self.options.test_duration,
-                                                        self.options.msg_batch,
-                                                        self.options.msg_rate, self.options.total_sub_apps),
+                              app_args='%s %s %s' % (self.options.test_duration,
+                                                     self.options.msg_batch,
+                                                     self.options.msg_rate),
                               cpus=0.01, mem=32,
                               ports=[0],
                               constraints=constraints)
@@ -243,7 +243,11 @@ class RunTest(object):
             parser.print_help()
             sys.exit(1)
         r = RunTestRMQ(options, False)
+
+        r.start_appserver()
+
         res = r.run_test()
+        raw_input("-------------------------------")
         r.delete_all_launched_apps()
         print("RES = " + pformat(res))
         if not options.keep_running:
