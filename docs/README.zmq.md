@@ -51,12 +51,16 @@ Versions of different software used.
 ### Test methodology 
 The test orchestrates the launch of publisher and the subscriber jobs on mesos cluster, (they are executed
 as processes on the nodes. Containers are not used to reduce the memory footprint for each client)
+
 Once the process are up and running the test triggers the publisher to send different rate of traffic for 60 seconds. 
 After the time interval rates are measured across all the subscribers and averaged. 
+
 To identify max rate, the rate is increased till there is no observable increase on the received rate on the subscribe.
-The maximum rate is also measured while a small percentage ~1% of the subscribers are running at 50% of the max rate 
+
+The maximum rate is also measured while a small percentage ~10% of the subscribers are running at 50% of the max rate 
 observed in the first experiment.
-one more mesurement of max rate is done while a small percentage ~1% of the subscribers are connecting/disconnecting
+
+one more measurement of max rate is done while a small percentage ~10% of the subscribers are connecting/disconnecting
 at the rate of 2 connections/second.
 
 ### Results (ZMQ - PYTHON Pub/Sub)
@@ -89,7 +93,7 @@ as the scale approaches 7.6k clients.
 "10% of clients at half rate" indicates the effect of running 10% of the clients at slower rate (50% of max 
 observed earlier).
 
-"10% of the clients reconnecting" indicates the effect of 10% of the clients reconnecting at 10 connection/disconnection
+"10% of the clients reconnecting" indicates the effect of 10% of the clients reconnecting at 2 connection/disconnection
 every seconds.
 
 The publisher packet rate is almost linear for all the samples as reflected by the "aggregate max pps".
@@ -102,7 +106,7 @@ The publisher node had a network bandwidth usage of around 50~70MBps for the dur
   
 
 For this the command line is
-`>hydra zmqrate`
+`>hydra zmqrate --test_duration=60 --flaky_clients`
 
 
 ### Results (ZMQ - CPP Pub/Sub)
