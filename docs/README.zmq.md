@@ -51,16 +51,12 @@ Versions of different software used.
 ### Test methodology 
 The test orchestrates the launch of publisher and the subscriber jobs on mesos cluster, (they are executed
 as processes on the nodes. Containers are not used to reduce the memory footprint for each client)
-
 Once the process are up and running the test triggers the publisher to send different rate of traffic for 60 seconds. 
 After the time interval rates are measured across all the subscribers and averaged. 
-
 To identify max rate, the rate is increased till there is no observable increase on the received rate on the subscribe.
-
-The maximum rate is also measured while a small percentage ~10% of the subscribers are running at 50% of the max rate 
+The maximum rate is also measured while a small percentage ~1% of the subscribers are running at 50% of the max rate 
 observed in the first experiment.
-
-one more measurement of max rate is done while a small percentage ~10% of the subscribers are connecting/disconnecting
+one more mesurement of max rate is done while a small percentage ~1% of the subscribers are connecting/disconnecting
 at the rate of 2 connections/second.
 
 ### Results (ZMQ - PYTHON Pub/Sub)
@@ -93,7 +89,7 @@ as the scale approaches 7.6k clients.
 "10% of clients at half rate" indicates the effect of running 10% of the clients at slower rate (50% of max 
 observed earlier).
 
-"10% of the clients reconnecting" indicates the effect of 10% of the clients reconnecting at 2 connection/disconnection
+"10% of the clients reconnecting" indicates the effect of 10% of the clients reconnecting at 10 connection/disconnection
 every seconds.
 
 The publisher packet rate is almost linear for all the samples as reflected by the "aggregate max pps".
@@ -106,7 +102,7 @@ The publisher node had a network bandwidth usage of around 50~70MBps for the dur
   
 
 For this the command line is
-`>hydra zmqrate --test_duration=60 --flaky_clients`
+`>hydra zmqrate`
 
 
 ### Results (ZMQ - CPP Pub/Sub)
@@ -114,11 +110,30 @@ For this the command line is
 For the CPP test the results where very similar to python test. With CPP the rates are all generally higher then python.
 Also the publisher is able to push lot more traffic so we are seeing a much higher drop rate even at low client load. 
 
-<img src="https://docs.google.com/spreadsheets/d/1BFmQ1xvnga44r15BGnTzCUcs5i-dleNMZ1bsnh8j2rg/pubchart?oid=682891645&format=image">
+|Client Count|MaxRate at SUB With Drop|Aggregate Max pps|MaxRate at Sub (< 0.5% Drop, SNDHWN=1k)|MaxRate at Sub(SNDHWM = 100k)|MaxRate at Sub(SNDHWM = 0)|
+| --- | --- | --- | --- | ---| ---|
+|30     |207652	|6,229,560	|3251	|40207 |217985
+|60	    |109096	|6,545,760	|2906	|23360 |111175
+|120	|54594	|6,551,280	|4492	|17087 |54984
+|240	|18406	|4,417,440	|4249	|11142 |27778
+|480	|8756	|4,202,880	|4317	|8756  |8622
+|960	|3658	|3,511,680	|3658	|3658  |3404
+|1920	|1976	|3,793,920	|1976	|1976  |1730
+|3840	|1239	|4,757,760	|1239	|1239  |791
+|7680	|538	|4,131,840	|538	|538   |397
 
-I did not modify the HWM threshold value, as it will depend a lot on the application. However I am sure I can find a 
-high enough number that will reduce the drop rate to negligible. 
+Three samples where collected for maximum achievable rate with < 0.5% drop
 
+   * with default SNDHWM of 1000.
+   * with SNDHWM set to 100k for the publisher. 
+   * with SNDHWM set to 0. (Infinite queue size).
+
+When the number of clients is low it's relatively easy to drop, and the rate needs to be very low(3251 compare 
+to max rate of 118k) to get no drop. Even increasing the SNDHWM form 1k to 100k we only see the max rate of 40k 
+only with infinite queue size we are able to get to the maximum rate possible. 
+Under low client load condition it seems very easy to drop packets. 
+This behaviour requires some more explanation, will work on digging a bit more to find why it's hard to get low drops
+when the number of clients is very low. 
 
 
 ## Notes, Observations 
