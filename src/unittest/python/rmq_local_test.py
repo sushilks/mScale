@@ -24,26 +24,20 @@ class RMQLocalTest(unittest.TestCase):
 
         def options():
             None
-        #setattr(options, 'test_duration', 30)
-        setattr(options, 'test_duration', 10)
+        setattr(options, 'test_duration', 5)
         setattr(options, 'msg_batch', 50)
         setattr(options, 'msg_rate', 1000)
+        setattr(options, 'msg_rate', 1)
+        setattr(options, 'total_sub_apps', 1)
         setattr(options, 'config_file', pwd + '/hydra.ini')
         r = RunTestRMQ(options, False)
         r.start_appserver()
         res = r.run_test()
-        raw_input("-------------------------------")
+        raw_input("delete all ")
         r.delete_all_launched_apps()
-        #print("RES = " + pformat(res))
-        #if not options.keep_running:
-        #    r.stop_appserver()
-        #else:
-        #    print("Keep running is set: Leaving the app server running")
-        #    print("   you can use the marathon gui/cli to scale the app up.")
-        #    print("   after you are done press enter on this window")
-        #    input('>')
-        #r.stop_appserver()
-
+        raw_input("deleted all")
+        r.stop_appserver()
+        print("RES = " + pformat(res))
 
 if __name__ == '__main__':
     unittest.main()

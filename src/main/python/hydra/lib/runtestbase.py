@@ -208,6 +208,7 @@ class RunTestBase(BoundaryRunnerBase):
         self.apps[name] = {'app': r, 'type': 'script'}
         self.wait_app_ready(name, 1)
         self.refresh_app_info(name)
+        #l.info(self.apps)
         return r
 
     def create_binary_app(self, name, app_script, cpus, mem, ports=None, constraints=None):
@@ -289,13 +290,12 @@ class RunTestBase(BoundaryRunnerBase):
                            'stats': {},
                            'property': {}}
         ip_port_map = self.apps[name]['ip_port_map']
-        #tasks = self.get_app_tasks(name)
-        #for task in tasks:
-        #    app_ip = self.get_ip_hostname(task.host)
-        #    for app_rep_port in task.ports:
-        #        ip_port_map[task.id + '_PORT' + str(app_rep_port)] = \
-        #            [app_rep_port, app_ip]
-        tasks = []
+        tasks = self.get_app_tasks(name)
+        for task in tasks:
+            app_ip = self.get_ip_hostname(task.host)
+            for app_rep_port in task.ports:
+                ip_port_map[task.id + '_PORT' + str(app_rep_port)] = \
+                    [app_rep_port, app_ip]
         return len(tasks)
 
     def fetch_app_stats(self, name):

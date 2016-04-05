@@ -58,7 +58,11 @@ def run10(argv):
     pwd = os.getcwd()
     l.info("CWD = " + pformat(pwd))
     cmgr = ChildManager()
+    myenv = os.environ.copy()
     cmd = './hydra hydra.rmqtest.rmq_sub.run'.split(' ') + argv[1:]
+    # TODO: (AbdullahS) Find a better way to do this
+    if "mock" in myenv:
+        cmd = 'hydra hydra.rmqtest.rmq_sub.run'.split(' ') + argv[1:]
     cwd = None
     for idx in range(0, 10):
         myenv = os.environ.copy()

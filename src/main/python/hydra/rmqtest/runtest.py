@@ -16,7 +16,7 @@ except ImportError:
     from configparser import ConfigParser
 
 l = util.createlogger('runTest', logging.INFO)
-# l.setLevel(logging.DEBUG)
+l.setLevel(logging.DEBUG)
 
 tout_60s = 60000
 tout_30s = 30000
@@ -34,11 +34,11 @@ class RMQSubAnalyser(HAnalyser):
 
 
 class RunTestRMQ(RunTestBase):
-    def __init__(self, options, runtest=True):
+    def __init__(self, options, runtest=True, mock=False):
         self.options = options
 
         self.config = ConfigParser()
-        RunTestBase.__init__(self, 'RMQScale', self.options, self.config, startappserver=runtest)
+        RunTestBase.__init__(self, 'RMQScale', self.options, self.config, startappserver=runtest, mock=mock)
         self.rmqpub = '/rmq-pub'
         self.rmqsub = '/rmq-sub'
         self.add_appid(self.rmqpub)
@@ -247,7 +247,7 @@ class RunTest(object):
         r.start_appserver()
 
         res = r.run_test()
-        raw_input("-------------------------------")
+        raw_input()
         r.delete_all_launched_apps()
         print("RES = " + pformat(res))
         if not options.keep_running:

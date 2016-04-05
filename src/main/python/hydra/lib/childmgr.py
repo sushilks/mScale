@@ -5,11 +5,13 @@ import signal
 import sys
 import time
 import atexit
+import os
+import psutil
 
 
 class ChildManager(object):
     def __init__(self):
-        signal.signal(signal.SIGCHLD, self.sigchild)
+        #signal.signal(signal.SIGCHLD, self.sigchild)
         self.taskdone = False
         self.jobs = {}
 
@@ -32,20 +34,21 @@ class ChildManager(object):
             'running': False
         }
 
-    def launch_children(self):
+    def launch_children(self, ports=None):
         print("launching children")
         for name in self.jobs:
             self.jobs[name]['fout'] = open('./' + name + '.stdout.log', 'w+')
             self.jobs[name]['ferr'] = open('./' + name + '.stderr.log', 'w+')
-            print("=========================")
-            print(self.jobs[name]['cmd'])
-            print("=========================")
+            self.jobs[name]['pid'] = None
             self.jobs[name]['process'] = subprocess.Popen(args=self.jobs[name]['cmd'],
                                                           cwd=self.jobs[name]['cwd'],
                                                           env=self.jobs[name]['env'],
                                                           stdout=self.jobs[name]['fout'],
                                                           stderr=self.jobs[name]['ferr'],
                                                           close_fds=True)
+            self.jobs[name]['pid'] = self.jobs[name]['process'].pid
+            if ports:
+                self.jobs[name]['ports'] = ports
             atexit.register(self.jobs[name]['process'].terminate)
             self.jobs[name]['running'] = True
         print("children launched")
@@ -65,3 +68,16 @@ class ChildManager(object):
             if self.done():
                 break
             time.sleep(1)
+
+    def terminate_process_and_children(self, name):
+        if name not in self.jobs:
+            print("[%s] does not exist as a process!")
+        ppid = self.jobs[name]['process'].pid
+        try:
+          parent_proc = psutil.Process(ppid)
+        except psutil.NoSuchProcess:
+          return
+        children = parent_proc.children(recursive=True)
+        print(children)
+        for proc in children:
+          proc.send_signal(signal.SIGKILL)

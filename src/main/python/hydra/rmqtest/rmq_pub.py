@@ -9,8 +9,8 @@ import json
 from pprint import pprint, pformat   # NOQA
 from hydra.lib import util
 from hydra.lib.hdaemon import HDaemonRepSrv
-l = util.createlogger('HPub', logging.INFO)
-# l = util.createlogger('HPub', logging.DEBUG)
+#l = util.createlogger('HPub', logging.INFO)
+l = util.createlogger('HPub', logging.DEBUG)
 
 
 class HDRmqpRepSrv(HDaemonRepSrv):
@@ -77,6 +77,9 @@ def run(argv):
     # init simple Rep server, this is used to listen
     # for the signal to start sending data
     pub_rep_port = os.environ.get('PORT0')
+    l.info("===========================")
+    l.info(pub_rep_port)
+    l.info("===========================")
 
     l.info("Starting RabbitMQ REP server at port [%s]", pub_rep_port)
     run_data = {'start': False,
