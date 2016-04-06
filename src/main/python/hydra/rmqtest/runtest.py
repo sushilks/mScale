@@ -247,7 +247,6 @@ class RunTest(object):
         r.start_appserver()
 
         res = r.run_test()
-        raw_input()
         r.delete_all_launched_apps()
         print("RES = " + pformat(res))
         if not options.keep_running:

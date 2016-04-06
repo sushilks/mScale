@@ -5,13 +5,13 @@ import signal
 import sys
 import time
 import atexit
-import os
 import psutil
 
 
 class ChildManager(object):
-    def __init__(self):
-        #signal.signal(signal.SIGCHLD, self.sigchild)
+    def __init__(self, sighandler=True):
+        if sighandler:
+            signal.signal(signal.SIGCHLD, self.sigchild)
         self.taskdone = False
         self.jobs = {}
 
@@ -35,7 +35,6 @@ class ChildManager(object):
         }
 
     def launch_children(self, ports=None):
-        print("launching children")
         for name in self.jobs:
             self.jobs[name]['fout'] = open('./' + name + '.stdout.log', 'w+')
             self.jobs[name]['ferr'] = open('./' + name + '.stderr.log', 'w+')
@@ -51,7 +50,6 @@ class ChildManager(object):
                 self.jobs[name]['ports'] = ports
             atexit.register(self.jobs[name]['process'].terminate)
             self.jobs[name]['running'] = True
-        print("children launched")
 
     def check_children(self):
         print("Waiting for launched CHILD")
@@ -70,14 +68,19 @@ class ChildManager(object):
             time.sleep(1)
 
     def terminate_process_and_children(self, name):
+        """
+        Recursively terminate all children of
+        respective process
+        @args:
+        name:   Name of the job
+        """
         if name not in self.jobs:
             print("[%s] does not exist as a process!")
         ppid = self.jobs[name]['process'].pid
         try:
-          parent_proc = psutil.Process(ppid)
+            parent_proc = psutil.Process(ppid)
         except psutil.NoSuchProcess:
-          return
+            return
         children = parent_proc.children(recursive=True)
-        print(children)
         for proc in children:
-          proc.send_signal(signal.SIGKILL)
+            proc.send_signal(signal.SIGKILL)
