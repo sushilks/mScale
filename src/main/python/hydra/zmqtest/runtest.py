@@ -45,8 +45,8 @@ class RunTestZMQ(RunTestBase):
 
         self.config = ConfigParser()
         RunTestBase.__init__(self, 'zmqScale', options, self.config, startappserver=runtest)
-        self.zstpub = '/zst-pub'
-        self.zstsub = '/zst-sub'
+        self.zstpub = self.format_appname('/zst-pub')
+        self.zstsub = self.format_appname('/zst-sub')
         self.add_appid(self.zstpub)
         self.add_appid(self.zstsub)
         self.boundary_setup(self.options, 'msg_rate', self.boundary_resultfn)
@@ -138,8 +138,8 @@ class RunTestZMQ(RunTestBase):
 
     def boundary_resultfn(self, options, res):
         message_rate = options.msg_rate
-        l.info("Completed run with message rate = %d and client count=%d " %
-               (message_rate, options.total_sub_apps * 10) +
+        l.info("Completed run with message rate = %d and client count=%d/%d " %
+               (message_rate, options.total_sub_apps * 10, res['valid_client_cnt']) +
                "Reported Rate PUB:%.0f SUB:%.0f and Reported Drop Percentage : %.4f" %
                (res['average_tx_rate'], res['average_rate'], res['average_packet_loss']))
         l.info("\t\tCompleted-2: Pub-CPU:%3f%% PUB-TX:%.2fMbps PUB-RX:%.2fMbps " %
@@ -184,8 +184,10 @@ class RunTestZMQ(RunTestBase):
             task_id = info['task_id']
             slow_clients = self.get_app_property(self.zstsub, 'slow_clients')
             rec_clients = self.get_app_property(self.zstsub, 'reconnecting_clients')
-
-            if slow_clients and task_id in slow_clients:
+            # we are seeing some of the clients compleately fail to receive
+            # messages Need to create a seperate account for these clients.
+            # For now will hack it to be grouped with slow clients.
+            if (slow_clients and task_id in slow_clients) or info['msg_cnt'] == 0:
                 slow_clients_rate += info['rate']
                 slow_clients_packet_cnt += info['msg_cnt']
                 slow_clients_cnt += 1
@@ -201,8 +203,8 @@ class RunTestZMQ(RunTestBase):
                 if info['msg_cnt'] != msg_cnt_pub_tx:
                     if (bad_clients < 4):
                         l.info("[%s] Count Mismatch Info: %s" % (client, pformat(info)))
-                    else:
-                        l.info("[%s] Count Mismatch Suppressing details (Use DCOS to get data)." % (client))
+                    # else:
+                    #    l.info("[%s] Count Mismatch Suppressing details (Use DCOS to get data)." % (client))
                     bad_clients += 1
                     bad_client_rate += info['rate']
         if bad_clients > 0:
@@ -234,6 +236,7 @@ class RunTestZMQ(RunTestBase):
         result['average_rate'] = client_rate / valid_client_cnt
         result['failing_clients'] = bad_clients
         result['average_tx_rate'] = pub_data['rate']
+        result['valid_client_cnt'] = valid_client_cnt
         if bad_clients:
             result['failing_clients_rate'] = (bad_client_rate / bad_clients)
         result['average_packet_loss'] = \
