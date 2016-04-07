@@ -1,14 +1,28 @@
 
 language: python
+sudo: required
 
 python:
   - "2.7"
   - "3.5"
   - "pypy"
 
+services:
+  - rabbitmq
+
+before_script:
+  - cat /etc/lsb-release
+  - sudo rabbitmqctl add_user hydra hydra
+  - sudo rabbitmqctl set_user_tags hydra administrator
+  - sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*"
+  - sudo apt-get install protobuf-compiler
+  - sudo apt-get install libprotobuf-dev
+
 install:
   - pip install pybuilder
   - pyb install_dependencies analyze --verbose
 
 script:
+  - ls /home/travis/build/sushilks/hydra/src/main/python/hydra/lib
+  - pyb install
   - pyb test --verbose
