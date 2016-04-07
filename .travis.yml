@@ -35,3 +35,4 @@ script:
 
 after_script:
   - cat /home/travis/build/sushilks/hydra/live/*.log
+  - cat /home/travis/build/sushilks/hydra/target/reports/distutils/bdist_wheel
