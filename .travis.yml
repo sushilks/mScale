@@ -26,9 +26,9 @@ before_script:
 
 install:
   - pip install pybuilder
-  - pyb install_dependencies analyze --verbose
 
 script:
+  - pyb publish
   - pyb install -x run_unit_tests
   - pyb test --verbose
 
