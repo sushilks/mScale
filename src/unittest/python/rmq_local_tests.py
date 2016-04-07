@@ -48,13 +48,13 @@ class RMQLocalTest(unittest.TestCase):
 
         # Remove unittest process logs from live directory
         files = [f for f in os.listdir("./live") if f.endswith(".log")]
-        for f in files:
-            try:
-                f_name = "./live/" + f
-                l.debug("removing %s", f_name)
-                os.remove(f_name)
-            except:
-                pass
+        #for f in files:
+        #    try:
+        #        f_name = "./live/" + f
+        #        l.debug("removing %s", f_name)
+        #        os.remove(f_name)
+        #    except:
+        #        pass
 
 if __name__ == '__main__':
     unittest.main()
