@@ -15,6 +15,7 @@ before_script:
   - sudo rabbitmqctl set_user_tags hydra administrator
   - sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*"
   - sudo apt-get install protobuf-c-compiler
+  - sudo apt-get install protobuf-compiler
   - sudo apt-get install libprotobuf-dev
 
 install:
