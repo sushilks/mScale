@@ -11,6 +11,7 @@ before_script:
   - wget https://www.rabbitmq.com/rabbitmq-signing-key-public.asc
   - sudo apt-key add rabbitmq-signing-key-public.asc
   - sudo apt-get update -qq
+  - cat /etc/lsb-release
   - sudo apt-get install rabbitmq-server
   - sudo rabbitmqctl add_user hydra hydra
   - sudo rabbitmqctl set_user_tags hydra administrator
