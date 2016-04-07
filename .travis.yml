@@ -1,22 +1,28 @@
 
 language: python
+sudo: required
 
 python:
   - "2.7"
   - "3.5"
   - "pypy"
 
+addons:
+  apt:
+    packages:
+       - libzmq3-dev
+       - protobuf-compiler
+       - libprotobuf-dev
+
 services:
   - rabbitmq
 
 before_script:
-  - cat /etc/lsb-release
   - sudo rabbitmqctl add_user hydra hydra
   - sudo rabbitmqctl set_user_tags hydra administrator
   - sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*"
-  - sudo apt-get install protobuf-c-compiler
-  - sudo apt-get install protobuf-compiler
-  - sudo apt-get install libprotobuf-dev
+  - wget https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
+  - mv zmq.hpp /home/travis/build/sushilks/hydra/src/main/c/zmq
 
 install:
   - pip install pybuilder

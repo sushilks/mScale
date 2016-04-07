@@ -54,7 +54,6 @@ def set_properties(project):
     project.set_property('publish_propagate_stderr', True)
     project.set_property('publish_propagate_stdout', True)
 
-
     project.get_property('distutils_commands').append('bdist_wheel')
     project.set_property('distutils_classifiers', [
         'Development Status :: 3 - Alpha',
