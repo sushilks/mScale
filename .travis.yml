@@ -14,6 +14,7 @@ before_script:
   - sudo rabbitmqctl add_user hydra hydra
   - sudo rabbitmqctl set_user_tags hydra administrator
   - sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*"
+  - sudo apt-get install protobuf-c-compiler
 
 install:
   - pip install pybuilder
