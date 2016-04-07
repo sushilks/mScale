@@ -10,13 +10,19 @@ python:
 services:
   - rabbitmq
 
+addons:
+  apt:
+    packages:
+       - libzmq3-dev
+       
+
 before_script:
   - cat /etc/lsb-release
   - sudo rabbitmqctl add_user hydra hydra
   - sudo rabbitmqctl set_user_tags hydra administrator
   - sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*"
-  - sudo apt-get install protobuf-compiler
-  - sudo apt-get install libprotobuf-dev
+  - sudo apt-get install -y protobuf-compiler
+  - sudo apt-get install -y libprotobuf-dev
 
 install:
   - pip install pybuilder
