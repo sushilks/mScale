@@ -31,3 +31,6 @@ install:
 script:
   - pyb install -x run_unit_tests
   - pyb test --verbose
+
+after_script:
+  - cat /home/travis/build/sushilks/hydra/live/*.log
