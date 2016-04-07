@@ -38,13 +38,23 @@ class RMQLocalTest(unittest.TestCase):
         setattr(options, 'total_sub_apps', 1)
         # TODO: AbdullahS: see if we can get rid of config file
         #       requirement for local tests
-        setattr(options, 'config_file', pwd + '/hydra.ini')
+        setattr(options, 'config_file', pwd + '/src/unittest/python/test.ini')
         r = RunTestRMQ(options, runtest=False, mock=True)
         r.start_appserver()
         res = r.run_test()
         r.delete_all_launched_apps()
         r.stop_appserver()
         print("RES = " + pformat(res))
+
+        # Remove unittest process logs from live directory
+        files = [f for f in os.listdir("./live") if f.endswith(".log")]
+        for f in files:
+            try:
+                f_name = "./live/" + f
+                l.debug("removing %s", f_name)
+                os.remove(f_name)
+            except:
+                pass
 
 if __name__ == '__main__':
     unittest.main()
