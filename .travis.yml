@@ -28,7 +28,7 @@ install:
   - pip install pybuilder
 
 script:
-  - pyb publish
+  - pyb publish -x run_unit_tests
   - pyb install -x run_unit_tests
   - pyb test --verbose
 
