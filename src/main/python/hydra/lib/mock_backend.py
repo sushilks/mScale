@@ -7,7 +7,6 @@ import sys
 import logging
 import os
 import random
-import netifaces
 from hydra.lib.childmgr import ChildManager
 
 l = util.createlogger('MOCKAPI', logging.INFO)
