@@ -233,9 +233,7 @@ class MockMesosIF(object):
         self.slaves_hostname_info = {}
         self.slave_count = 1
         self.myaddr = addr
-        # TODO: (AbdullahS): read the device from config
-        self.mydev = "eth0"
-        self.myip = netifaces.ifaddresses(self.mydev)[2][0]["addr"]
+        self.myip = "127.0.0.1"
         self.update_slaves()
         l.info("MockMesosIF init")
 
