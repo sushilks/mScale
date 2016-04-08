@@ -16,7 +16,7 @@ except ImportError:
     from configparser import ConfigParser
 
 l = util.createlogger('runTest', logging.INFO)
-l.setLevel(logging.DEBUG)
+# l.setLevel(logging.DEBUG)
 
 tout_60s = 60000
 tout_30s = 30000

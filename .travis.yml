@@ -29,10 +29,8 @@ install:
 
 script:
   - pyb publish -x run_unit_tests
-  - rm src/main/scripts/zmq_*
   - pyb install -x run_unit_tests
   - pyb test --verbose
 
 after_script:
   - cat /home/travis/build/sushilks/hydra/live/*.log
-  - cat /home/travis/build/sushilks/hydra/target/reports/distutils/bdist_wheel
