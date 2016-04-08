@@ -30,6 +30,7 @@ install:
 
 script:
   - pyb publish -x run_unit_tests
+  - rm src/main/scripts/zmq_*
   - pyb install -x run_unit_tests
   - pyb test --verbose
 
