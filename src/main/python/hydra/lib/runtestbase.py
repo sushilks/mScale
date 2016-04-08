@@ -10,7 +10,7 @@ import traceback
 import signal
 from random import randint
 from pprint import pprint, pformat  # NOQA
-from hydra.lib import appserver, mmapi, util
+from hydra.lib import appserver, mmapi, util, mock_backend
 from hydra.lib.boundary import BoundaryRunnerBase
 from hydra.lib.h_analyser import HAnalyser
 
@@ -42,7 +42,7 @@ def debug(sig, frame):
 
 class RunTestBase(BoundaryRunnerBase):
     def __init__(self, test_name, options, config=None,
-                 startappserver=True):
+                 startappserver=True, mock=False):
         if not config:
             config = ConfigParser()
         config_filename = 'hydra.ini'
@@ -62,6 +62,7 @@ class RunTestBase(BoundaryRunnerBase):
         self.config = config
         self.options = options
         self.apps = {}
+        self.mock = mock
         signal.signal(signal.SIGUSR1, debug)
 
         # extract cluster information
@@ -115,12 +116,20 @@ class RunTestBase(BoundaryRunnerBase):
     def init_mesos(self):
         if not self.__mesos:
             l.info("Creating Mesos Client")
-            self.__mesos = mmapi.MesosIF(self.mesos_addr)
+            if self.mock:
+                l.info("Initating MockMesosIF")
+                self.__mesos = mock_backend.MockMesosIF(self.mesos_addr)
+            else:
+                self.__mesos = mmapi.MesosIF(self.mesos_addr)
 
     def init_marathon(self):
         if not self.__mt:
             l.info("Creating Marathon Client")
-            self.__mt = mmapi.MarathonIF(self.marathon_addr, self.myip, self.__mesos)
+            if self.mock:
+                l.info("Initating MockMarathonIF")
+                self.__mt = mock_backend.MockMarathonIF(self.marathon_addr, self.myip, self.__mesos)
+            else:
+                self.__mt = mmapi.MarathonIF(self.marathon_addr, self.myip, self.__mesos)
             self.mt = self.__mt
 
     def init_appserver_dir(self):

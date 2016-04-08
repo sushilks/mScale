@@ -10,7 +10,6 @@ from pprint import pprint, pformat   # NOQA
 from hydra.lib import util
 from hydra.lib.hdaemon import HDaemonRepSrv
 l = util.createlogger('HPub', logging.INFO)
-# l = util.createlogger('HPub', logging.DEBUG)
 
 
 class HDRmqpRepSrv(HDaemonRepSrv):

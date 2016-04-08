@@ -1,5 +1,6 @@
 from pybuilder.core import use_plugin, init, Author, task, description, depends
 from pybuilder.plugins.exec_plugin import run_command
+import sys
 
 use_plugin("python.core")
 use_plugin("copy_resources")
@@ -34,9 +35,12 @@ def set_properties(project):
     # project.build_depends_on('logging')
     project.build_depends_on('docopt')
     project.build_depends_on('psutil')
-    project.build_depends_on('protobuf')
     project.build_depends_on('pep8-naming')
     project.build_depends_on('pika')
+    if sys.version_info[0] == 3:
+        project.build_depends_on('protobuf==3.0.0-b2')
+    else:
+        project.build_depends_on('protobuf')
 
     project.set_property('copy_resources_target', '$dir_dist')
     project.get_property('copy_resources_glob').append('LICENSE')

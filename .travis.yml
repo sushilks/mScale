@@ -4,7 +4,6 @@ sudo: required
 
 python:
   - "2.7"
-  - "3.5"
   - "pypy"
 
 addons:
@@ -29,5 +28,9 @@ install:
   - pyb install_dependencies analyze --verbose
 
 script:
-  - pyb install
+  - pyb publish -x run_unit_tests
+  - pyb install -x run_unit_tests
   - pyb test --verbose
+
+after_script:
+  - cat /home/travis/build/sushilks/hydra/live/*.log
