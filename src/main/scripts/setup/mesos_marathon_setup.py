@@ -8,11 +8,15 @@ import argparse
 import setup_helpers
 from shell_command import shell_call
 import ntpath
+from fabric.api import *
 
 parser = argparse.ArgumentParser(description='Mesos Marathon setup script')
 # 'default=3' fulfills the Apache Mesos recommendation of having at least three masters for a production environment.
 parser.add_argument('--num_masters', '-m', type=int, default=1, help='number of master nodes')
 parser.add_argument('--num_slaves', '-s', type=int, default=1, help='number of slave nodes')
+
+parser.add_argument('--dst_work_dir', '-w', type=str, default="/home/plumgrid", help='Destination work directory. All contents will be uploaded here.')
+parser.add_argument('--dst_user_name', '-u', type=str, default="plumgrid", help='Destination user name')
 parser.add_argument('--start', '-r', type=int, default=1, help='start step')
 parser.add_argument('--end', '-e', type=int, default=12, help='end step')
 parser.add_argument('--clean', '-c', action='store_true', help='cleanup instances')
@@ -20,9 +24,15 @@ args = parser.parse_args()
 
 num_masters=args.num_masters
 num_slaves=args.num_slaves
+dst_work_dir=args.dst_work_dir
+dst_user_name=args.dst_user_name
+mesos_all_ips_list = setup_helpers.get_mesos_all_ips()
+mesos_masters_ips_list = setup_helpers.get_mesos_masters_ips()
+mesos_slaves_ips_list= setup_helpers.get_mesos_slaves_ips()
 
 def setup(step):
   if step == 1:
+    # TODO: Write cleanup function and call it here. Remove all ips files.
     print("Spawn %d ubuntu 14.04 master servers" % num_masters)
     for i in range(num_masters):
       cmd="aurora spawn master" + str(i) + " ubuntu-14-04 n1-standard-4 1"
@@ -34,7 +44,14 @@ def setup(step):
       shell_call(cmd)
 
   elif step == 2:
-    print "Write mesos masters ips in ~/mesos_masters_ips files"
+    # Purpose of this step is to enable the script to work for physical or other (e.g AWS) deployments.
+    # All user has to do is to create a text file holding ips and run script from step 3.
+    # TODO: 1. Write first 2 steps as a seperate script and call it as infra_setup(). Infra setup script
+    #          may be written for various environments like AZURE, AWS etc.
+    #       2. Current script will start from step 3 and will be called mesos_setup().
+    #       3. Another script will take infra as argument (GCE, AWS, Azure) and will call appropriate
+    #          infra script along with mesos setup.
+    print "==> Write mesos masters ips in ~/mesos_masters_ips files"
     master_ips = setup_helpers.get_master_instances_ips()
     f = open(os.environ['HOME'] + '/mesos_all_ips', 'w')
     fm = open(os.environ['HOME'] + '/mesos_masters_ips', 'w')
@@ -42,7 +59,7 @@ def setup(step):
       f.write(ip+"\n")
       fm.write(ip+"\n")
 
-    print "Write mesos slaves ips in ~/mesos_slaves_ips files"
+    print "==> Write mesos slaves ips in ~/mesos_slaves_ips files"
     slaves_ips = setup_helpers.get_slave_instances_ips()
     fs = open(os.environ['HOME'] + '/mesos_slaves_ips', 'w')
     for ip in slaves_ips:
@@ -52,72 +69,62 @@ def setup(step):
     fs.close()
     f.close()
 
+  # ******************************* Install Mesos Sphere on the servers. ********************************
   elif step == 3:
-    print "add the Mesosphere repository to resources list of ALL servers"
-    script_path_name = setup_helpers.create_add_mesosphere_repo_script()
+    print "==> Add Mesosphere repository to resources list of ALL hosts"
+    script_path_name = os.getcwd() + "/vm_files/add_mesos_sphere_repo.sh"
     script_name=ntpath.basename(script_path_name)
-    f = open(os.environ['HOME'] + '/mesos_all_ips', 'r')
-    for ip in f:
-      ip = ip.rstrip()
-      setup_helpers.upload_file(ip, script_path_name)
-      setup_helpers.run_cmd_gci(ip, "/bin/bash /home/plumgrid/" + script_name)
-      #setup_helpers.run_cmd_gci(ip, "rm /home/plumgrid/" + script_name)
-    f.close()
-    shell_call("rm " + script_path_name)
+
+    print ("==> Uploading %s to %s" % (script_path_name, dst_work_dir))
+    setup_helpers.upload_to_multiple_hosts(dst_user_name, mesos_all_ips_list, script_path_name, dst_work_dir)
+
+    print ("==> Running %s/%s script" % (dst_work_dir, script_name))
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_all_ips_list, "/bin/bash " + dst_work_dir + "/" + script_name)
 
   elif step == 4:
-    print "update your local package cache to gain access to the new component"
-    f = open(os.environ['HOME'] + '/mesos_all_ips', 'r')
-    for ip in f:
-      ip = ip.rstrip()
-      setup_helpers.run_cmd_gci(ip, "sudo apt-get -y update")
-    f.close
+    print "==> Installing Jave Runtime Headless environment"
+    script_path_name = os.getcwd() + "/vm_files/install_JR_headless_env.sh"
+    script_name=ntpath.basename(script_path_name)
+
+    print ("==> Uploading %s to %s" % (script_path_name, dst_work_dir))
+    setup_helpers.upload_to_multiple_hosts(dst_user_name, mesos_all_ips_list, script_path_name, dst_work_dir)
+
+    print ("==> Running %s/%s script" % (dst_work_dir, script_name))
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_all_ips_list, "/bin/bash " + dst_work_dir + "/" + script_name)
 
   elif step == 5:
-    print "Installing Jave Runtime Headless environment"
-    script_path_name = setup_helpers.create_jave_runtime_headless_install_script()
-    script_name=ntpath.basename(script_path_name)
-    f = open(os.environ['HOME'] + '/mesos_all_ips', 'r')
-    for ip in f:
-      ip = ip.rstrip()
-      setup_helpers.upload_file(ip, script_path_name)
-      setup_helpers.run_cmd_gci(ip, "/bin/bash /home/plumgrid/" + script_name)
-      setup_helpers.run_cmd_gci(ip, "rm /home/plumgrid/" + script_name)
-    f.close()
-    shell_call("rm " + script_path_name)
+    # This includes the zookeeper, mesos, marathon, and chronos applications.
+    print "==> On master hosts, install mesos and marathon package"
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "sudo apt-get install -y mesos marathon")
+
+    # For your slave hosts, you only need the mesos package, which also pulls in zookeeper as a dependency:
+    print "==> On slave hosts, install mesos package"
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_slaves_ips_list, "sudo apt-get -y install mesos")
 
   elif step == 6:
-    # This includes the zookeeper, mesos, marathon, and chronos applications.
-    print "On master hosts, install mesos and marathon package"
+    # configure our zookeeper connection info. This is the underlying layer that allows all of our hosts to connect to the correct master servers.
+    print "==> configure zookeepr connection info"
+    config = "zk://"
     f = open(os.environ['HOME'] + '/mesos_masters_ips', 'r')
     for ip in f:
       ip = ip.rstrip()
-      setup_helpers.run_cmd_gci(ip, "sudo apt-get install -y mesos marathon")
+      config += ip + ":2181,"
+    config = config[:-1] + "/mesos"
     f.close
 
-    # For your slave hosts, you only need the mesos package, which also pulls in zookeeper as a dependency:
-    print "On slave hosts, install mesos package"
-    f = open(os.environ['HOME'] + '/mesos_slaves_ips', 'r')
-    for ip in f:
-      ip = ip.rstrip()
-      setup_helpers.run_cmd_gci(ip, "sudo apt-get -y install mesos")
-    f.close
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "echo '" + config + "' > /etc/mesos/zk", use_sudo=True)
 
+  # ******************************* Master Servers' Zookeeper Configuration ********************************
+  # On master servers, we will need to do some additional zookeeper configuration.
+  # The first step is to define a unique ID number, from 1 to 255, for each of your master servers. This is kept in the /etc/zookeeper/conf/myid file.
+  # we'll specify the hostname and IP address for each of our master servers. We will be using the IP address for
+  # the hostname so that our instances will not have trouble resolving correctly
   elif step == 7:
     f = open(os.environ['HOME'] + '/mesos_masters_ips', 'r')
     i = 1
     for ip in f:
       ip = ip.strip()
-      # On master servers, we will need to do some additional zookeeper configuration.
-      # The first step is to define a unique ID number, from 1 to 255, for each of your master servers. This is kept in the /etc/zookeeper/conf/myid file.
-      cmd1 = "\"sudo bash -c 'echo " + str(i) + " > /etc/zookeeper/conf/myid'\""
-      # we'll specify the hostname and IP address for each of our master servers. We will be using the IP address for
-      # the hostname so that our instances will not have trouble resolving correctly
-      cmd2 = "\"sudo bash -c 'echo " + ip + " > /etc/mesos-master/ip' \""
-      cmd3 = "\"echo " + ip + " | sudo tee /etc/mesos-master/hostname \""
-      setup_helpers.run_cmd_gci(ip, cmd1)
-      setup_helpers.run_cmd_gci(ip, cmd2)
-      setup_helpers.run_cmd_gci(ip, cmd3)
+      setup_helpers.run_cmd_on_host(dst_user_name, ip, "echo " + str(i) + " > /etc/zookeeper/conf/myid", use_sudo=True)
       i += 1
     f.close
 
@@ -132,67 +139,58 @@ def setup(step):
       config += "server." + str(i) + "=" + ip + ":2888:3888\n"
       i += 1
     f.close()
-    print config
-
     script_path_name = setup_helpers.create_zk_conf_script(config)
     script_name=ntpath.basename(script_path_name)
-    f = open(os.environ['HOME'] + '/mesos_masters_ips', 'r')
-    for ip in f:
-      ip = ip.rstrip()
-      setup_helpers.upload_file(ip, script_path_name)
-      setup_helpers.run_cmd_gci(ip, "/bin/bash /home/plumgrid/" + script_name)
-      #setup_helpers.run_cmd_gci(ip, "rm /home/plumgrid/" + script_name)
-    f.close()
-    shell_call("rm " + script_path_name)
 
+    print ("==> Uploading %s to /etc/zookeeper/conf/" % script_path_name)
+    setup_helpers.upload_to_multiple_hosts(dst_user_name, mesos_masters_ips_list, script_path_name, "/etc/zookeeper/conf/", use_sudo=True)
+
+  # ******************************* Master Servers' Mesos Configuration ********************************
   elif step == 9:
-    # configure our zookeeper connection info. This is the underlying layer that allows all of our hosts to connect to the correct master servers.
-    print "configure zookeepr connection info"
-    config = "zk://"
+    # TODO: Calculate quoram value
+    # quoram_num = (num_masters // 2) + 1
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "echo 1 > /etc/mesos-master/quorum", use_sudo=True)
+
     f = open(os.environ['HOME'] + '/mesos_masters_ips', 'r')
-    for ip in f:
-      ip = ip.rstrip()
-      config += ip + ":2181,"
-
-    config = config[:-1] + "/mesos"
-    f.close
-
-    f = open(os.environ['HOME'] + '/mesos_all_ips', 'r')
     for ip in f:
       ip = ip.strip()
-      cmd1 = "sudo service zookeeper restart"
-      cmd2 = "\"sudo bash -c 'echo \"" + config + "\" > /etc/mesos/zk'\""
-      cmd3 = "\"sudo bash -c 'echo 1 > /etc/mesos-master/quorum' \""
-      setup_helpers.run_cmd_gci(ip, cmd1)
-      setup_helpers.run_cmd_gci(ip, cmd2)
-      setup_helpers.run_cmd_gci(ip, cmd3)
+      setup_helpers.run_cmd_on_host(dst_user_name, ip, "echo " + ip + " > /etc/mesos-master/ip",  use_sudo=True)
+      setup_helpers.run_cmd_on_host(dst_user_name, ip, "echo " + ip + " > /etc/mesos-master/hostname",  use_sudo=True)
     f.close
 
+  # ******************************* Master Servers' Marathon Configuration ********************************
   elif step == 10:
-    # Configure Marathon
-    print "configure zookeepr connection info"
-    config = "zk://"
-    f = open(os.environ['HOME'] + '/mesos_masters_ips', 'r')
-    for ip in f:
-      ip = ip.rstrip()
-      config += ip + ":2181,"
-    config = config[:-1] + "/marathon"
-    f.close
-
-    script_path_name = setup_helpers.create_marathon_conf_script(config)
+    print "==> Configuring Master server's Marathon configuration"
+    script_path_name = os.getcwd() + "/vm_files/master_marathon_conf.sh"
     script_name=ntpath.basename(script_path_name)
-    f = open(os.environ['HOME'] + '/mesos_masters_ips', 'r')
-    for ip in f:
-      ip = ip.rstrip()
-      setup_helpers.upload_file(ip, script_path_name)
-      setup_helpers.run_cmd_gci(ip, "/bin/bash /home/plumgrid/" + script_name)
-      #setup_helpers.run_cmd_gci(ip, "rm /home/plumgrid/" + script_name)
-    f.close()
-    #shell_call("rm " + script_path_name)
+
+    print ("==> Uploading %s to %s" % (script_path_name, dst_work_dir))
+    setup_helpers.upload_to_multiple_hosts(dst_user_name, mesos_masters_ips_list, script_path_name, dst_work_dir)
+
+    print ("==> Running %s/%s script" % (dst_work_dir, script_name))
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "/bin/bash " + dst_work_dir + "/" + script_name)
+
+  # ******************************* Configure Service Init Rules and Restart Services ********************************
+  elif step == 11:
+    print "==> Configuring Service init rules and Restart Services"
+    script_path_name = os.getcwd() + "/vm_files/srv_init_rules_and_restart_srv.sh"
+    script_name=ntpath.basename(script_path_name)
+
+    print ("==> Uploading %s to %s" % (script_path_name, dst_work_dir))
+    setup_helpers.upload_to_multiple_hosts(dst_user_name, mesos_masters_ips_list, script_path_name, dst_work_dir)
+
+    print ("==> Running %s/%s script" % (dst_work_dir, script_name))
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "/bin/bash " + dst_work_dir + "/" + script_name)
+
+    #setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "service stop mesos-slave && echo 'manual' > /etc/init/mesos-slave.override", use_sudo=True)
+    #setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "service restart zookeeper && service start mesos-master && start marathon", use_sudo=True)
 
 if args.clean:
   shell_call("aurora rm instances master*")
   shell_call("aurora rm instances slave*")
+  shell_call("rm ~/mesos_all_ips")
+  shell_call("rm ~/mesos_masters_ips")
+  shell_call("rm ~/mesos_slaves_ips")
 else:
   for step in range(args.start, args.end+1):
     print ("******************* starting step %d ***********************" % step)
