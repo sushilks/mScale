@@ -6,6 +6,7 @@
 import os
 import argparse
 import setup_helpers
+import ConfigParser
 from shell_command import shell_call
 import ntpath
 from fabric.api import *
@@ -14,16 +15,18 @@ parser = argparse.ArgumentParser(description='Mesos Marathon setup script')
 # 'default=3' fulfills the Apache Mesos recommendation of having at least three masters for a production environment.
 parser.add_argument('--num_masters', '-m', type=int, default=1, help='number of master nodes')
 parser.add_argument('--num_slaves', '-s', type=int, default=1, help='number of slave nodes')
+parser.add_argument('--config_file', '-f', type=str, default="/home/muneeb/config.ini", help='Setup configuration file')
 
 parser.add_argument('--dst_work_dir', '-w', type=str, default="/home/plumgrid", help='Destination work directory. All contents will be uploaded here.')
 parser.add_argument('--dst_user_name', '-u', type=str, default="plumgrid", help='Destination user name')
 parser.add_argument('--start', '-r', type=int, default=1, help='start step')
-parser.add_argument('--end', '-e', type=int, default=12, help='end step')
+parser.add_argument('--end', '-e', type=int, default=17, help='end step')
 parser.add_argument('--clean', '-c', action='store_true', help='cleanup instances')
 args = parser.parse_args()
 
 num_masters=args.num_masters
 num_slaves=args.num_slaves
+config_file=args.config_file
 dst_work_dir=args.dst_work_dir
 dst_user_name=args.dst_user_name
 mesos_all_ips_list = setup_helpers.get_mesos_all_ips()
@@ -33,15 +36,30 @@ mesos_slaves_ips_list= setup_helpers.get_mesos_slaves_ips()
 def setup(step):
   if step == 1:
     # TODO: Write cleanup function and call it here. Remove all ips files.
-    print("Spawn %d ubuntu 14.04 master servers" % num_masters)
-    for i in range(num_masters):
-      cmd="aurora spawn master" + str(i) + " ubuntu-14-04 n1-standard-4 1"
-      shell_call(cmd)
+    config = ConfigParser.ConfigParser()
+    config.read(config_file)
+    sections = config.sections()
+    for section in sections:
+      options_dict = setup_helpers.config_section_map(config, section)
+      print ("count=%s, tag=%s, type=%s" %(options_dict["tag"], options_dict["count"], options_dict["machinetype"]))
+      count = options_dict["count"]
+      machinetype = options_dict["machinetype"]
+      tag = options_dict["tag"]
+      for i in range(int(count)):
+        cmd = "aurora spawn " + section + "-" + tag + "-" + str(i) + " ubuntu-14-04 " + machinetype
+        shell_call(cmd)
 
-    print("Spawn %d ubuntu 14.04 slave servers" % num_masters)
-    for i in range(num_slaves):
-      cmd="aurora spawn slave" + str(i) + " ubuntu-14-04 n1-standard-4 1"
-      shell_call(cmd)
+    #print("Spawn %d ubuntu 14.04 master servers" % num_masters)
+    #for i in range(num_masters):
+    #  cmd="aurora spawn master" + str(i) + " ubuntu-14-04 n1-standard-4"
+    #  shell_call(cmd)
+      #setup_helpers.spawn_instance("master" + str(i), "ubuntu-14-04")
+
+    #print("Spawn %d ubuntu 14.04 slave servers" % num_masters)
+    #for i in range(num_slaves):
+    #  cmd="aurora spawn slave" + str(i) + " ubuntu-14-04 n1-standard-4 1"
+    #  shell_call(cmd)
+      #setup_helpers.spawn_instance("slave" + str(i), "ubuntu-14-04")
 
   elif step == 2:
     # Purpose of this step is to enable the script to work for physical or other (e.g AWS) deployments.
@@ -112,7 +130,7 @@ def setup(step):
     config = config[:-1] + "/mesos"
     f.close
 
-    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "echo '" + config + "' > /etc/mesos/zk", use_sudo=True)
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_all_ips_list, "echo '" + config + "' > /etc/mesos/zk", use_sudo=True)
 
   # ******************************* Master Servers' Zookeeper Configuration ********************************
   # On master servers, we will need to do some additional zookeeper configuration.
@@ -182,8 +200,68 @@ def setup(step):
     print ("==> Running %s/%s script" % (dst_work_dir, script_name))
     setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "/bin/bash " + dst_work_dir + "/" + script_name)
 
-    #setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "service stop mesos-slave && echo 'manual' > /etc/init/mesos-slave.override", use_sudo=True)
-    #setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "service restart zookeeper && service start mesos-master && start marathon", use_sudo=True)
+  # ##################################################################################################################
+  #                                           SLAVE NODEs setup
+  # ##################################################################################################################
+  elif step == 12:
+    print "==> Configuring slave nodes"
+    f = open(os.environ['HOME'] + '/mesos_slaves_ips', 'r')
+    for ip in f:
+      ip = ip.rstrip()
+      script_path_name = setup_helpers.create_slave_conf_script(ip)
+      script_name = ntpath.basename(script_path_name)
+
+      print ("==> Uploading %s to %s" % (script_path_name, dst_work_dir))
+      setup_helpers.upload_to_host(dst_user_name, ip, script_path_name, dst_work_dir)
+
+      print ("==> Running %s/%s script" % (dst_work_dir, script_name))
+      setup_helpers.run_cmd_on_host(dst_user_name, ip, "/bin/bash " + dst_work_dir + "/" + script_name)
+    f.close()
+
+    # ##################################################################################################################
+    #                                           Hydra setup
+    # ##################################################################################################################
+    # TODO: Needs to move to another script.
+  elif step == 13:
+    print "==> Install protobuf on all nodes"
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_all_ips_list, "wget http://launchpadlibrarian.net/160197953/libprotobuf7_2.4.1-3ubuntu4_amd64.deb")
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_all_ips_list, "dpkg -i ./libprotobuf7_2.4.1-3ubuntu4_amd64.deb", use_sudo=True)
+
+  elif step == 14:
+    print "==> Configuring Slaves for Hydra"
+    script_path_name = os.getcwd() + "/vm_files/hydra_slave_setup.sh"
+    script_name=ntpath.basename(script_path_name)
+
+    print ("==> Uploading %s to %s" % (script_path_name, dst_work_dir))
+    setup_helpers.upload_to_multiple_hosts(dst_user_name, mesos_slaves_ips_list, script_path_name, dst_work_dir)
+
+    print ("==> Running %s/%s script" % (dst_work_dir, script_name))
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_slaves_ips_list, "/bin/bash " + dst_work_dir + "/" + script_name)
+
+  elif step == 15:
+    print "==> Clone hydra on master node"
+    setup_helpers.run_cmd_on_host(dst_user_name, mesos_masters_ips_list[0], "sudo apt-get -y install git unzip python-pip")
+    setup_helpers.run_cmd_on_host(dst_user_name, mesos_masters_ips_list[0], "wget https://github.com/sushilks/hydra/archive/master.zip && unzip master.zip")
+
+  elif step == 16:
+    print "==> Upload conf file"
+    script_path_name = setup_helpers.create_hydra_conf(mesos_masters_ips_list[0])
+    script_name = ntpath.basename(script_path_name)
+
+    print ("==> Uploading %s to %s" % (script_path_name, dst_work_dir))
+    setup_helpers.upload_to_host(dst_user_name, mesos_masters_ips_list[0], script_path_name, dst_work_dir + "/hydra-master")
+
+  elif step == 17:
+    print "==> Install packages for hydra"
+    script_path_name = os.getcwd() + "/vm_files/hydra_pkgs_install.sh"
+    script_name=ntpath.basename(script_path_name)
+
+    print ("==> Uploading %s to %s" % (script_path_name, dst_work_dir))
+    setup_helpers.upload_to_multiple_hosts(dst_user_name, mesos_masters_ips_list, script_path_name, dst_work_dir)
+
+    print ("==> Running %s/%s script" % (dst_work_dir, script_name))
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "/bin/bash " + dst_work_dir + "/" + script_name + " " + dst_work_dir)
+
 
 if args.clean:
   shell_call("aurora rm instances master*")
@@ -194,5 +272,8 @@ if args.clean:
 else:
   for step in range(args.start, args.end+1):
     print ("******************* starting step %d ***********************" % step)
+    mesos_all_ips_list = setup_helpers.get_mesos_all_ips()
+    mesos_masters_ips_list = setup_helpers.get_mesos_masters_ips()
+    mesos_slaves_ips_list= setup_helpers.get_mesos_slaves_ips()
     setup(step)
 
