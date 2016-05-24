@@ -11,9 +11,15 @@ project="festive-courier-755"
 zone="us-central1-f"
 credentials = GoogleCredentials.get_application_default()
 compute = discovery.build('compute', 'v1', credentials=credentials)
-email_id="tahir"
 _USER="plumgrid"
 DST_WORK_DIR="/home/plumgrid/"
+
+def get_email_id():
+  f = open(os.environ['HOME'] + ".aurora.conf")
+  for line in f:
+    if 'emailid' in line:
+      return line.split("emailid=",1)[1]
+
 # Function to get mesos instances ips as a list.
 # IPs have already been written in a file.
 def get_mesos_x_ips(x="all"):
@@ -46,7 +52,17 @@ def get_mesos_slaves_ips():
 # Function to get gcloud instances ips.
 # It is only for GCE.
 def get_master_instances_ips():
+  email_id = get_email_id()
   filt = "name eq " + email_id + "-master.*"
+  results = compute.instances().list(project=project, zone=zone, filter=filt).execute()
+  ips = list()
+  for instance in results['items']:
+    ips.append(instance["networkInterfaces"][0]["networkIP"])
+  return ips
+
+def get_slave_instances_ips():
+  email_id = get_email_id()
+  filt = "name eq " + email_id + "-slave.*"
   results = compute.instances().list(project=project, zone=zone, filter=filt).execute()
   ips = list()
   for instance in results['items']:
@@ -83,29 +99,6 @@ def spawn_instance(instance_name, os_name, machine_type="n1-standard-4", dst_use
         "-d2,mode=rw,boot=no,auto-delete=yes --no-address --tags no-ip --metadata-from-file sshKeys=" + pathname
   print ("create_instance_cmd=%s" %cmd)
   shell_call(cmd)
-
-  #tryexec exec_gcloud_cmd disks create "${instance_name}-d1" \
-  #  --image "$os_name" --type "$DISK_TYPE" --size="$DISK1_SIZE" -q
-
-  #echo "Creating the disk[${instance_name}-d2] for the instance in the cloud"
-  #tryexec exec_gcloud_cmd disks create "${instance_name}-d2" \
-  #  --type "$DISK_TYPE" --size="$DISK2_SIZE" -q
-
-  #instances create "${instance_name}"  \
-  #    --machine-type "$instance_type" --network "$NETWORK" --maintenance-policy \
-  #    "MIGRATE" --scopes "$SCOPES" \
-  #    --disk "name=${instance_name}-d1,mode=rw,boot=yes,auto-delete=yes" \
-  #    --disk "name=${instance_name}-d2,mode=rw,boot=no,auto-delete=yes" --no-address --tags "no-ip" \
-  #    --metadata-from-file sshKeys=$key_file
-
-
-def get_slave_instances_ips():
-  filt = "name eq " + email_id + "-slave.*"
-  results = compute.instances().list(project=project, zone=zone, filter=filt).execute()
-  ips = list()
-  for instance in results['items']:
-    ips.append(instance["networkInterfaces"][0]["networkIP"])
-  return ips
 
 def upload_file(instance_ip, pathname, dst_path):
   shell_cmd="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o CheckHostIP=no -r " + pathname + " " + _USER + "@" + instance_ip + ":" + dst_path

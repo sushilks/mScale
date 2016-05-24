@@ -13,19 +13,16 @@ from fabric.api import *
 
 parser = argparse.ArgumentParser(description='Mesos Marathon setup script')
 # 'default=3' fulfills the Apache Mesos recommendation of having at least three masters for a production environment.
-parser.add_argument('--num_masters', '-m', type=int, default=1, help='number of master nodes')
-parser.add_argument('--num_slaves', '-s', type=int, default=1, help='number of slave nodes')
-parser.add_argument('--config_file', '-f', type=str, default=os.environ['HOME'] + "/config.ini", help='Setup configuration file')
+parser.add_argument('--config_file', '-f', type=str, default=os.getcwd() + "/setup_config.ini", help='Setup configuration file')
 
 parser.add_argument('--dst_work_dir', '-w', type=str, default="/home/plumgrid", help='Destination work directory. All contents will be uploaded here.')
 parser.add_argument('--dst_user_name', '-u', type=str, default="plumgrid", help='Destination user name')
 parser.add_argument('--start', '-r', type=int, default=1, help='start step')
 parser.add_argument('--end', '-e', type=int, default=17, help='end step')
 parser.add_argument('--clean', '-c', action='store_true', help='cleanup instances')
+parser.add_argument('--prereq', '-p', action='store_true', help='Install pre-requisites for scripts')
 args = parser.parse_args()
 
-num_masters=args.num_masters
-num_slaves=args.num_slaves
 config_file=args.config_file
 dst_work_dir=args.dst_work_dir
 dst_user_name=args.dst_user_name
@@ -257,6 +254,8 @@ if args.clean:
   shell_call("rm ~/mesos_all_ips")
   shell_call("rm ~/mesos_masters_ips")
   shell_call("rm ~/mesos_slaves_ips")
+elif args.prereq:
+  shell_call("sudo pip install shell_command google-api-python-client fabric")
 else:
   for step in range(args.start, args.end+1):
     print ("******************* starting step %d ***********************" % step)
