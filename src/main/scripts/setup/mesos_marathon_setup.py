@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description='Mesos Marathon setup script')
 # 'default=3' fulfills the Apache Mesos recommendation of having at least three masters for a production environment.
 parser.add_argument('--num_masters', '-m', type=int, default=1, help='number of master nodes')
 parser.add_argument('--num_slaves', '-s', type=int, default=1, help='number of slave nodes')
-parser.add_argument('--config_file', '-f', type=str, default="/home/muneeb/config.ini", help='Setup configuration file')
+parser.add_argument('--config_file', '-f', type=str, default=os.environ['HOME'] + "/config.ini", help='Setup configuration file')
 
 parser.add_argument('--dst_work_dir', '-w', type=str, default="/home/plumgrid", help='Destination work directory. All contents will be uploaded here.')
 parser.add_argument('--dst_user_name', '-u', type=str, default="plumgrid", help='Destination user name')
@@ -48,18 +48,6 @@ def setup(step):
       for i in range(int(count)):
         cmd = "aurora spawn " + section + "-" + tag + "-" + str(i) + " ubuntu-14-04 " + machinetype
         shell_call(cmd)
-
-    #print("Spawn %d ubuntu 14.04 master servers" % num_masters)
-    #for i in range(num_masters):
-    #  cmd="aurora spawn master" + str(i) + " ubuntu-14-04 n1-standard-4"
-    #  shell_call(cmd)
-      #setup_helpers.spawn_instance("master" + str(i), "ubuntu-14-04")
-
-    #print("Spawn %d ubuntu 14.04 slave servers" % num_masters)
-    #for i in range(num_slaves):
-    #  cmd="aurora spawn slave" + str(i) + " ubuntu-14-04 n1-standard-4 1"
-    #  shell_call(cmd)
-      #setup_helpers.spawn_instance("slave" + str(i), "ubuntu-14-04")
 
   elif step == 2:
     # Purpose of this step is to enable the script to work for physical or other (e.g AWS) deployments.

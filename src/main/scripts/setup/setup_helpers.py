@@ -198,8 +198,8 @@ def create_slave_conf_script(ip):
   sudo cp /etc/mesos-slave/ip /etc/mesos-slave/hostname
   sudo service mesos-slave stop || true
   sudo service mesos-slave start
-  sudo apt-get -y install python-dev
-#  sudo pip install psutil pyzmq protobuf
+  sudo apt-get -y install python-dev python-pip
+  sudo pip install psutil pyzmq protobuf
 """
   tfile.write(script)
   tfile.close()
