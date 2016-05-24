@@ -1,6 +1,7 @@
 #!/bin/bash -e
 dst_work_dir=$1
 
+echo "**** $dst_work_dir"
 # Pre Script
 echo "Run pre script"
 sudo rabbitmqctl add_user hydra hydra
@@ -18,9 +19,9 @@ virtualenv ${venv_dir}
 source ${venv_dir}/bin/activate
 
 echo "Install Hydra"
+sudo apt-get -y install python-dev protobuf-c-compiler protobuf-compiler
 pip install pybuilder
 pushd ${dst_work_dir}/hydra-master
-sudo apt-get -y install python-dev protobuf-c-compiler protobuf-compiler
 pyb install_dependencies
 pyb install
 

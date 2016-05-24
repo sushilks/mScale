@@ -199,6 +199,7 @@ def create_slave_conf_script(ip):
   sudo service mesos-slave stop || true
   sudo service mesos-slave start
   sudo apt-get -y install python-dev python-pip
+  sudo apt-get -y install libzmq3-dev libtool pkg-config build-essential autoconf automake
   sudo pip install psutil pyzmq protobuf
 """
   tfile.write(script)
