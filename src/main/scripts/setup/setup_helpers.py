@@ -11,8 +11,6 @@ project="festive-courier-755"
 zone="us-central1-f"
 credentials = GoogleCredentials.get_application_default()
 compute = discovery.build('compute', 'v1', credentials=credentials)
-_USER="plumgrid"
-DST_WORK_DIR="/home/plumgrid/"
 
 def get_email_id():
   f = open(os.environ['HOME'] + ".aurora.conf")
@@ -39,13 +37,15 @@ def get_mesos_x_ips(x="all"):
     return
   return ips
 
-# Get IP addresses
+# Get all IP addresses (both masters and slaves)
 def get_mesos_all_ips():
   return get_mesos_x_ips("all")
 
+# Get master IP addresses
 def get_mesos_masters_ips():
   return get_mesos_x_ips("masters")
 
+# Get Slaves IPs
 def get_mesos_slaves_ips():
   return get_mesos_x_ips("slaves")
 
@@ -100,11 +100,6 @@ def spawn_instance(instance_name, os_name, machine_type="n1-standard-4", dst_use
   print ("create_instance_cmd=%s" %cmd)
   shell_call(cmd)
 
-def upload_file(instance_ip, pathname, dst_path):
-  shell_cmd="scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o CheckHostIP=no -r " + pathname + " " + _USER + "@" + instance_ip + ":" + dst_path
-  print shell_cmd
-  shell_call(shell_cmd)
-
 def upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path, use_sudo=False):
   with settings(host_string=instance_ip, user=dst_user_name):
     if use_sudo:
@@ -136,31 +131,6 @@ def run_cmd_on_multiple_hosts(dst_user_name, hosts_list, cmd, use_sudo=False):
       run_cmd_on_host(dst_user_name, instance_ip, cmd, use_sudo=True)
     else:
       run_cmd_on_host(dst_user_name, instance_ip, cmd)
-
-def create_add_mesosphere_repo_script():
-  # mkstemp() returns a tuple containing an OS-level handle to an open file and the absolute pathname of that file
-  (fd, pathname) = mkstemp(prefix="add_mesos_repo_")
-  tfile = os.fdopen(fd, "w")
-  string = """sudo apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
-DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-CODENAME=$(lsb_release -cs)
-echo "deb http://repos.mesosphere.io/${DISTRO} ${CODENAME} main" | sudo tee /etc/apt/sources.list.d/mesosphere.list"""
-  tfile.write(string)
-  tfile.close()
-  return pathname
-
-def create_jave_runtime_headless_install_script():
-  (fd, pathname) = mkstemp(prefix="jrh_")
-  tfile = os.fdopen(fd, "w")
-  string = """sudo add-apt-repository ppa:webupd8team/java
-echo debconf shared/accepted-oracle-license-v1-1 select true | sudo debconf-set-selections
-echo debconf shared/accepted-oracle-license-v1-1 seen true | sudo debconf-set-selections
-sudo apt-get -y update
-sudo apt-get -y install oracle-java8-installer
-sudo apt-get -y install oracle-java8-set-default"""
-  tfile.write(string)
-  tfile.close()
-  return pathname
 
 def create_zk_conf_script(conf):
   pathname = "/tmp/zoo.cfg"
@@ -212,21 +182,6 @@ def config_section_map(config, section):
       print("exception on %s!" % option)
       options_dict[option] = None
   return options_dict
-
-def create_marathon_conf_script(conf):
-  (fd, pathname) = mkstemp(prefix="marathon_conf_")
-  tfile = os.fdopen(fd, "w")
-  string = """sudo mkdir -p /etc/marathon/conf
-sudo cp /etc/mesos-master/hostname /etc/marathon/conf
-sudo cp /etc/mesos/zk /etc/marathon/conf/master
-echo """ + conf + """ | sudo tee /etc/marathon/conf/zk
-sudo service zookeeper restart
-sudo service mesos-master restart
-sudo service marathon restart
-"""
-  tfile.write(string)
-  tfile.close()
-  return pathname
 
 def create_hydra_conf(master_node_ip):
   pathname = "/tmp/hydra.ini"
