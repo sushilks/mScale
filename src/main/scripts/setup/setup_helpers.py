@@ -13,10 +13,10 @@ credentials = GoogleCredentials.get_application_default()
 compute = discovery.build('compute', 'v1', credentials=credentials)
 
 def get_email_id():
-  f = open(os.environ['HOME'] + ".aurora.conf")
+  f = open(os.environ['HOME'] + "/.aurora.conf")
   for line in f:
     if 'emailid' in line:
-      return line.split("emailid=",1)[1]
+      return line.rstrip('\n').split("emailid=",1)[1]
 
 # Function to get mesos instances ips as a list.
 # IPs have already been written in a file.
