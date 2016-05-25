@@ -20,13 +20,13 @@ def get_email_id():
 
 # Function to get mesos instances ips as a list.
 # IPs have already been written in a file.
-def get_mesos_x_ips(x="all"):
+def get_mesos_x_ips(setup_ips_dir, x="all"):
   if x == "masters":
-    file_path_name = os.environ['HOME'] + '/mesos_masters_ips'
+    file_path_name = setup_ips_dir + '/mesos_masters_ips'
   elif x == "slaves":
-    file_path_name = os.environ['HOME'] + '/mesos_slaves_ips'
+    file_path_name = setup_ips_dir + '/mesos_slaves_ips'
   elif x == "all":
-    file_path_name = os.environ['HOME'] + '/mesos_all_ips'
+    file_path_name = setup_ips_dir + '/mesos_all_ips'
 
   try:
     f = open(file_path_name)
@@ -38,16 +38,16 @@ def get_mesos_x_ips(x="all"):
   return ips
 
 # Get all IP addresses (both masters and slaves)
-def get_mesos_all_ips():
-  return get_mesos_x_ips("all")
+def get_mesos_all_ips(setup_ips_dir):
+  return get_mesos_x_ips(setup_ips_dir, x="all")
 
 # Get master IP addresses
-def get_mesos_masters_ips():
-  return get_mesos_x_ips("masters")
+def get_mesos_masters_ips(setup_ips_dir):
+  return get_mesos_x_ips(setup_ips_dir, x="masters")
 
 # Get Slaves IPs
-def get_mesos_slaves_ips():
-  return get_mesos_x_ips("slaves")
+def get_mesos_slaves_ips(setup_ips_dir):
+  return get_mesos_x_ips(setup_ips_dir, x="slaves")
 
 # Function to get gcloud instances ips.
 # It is only for GCE.
@@ -161,9 +161,9 @@ def create_slave_conf_script(ip):
   sudo cp /etc/mesos-slave/ip /etc/mesos-slave/hostname
   sudo service mesos-slave stop || true
   sudo service mesos-slave start
-  sudo apt-get -y install python-dev python-pip
-  sudo apt-get -y install libzmq3-dev libtool pkg-config build-essential autoconf automake
-  sudo pip install psutil pyzmq protobuf
+#  sudo apt-get -y install python-dev python-pip
+#  sudo apt-get -y install libzmq3-dev libtool pkg-config build-essential autoconf automake
+#  sudo pip install psutil pyzmq protobuf
 """
   tfile.write(script)
   tfile.close()
