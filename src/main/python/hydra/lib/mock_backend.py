@@ -73,10 +73,6 @@ class MockMarathonIF(object):
         Generates a list of random numbers
         to be passed on to child processes as ports
 
-        TODO (AbdullahS): There is no guarantee that
-                          generated ports will be available
-                          at OS level as well. See if this can
-                          be improved.
         """
         self.env_ports = []
         for x in range(self.total_ports):
@@ -235,7 +231,6 @@ class MockMarathonIF(object):
                 l.info("Waiting for app [%s] to launch", app)
 
     def scale_app(self, app, scale):
-        # TODO: (AbdullahS) See if it makes sense to implement scale_app
         l.info("Mock scale app")
         scale_app_name = app + "-scale"
         attr = self.app_attr[app][0]
