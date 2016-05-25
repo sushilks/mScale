@@ -62,6 +62,7 @@ class RunTestBase(BoundaryRunnerBase):
         self.config = config
         self.options = options
         self.apps = {}
+        self.app_group = {}
         self.mock = mock
         signal.signal(signal.SIGUSR1, debug)
 
@@ -78,7 +79,7 @@ class RunTestBase(BoundaryRunnerBase):
                           config.get('mesos', 'port')
         self.marathon_addr = 'http://' + config.get('marathon', 'ip') + ':' + \
                              config.get('marathon', 'port')
-        self.app_prefix = config.get('marathon', 'app_prefix')
+        #self.app_prefix = config.get('marathon', 'app_prefix')
         self.appIdList = []
         self.__mesos = None
         self.__mt = None
@@ -221,6 +222,63 @@ class RunTestBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
+    def create_hydra_app_group(self, name, app_path, app_args, cpus, mem, apps_in_group, total_apps, ports=None, constraints=None):
+        """
+        Create an application in groups
+        """
+        assert(name not in self.apps)
+        r = self.__mt.create_app(
+            name, MarathonApp(cmd=self.get_cmd(app_path, app_args),
+                              cpus=cpus, mem=mem,
+                              ports=ports,
+                              constraints=constraints,
+                              uris=[self.get_app_uri()]))
+        self.apps[name] = {'app': r, 'type': 'script'}
+        self.wait_app_ready(name, 1)
+        self.scale_and_verify_app(name, total_apps)
+        self.create_app_groups(name, apps_in_group)
+        return r
+
+    def create_app_groups(self, name, apps_in_group):
+        """
+        Create relevant dictionaries containting info about
+        process info categorized into groups.
+        @args:
+        name:            Name of the app
+        apps_in_group:   Number of apps to group together
+
+        NOTE: This only groups process info like ip:port to talk to that process
+              it DOES NOT group process launches
+        """
+        l.info("Grouping process port info")
+        self.all_launched_ip_port_map = {}
+        assert(name in self.apps)
+        if name not in self.app_group:
+            self.app_group[name] = {}
+        tasks = self.get_app_tasks(name)
+        for task in tasks:
+            app_ip = self.get_ip_hostname(task.host)
+            for app_rep_port in task.ports:
+                self.all_launched_ip_port_map[task.id + '_PORT' + str(app_rep_port)] = \
+                    [app_rep_port, app_ip]
+        total_apps = len(self.all_launched_ip_port_map.keys())
+        # probably need to use an iterator when clients are in thousands
+        port_keylist = self.all_launched_ip_port_map.keys()
+        split_p_list = [port_keylist[i:i + apps_in_group] for i in range(0, len(port_keylist), apps_in_group)]
+        group_index = 0
+        for g_index in range(len(split_p_list)):
+            self.app_group[name][g_index] = {}
+        # Group launched processes info, can be later used to send group signals
+        for p_list in split_p_list:
+            self.app_group[name][group_index] = {'ip_port_map': {},
+                                            'stats': {},
+                                            'property': {}}
+            for p_key in p_list:
+                self.app_group[name][group_index]['ip_port_map'][p_key] = \
+                        self.all_launched_ip_port_map[p_key]
+            group_index += 1
+        return len(tasks)
+
     def create_binary_app(self, name, app_script, cpus, mem, ports=None, constraints=None):
         """ Create an application that is a binary and not a shell script.
         """
@@ -262,6 +320,26 @@ class RunTestBase(BoundaryRunnerBase):
         for task_id, info in self.apps[name]['ip_port_map'].items():
             port = info[0]
             ip = info[1]
+            ha_sub = HAnalyser(ip, port, task_id)
+            # Signal it to reset all client stats
+            ha_sub.reset_stats()
+            ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
+
+    def reset_app_group_stats(self, name, g_index):
+        """
+        Reset all the stats for an application group
+        @args:
+        name:       Name of app
+        g_index:    Group index
+        """
+        l.info("Attempting to reset client stats for [%s] group[%d]...", name, g_index)
+        #assert(name in self.apps)
+        assert(name in self.app_group)
+        for task_id, info in self.app_group[name][g_index]['ip_port_map'].items():
+            port = info[0]
+            ip = info[1]
+            l.info(port)
+            l.info(ip)
             ha_sub = HAnalyser(ip, port, task_id)
             # Signal it to reset all client stats
             ha_sub.reset_stats()

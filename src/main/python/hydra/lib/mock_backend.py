@@ -66,6 +66,7 @@ class MockMarathonIF(object):
         self.port_index = 0
         self.generate_env_ports()
         self.list_apps = {}
+        self.app_attr = {}
 
     def generate_env_ports(self):
         """
@@ -148,6 +149,8 @@ class MockMarathonIF(object):
         app_id : unique app id
         attr   : hydra MarathonApp instance, creates all app attributes
         """
+        if app_id not in self.app_attr:
+            self.app_attr[app_id] = attr
         # Prepare process data
         cmd = attr.cmd
         requested_ports = len(attr.ports)
@@ -169,7 +172,7 @@ class MockMarathonIF(object):
             self.port_index += 1
 
         # Init app info
-        app_info = AppInfo()
+        self.app_info = AppInfo()
         myenv["mock"] = "true"
         app_info.cmgr.add_child(app_id, cmd, cwd, myenv)
         app_info.cmgr.launch_children(ports=curr_ports)
@@ -219,6 +222,8 @@ class MockMarathonIF(object):
 
     def scale_app(self, app, scale):
         # TODO: (AbdullahS) See if it makes sense to implement scale_app
+        attr = self.app_attr[app]
+        self.create_app()
         return True
 
 
