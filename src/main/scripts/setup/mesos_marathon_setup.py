@@ -255,6 +255,7 @@ if args.clean:
   shell_call("rm ~/mesos_masters_ips")
   shell_call("rm ~/mesos_slaves_ips")
 elif args.prereq:
+  shell_call("sudo apt-get install python-pip")
   shell_call("sudo pip install shell_command google-api-python-client fabric")
 else:
   for step in range(args.start, args.end+1):
