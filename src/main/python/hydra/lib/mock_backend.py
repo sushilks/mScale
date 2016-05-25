@@ -235,7 +235,6 @@ class MockMarathonIF(object):
                 l.info("Waiting for app [%s] to launch", app)
 
     def scale_app(self, app, scale):
-        # TODO: (AbdullahS) See if it makes sense to implement scale_app
         l.info("Mock scale app")
         scale_app_name = app + "-scale"
         attr = self.app_attr[app][0]
