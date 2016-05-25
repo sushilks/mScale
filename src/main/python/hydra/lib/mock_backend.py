@@ -110,8 +110,13 @@ class MockMarathonIF(object):
         """
         l.info("Deleting [%s]", app_id)
         a = self.get_app(app_id)
+        l.info(a)
         a.cmgr.terminate_process_and_children(app_id)
+        if self.app_attr[app_id][1] > 1:
+            scale_app_name = app_id + "-scale"
+            a.cmgr.terminate_process_and_children(scale_app_name)
         del self.list_apps[app_id]
+        del self.app_attr[app_id]
 
     def delete_deployment(self, dep_id):
         return
@@ -139,19 +144,21 @@ class MockMarathonIF(object):
                 time.sleep(10)
         raise
 
-    def create_app(self, app_id, attr):
+    def create_app(self, app_id, attr, app_local_launch_name=""):
         """
         Launch the requested app by hydra infra
         Uses ChildManager inside AppInfo to launch
         child processes as tasks.
 
         @args:
-        app_id : unique app id
-        attr   : hydra MarathonApp instance, creates all app attributes
+        app_id                  : unique app id
+        attr                    : hydra MarathonApp instance, creates all app attributes
+        app_local_launch_name   : Launch name for the app, needs to be different for subsequent
+                                  launches e-g scaling app
         """
-        if app_id not in self.app_attr:
-            self.app_attr[app_id] = attr
         # Prepare process data
+        if not app_local_launch_name:
+            app_local_launch_name = app_id
         cmd = attr.cmd
         requested_ports = len(attr.ports)
         cmd = cmd[cmd.rfind("./hydra"):len(cmd)]
@@ -172,18 +179,25 @@ class MockMarathonIF(object):
             self.port_index += 1
 
         # Init app info
-        self.app_info = AppInfo()
+        app_info = AppInfo()
+        if app_id not in self.list_apps:
+            self.list_apps[app_id] = app_info
+        if app_id not in self.app_attr:
+            self.app_attr[app_id] = [attr, 0]  # task index
         myenv["mock"] = "true"
-        app_info.cmgr.add_child(app_id, cmd, cwd, myenv)
-        app_info.cmgr.launch_children(ports=curr_ports)
-        app_info.tasks_running = 1
+
+        # launch children
+        self.list_apps[app_id].cmgr.add_child(app_local_launch_name, cmd, cwd, myenv)
+        self.list_apps[app_id].cmgr.launch_children(ports=curr_ports)
 
         # Init task info, sort of mimics marathon
-        app_info.tasks.append(TaskInfo())
-        app_info.tasks[0].id = str(app_info.cmgr.jobs[app_id]["pid"])
-        app_info.tasks[0].ports = app_info.cmgr.jobs[app_id]["ports"]
-        app_info.tasks[0].host = "localhost"
-        self.list_apps[app_id] = app_info
+        self.list_apps[app_id].tasks.append(TaskInfo())
+        task_count = self.app_attr[app_id][1]
+        self.list_apps[app_id].tasks[task_count].id = str(self.list_apps[app_id].cmgr.jobs[app_local_launch_name]["pid"])
+        self.list_apps[app_id].tasks[task_count].ports = self.list_apps[app_id].cmgr.jobs[app_local_launch_name]["ports"]
+        self.list_apps[app_id].tasks[task_count].host = "localhost"
+        self.list_apps[app_id].tasks_running = len(self.list_apps[app_id].tasks)
+        self.app_attr[app_id][1] += 1
 
     def wait_app_removal(self, app):
         """
@@ -222,8 +236,10 @@ class MockMarathonIF(object):
 
     def scale_app(self, app, scale):
         # TODO: (AbdullahS) See if it makes sense to implement scale_app
-        attr = self.app_attr[app]
-        self.create_app()
+        l.info("Mock scale app")
+        scale_app_name = app + "-scale"
+        attr = self.app_attr[app][0]
+        self.create_app(app, attr, app_local_launch_name=scale_app_name)
         return True
 
 

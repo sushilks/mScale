@@ -5,7 +5,6 @@ from pprint import pprint, pformat  # NOQA
 from optparse import OptionParser
 import logging
 from hydra.lib import util
-from hydra.lib.h_analyser import HAnalyser
 from hydra.lib.runtestbase import RunTestBase
 
 try:
@@ -18,6 +17,7 @@ except ImportError:
 l = util.createlogger('kraken', logging.INFO)
 # l.setLevel(logging.DEBUG)
 
+
 class Kraken(RunTestBase):
     def __init__(self, options, runtest=True, mock=False):
         self.options = options
@@ -29,6 +29,7 @@ class Kraken(RunTestBase):
         """
         soon...
         """
+
 
 class RunTest(object):
     def __init__(self, argv):

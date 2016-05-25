@@ -53,6 +53,7 @@ def set_properties(project):
     project.set_property('flake8_verbose_output', True)
     project.set_property('flake8_break_build', True)
     project.set_property('flake8_include_test_sources', True)
+    project.set_property('flake8_max_line_length', 130)
 
     project.set_property('publish_command','./make_test_exec.sh')
     project.set_property('publish_propagate_stderr', True)

@@ -210,11 +210,11 @@ class RunTestRMQ(RunTestBase):
             constraints.append(self.app_constraints(field=self.mesos_cluster[1]['cat'],
                                                     operator='CLUSTER', value=self.mesos_cluster[1]['match']))
         self.create_hydra_app_group(name=self.rmqsub, app_path='hydra.rmqtest.rmq_sub.run10',
-                              app_args='%s' % (self.pub_ip),
-                              cpus=0.01, mem=32, apps_in_group=self.options.apps_in_group,
-                              total_apps=self.options.total_sub_apps,
-                              ports=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                              constraints=constraints)
+                                    app_args='%s' % (self.pub_ip),
+                                    cpus=0.01, mem=32, apps_in_group=self.options.apps_in_group,
+                                    total_apps=self.options.total_sub_apps,
+                                    ports=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                    constraints=constraints)
 
     def delete_all_launched_apps(self):
         l.info("Deleting all launched apps")

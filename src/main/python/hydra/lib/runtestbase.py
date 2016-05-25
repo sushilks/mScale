@@ -79,7 +79,7 @@ class RunTestBase(BoundaryRunnerBase):
                           config.get('mesos', 'port')
         self.marathon_addr = 'http://' + config.get('marathon', 'ip') + ':' + \
                              config.get('marathon', 'port')
-        #self.app_prefix = config.get('marathon', 'app_prefix')
+        self.app_prefix = config.get('marathon', 'app_prefix')
         self.appIdList = []
         self.__mesos = None
         self.__mt = None
@@ -222,9 +222,20 @@ class RunTestBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
-    def create_hydra_app_group(self, name, app_path, app_args, cpus, mem, apps_in_group, total_apps, ports=None, constraints=None):
+    def create_hydra_app_group(self, name, app_path, app_args, cpus, mem, apps_in_group,
+                               total_apps, ports=None, constraints=None):
         """
         Create an application in groups
+        @args:
+        name:                                      name of the app
+        app_path:                                  path to launch app from
+        app_args:                                  app args
+        cpus:                                      required cpus
+        mem:                                       required  mem
+        apps_in_group:                             number of apps to group together
+        total_apps:                                total apps to launch
+        ports:                                     port list (optional)
+        constaints:                                constaints optional
         """
         assert(name not in self.apps)
         r = self.__mt.create_app(
@@ -261,7 +272,7 @@ class RunTestBase(BoundaryRunnerBase):
             for app_rep_port in task.ports:
                 self.all_launched_ip_port_map[task.id + '_PORT' + str(app_rep_port)] = \
                     [app_rep_port, app_ip]
-        total_apps = len(self.all_launched_ip_port_map.keys())
+
         # probably need to use an iterator when clients are in thousands
         port_keylist = self.all_launched_ip_port_map.keys()
         split_p_list = [port_keylist[i:i + apps_in_group] for i in range(0, len(port_keylist), apps_in_group)]
@@ -271,11 +282,11 @@ class RunTestBase(BoundaryRunnerBase):
         # Group launched processes info, can be later used to send group signals
         for p_list in split_p_list:
             self.app_group[name][group_index] = {'ip_port_map': {},
-                                            'stats': {},
-                                            'property': {}}
+                                                 'stats': {},
+                                                 'property': {}}
             for p_key in p_list:
                 self.app_group[name][group_index]['ip_port_map'][p_key] = \
-                        self.all_launched_ip_port_map[p_key]
+                    self.all_launched_ip_port_map[p_key]
             group_index += 1
         return len(tasks)
 
@@ -333,13 +344,10 @@ class RunTestBase(BoundaryRunnerBase):
         g_index:    Group index
         """
         l.info("Attempting to reset client stats for [%s] group[%d]...", name, g_index)
-        #assert(name in self.apps)
         assert(name in self.app_group)
         for task_id, info in self.app_group[name][g_index]['ip_port_map'].items():
             port = info[0]
             ip = info[1]
-            l.info(port)
-            l.info(ip)
             ha_sub = HAnalyser(ip, port, task_id)
             # Signal it to reset all client stats
             ha_sub.reset_stats()
