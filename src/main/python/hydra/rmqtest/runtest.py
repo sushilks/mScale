@@ -63,7 +63,17 @@ class RunTestRMQ(RunTestBase):
                                   msg_requested_rate=self.options.msg_rate)
         l.info("PUB server updated")
 
-        self.reset_all_app_stats(self.rmqsub)
+        # Create test groups
+        self.create_app_group(self.rmqsub, "test-group", apps_in_group=10)
+        self.create_app_group(self.rmqsub, "test-group2", apps_in_group=5)
+        self.create_app_group(self.rmqsub, "test-group3", apps_in_group=5)
+        l.info("Groups created")
+        self.ping_all_app_inst(self.rmqsub)
+
+        # Pass signals in groups of apps
+        self.reset_all_app_stats(self.rmqsub, group_name="test-group")
+        self.reset_all_app_stats(self.rmqsub, group_name="test-group2")
+        self.reset_all_app_stats(self.rmqsub, group_name="test-group3")
 
         # Signal message sending
         l.info("Sending signal to PUB to start sending all messages..")
@@ -200,6 +210,8 @@ class RunTestRMQ(RunTestBase):
 
     def launch_rmq_sub(self):
         l.info("Launching the sub app")
+        self.total_app_groups = self.options.total_sub_apps / self.options.apps_in_group
+        self.options.total_sub_apps = self.options.total_sub_apps / self.options.apps_in_group
         constraints = []
         # Use cluster 1 for launching the SUB
         if 1 in self.mesos_cluster:
@@ -210,11 +222,11 @@ class RunTestRMQ(RunTestBase):
                               cpus=0.01, mem=32,
                               ports=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                               constraints=constraints)
-        # scale
+
         self.scale_sub_app()
 
     def scale_sub_app(self):
-        self.scale_and_verify_app(self.rmqsub, self.options.total_sub_apps)
+        self.scale_and_verify_app(self.rmqsub, self.options.total_sub_apps, ping=False)
 
     def delete_all_launched_apps(self):
         l.info("Deleting all launched apps")
@@ -234,7 +246,8 @@ class RunTest(object):
         parser.add_option("--test_duration", dest='test_duration', type='float', default=10)
         parser.add_option("--msg_batch", dest='msg_batch', type='int', default=100)
         parser.add_option("--msg_rate", dest='msg_rate', type='float', default=10000)
-        parser.add_option("--total_sub_apps", dest='total_sub_apps', type='int', default=100)
+        parser.add_option("--total_sub_apps", dest='total_sub_apps', type='int', default=20)
+        parser.add_option("--apps_in_group", dest='apps_in_group', type='int', default=10)
         parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
         parser.add_option("--keep_running", dest='keep_running', action="store_true", default=False)
 

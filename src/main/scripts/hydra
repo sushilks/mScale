@@ -17,6 +17,7 @@ classPath = {
     'rmq' : 'hydra.rmqtest.runtest.RunTest',
     'rmqpub' : 'hydra.rmqtest.rmq_pub.run',
     'rmqfixed': 'hydra.rmqtest.fixed_test.run',
+    'kraken' : 'hydra.kraken.kraken.RunTest',
 }
 if len(sys.argv) < 2 or sys.argv[1] == '-h' or sys.argv[1] == '--help':
     print("Options are %s " % sys.argv[0] + " " + pformat(classPath.keys()))

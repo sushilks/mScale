@@ -8,6 +8,7 @@ import sys
 import code
 import traceback
 import signal
+import random
 from random import randint
 from pprint import pprint, pformat  # NOQA
 from hydra.lib import appserver, mmapi, util, mock_backend
@@ -62,6 +63,8 @@ class RunTestBase(BoundaryRunnerBase):
         self.config = config
         self.options = options
         self.apps = {}
+        self.app_group = {}
+        self.all_task_ids = {}
         self.mock = mock
         signal.signal(signal.SIGUSR1, debug)
 
@@ -221,6 +224,37 @@ class RunTestBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
+    def create_app_group(self, name, group_name, apps_in_group):
+        """
+        Create relevant dictionaries containting info about
+        process info categorized into groups.
+        @args:
+        name:            Name of the app
+        apps_in_group:   Number of apps to group together
+
+        NOTE: This only groups process info like ip:port to talk to that process
+              it DOES NOT group process launches
+        """
+        l.info("Grouping process port info")
+        assert(name in self.apps)
+        if group_name not in self.app_group:
+            self.app_group[group_name] = []
+
+        temp_list = []
+        for x in range(apps_in_group):
+            while True:
+                key_generated = True
+                r_key = random.choice(self.all_task_ids[name])
+                for g_list in self.app_group.values():
+                    if r_key in g_list:
+                        key_generated = False
+                        break
+                if not key_generated:
+                    continue
+                temp_list.append(r_key)
+                break
+        self.app_group[group_name] = temp_list
+
     def create_binary_app(self, name, app_script, cpus, mem, ports=None, constraints=None):
         """ Create an application that is a binary and not a shell script.
         """
@@ -254,12 +288,23 @@ class RunTestBase(BoundaryRunnerBase):
         if ping:
             self.ping_all_app_inst(name)
 
-    def reset_all_app_stats(self, name):
-        """ Reset all the stats for an application
+    def reset_all_app_stats(self, name, group_name=""):
         """
-        l.info("Attempting to reset client stats for %s...", name)
+        Reset all the stats for an application
+        @args:
+        name:         Name of the app
+        group_name:   Group name if only group singal required (optional)
+        """
         assert(name in self.apps)
-        for task_id, info in self.apps[name]['ip_port_map'].items():
+        task_list = self.all_task_ids[name]
+        if group_name:
+            assert(group_name in self.app_group)
+            task_list = self.app_group[group_name]
+            l.info("Attempting to reset client group stats for app[%s], group[%s]...", name, group_name)
+        else:
+            l.info("Attempting to reset client stats for app[%s]...", name)
+        for task_id in task_list:
+            info = self.apps[name]['ip_port_map'][task_id]
             port = info[0]
             ip = info[1]
             ha_sub = HAnalyser(ip, port, task_id)
@@ -267,14 +312,26 @@ class RunTestBase(BoundaryRunnerBase):
             ha_sub.reset_stats()
             ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
 
-    def ping_all_app_inst(self, name):
-        """ Ping all the application task's and if any of they don't respond to
-        ping remove them from active task list.
+    def ping_all_app_inst(self, name, group_name=""):
         """
-        l.info('Pinging all the instances of %s to make sure they are started....', name)
+        Ping all the application task's and if any of they don't respond to
+        ping remove them from active task list.
+        @args:
+        name:         Name of the app
+        group_name:   Group name if only group singal required (optional)
+        """
+        assert(name in self.apps)
+        task_list = self.all_task_ids[name]
+        if group_name:
+            assert(group_name in self.app_group)
+            task_list = self.app_group[group_name]
+            l.info('Pinging group instances of app[%s], group[%s] to make sure they are started....', name, group_name)
+        else:
+            l.info('Pinging instances of app[%s] to make sure they are started....', name)
         cnt = 0
         remove_list = []
-        for task_id, info in self.apps[name]['ip_port_map'].items():
+        for task_id in task_list:
+            info = self.apps[name]['ip_port_map'][task_id]
             port = info[0]
             ip = info[1]
             ha = HAnalyser(ip, port, task_id)
@@ -288,8 +345,21 @@ class RunTestBase(BoundaryRunnerBase):
             ha.stop()  # closes the Analyser socket, can not be used anymore
         l.info('Done pinging all the clients. Got pong response from %d out of %d' %
                (cnt, len(self.apps[name]['ip_port_map'].items())))
+
+        temp_dict = {}
+        for g_name in self.app_group.keys():
+            temp_dict[g_name] = []
         for item in remove_list:
             del self.apps[name]['ip_port_map'][item]
+            for g_name, g_list in self.app_group.items():
+                l.info("Checking if bad client[%s] is in group[%s]", item, g_name)
+                if item in g_list:
+                    temp_dict[g_name].append(item)
+        for g_name, bad_list in temp_dict.items():
+            for bad_client in bad_list:
+                l.info("Removing client [%s] from group [%s]", bad_client, g_name)
+                self.app_group[g_name].remove(bad_client)
+                self.all_task_ids[name].remove(bad_client)
 
     def refresh_app_info(self, name):
         """ Refresh all the ip-port map for the application
@@ -306,22 +376,34 @@ class RunTestBase(BoundaryRunnerBase):
             for app_rep_port in task.ports:
                 ip_port_map[task.id + '_PORT' + str(app_rep_port)] = \
                     [app_rep_port, app_ip]
+        self.all_task_ids[name] = self.apps[name]["ip_port_map"].keys()
         return len(tasks)
 
-    def fetch_app_stats(self, name):
-        """ Fetch stats from all the instances of the
+    def fetch_app_stats(self, name, group_name=""):
+        """
+        Fetch stats from all the instances of the
         app and store it locally.
         The stats collection is done while looking at "msg_cnt"
         so it's mandatory that all the stats are required to have a field msg_cnt
         while collecting the msg_cnt is monitored, and stats collection is completed
         when the msg_cnt stops increasing between two successive reads.
+        @args:
+        name:         Name of the app
+        group_name:   Group name if only group singal required (optional)
         """
         assert(name in self.apps)
-        ipm = self.apps[name]['ip_port_map']
+        task_list = self.all_task_ids[name]
+        if group_name:
+            assert(group_name in self.app_group)
+            task_list = self.app_group[group_name]
+            l.info("Attempting to fetch client group stats for app[%s], group[%s]...", name, group_name)
+        else:
+            l.info("Attempting to fetch client stats for app[%s]...", name)
         self.apps[name]['stats'] = {}
         first_itr = True
         no_delay_needed_count = 0
-        for task_id, info in ipm.items():
+        for task_id in task_list:
+            info = self.apps[name]['ip_port_map'][task_id]
             port = info[0]
             ip = info[1]
             ha_sub = HAnalyser(ip, port, task_id)

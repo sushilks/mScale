@@ -6,6 +6,10 @@ import sys
 import time
 import atexit
 import psutil
+import logging
+from hydra.lib import util
+
+l = util.createlogger('cmgr', logging.INFO)
 
 
 class ChildManager(object):
@@ -36,6 +40,9 @@ class ChildManager(object):
 
     def launch_children(self, ports=None):
         for name in self.jobs:
+            if self.jobs[name]['running']:
+                l.info("job [%s] already running", name)
+                continue
             self.jobs[name]['fout'] = open('./' + name + '.stdout.log', 'w+')
             self.jobs[name]['ferr'] = open('./' + name + '.stderr.log', 'w+')
             self.jobs[name]['pid'] = None
@@ -52,11 +59,11 @@ class ChildManager(object):
             self.jobs[name]['running'] = True
 
     def check_children(self):
-        print("Waiting for launched CHILD")
+        l.debug("Waiting for launched CHILD")
         while True:
             time.sleep(1)
         self.done = True
-        print("LAUNCH CHILD RETURNED")
+        l.debug("LAUNCH CHILD RETURNED")
 
     def done(self):
         return self.taskdone
@@ -75,7 +82,7 @@ class ChildManager(object):
         name:   Name of the job
         """
         if name not in self.jobs:
-            print("[%s] does not exist as a process!")
+            print("[%s] does not exist as a process!", name)
         ppid = self.jobs[name]['process'].pid
         try:
             parent_proc = psutil.Process(ppid)
@@ -83,4 +90,5 @@ class ChildManager(object):
             return
         children = parent_proc.children(recursive=True)
         for proc in children:
+            l.debug(proc)
             proc.send_signal(signal.SIGKILL)
