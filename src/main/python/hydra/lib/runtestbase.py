@@ -359,6 +359,7 @@ class RunTestBase(BoundaryRunnerBase):
             for bad_client in bad_list:
                 l.info("Removing client [%s] from group [%s]", bad_client, g_name)
                 self.app_group[g_name].remove(bad_client)
+                self.all_task_ids[g_name].remove(bad_client)
 
     def refresh_app_info(self, name):
         """ Refresh all the ip-port map for the application
