@@ -68,6 +68,7 @@ class RunTestRMQ(RunTestBase):
         self.create_app_group(self.rmqsub, "test-group2", apps_in_group=5)
         self.create_app_group(self.rmqsub, "test-group3", apps_in_group=5)
         l.info("Groups created")
+        self.ping_all_app_inst(self.rmqsub)
 
         # Pass signals in groups of apps
         self.reset_all_app_stats(self.rmqsub, group_name="test-group")
@@ -225,7 +226,7 @@ class RunTestRMQ(RunTestBase):
         self.scale_sub_app()
 
     def scale_sub_app(self):
-        self.scale_and_verify_app(self.rmqsub, self.options.total_sub_apps)
+        self.scale_and_verify_app(self.rmqsub, self.options.total_sub_apps, ping=False)
 
     def delete_all_launched_apps(self):
         l.info("Deleting all launched apps")
