@@ -307,8 +307,6 @@ class RunTestBase(BoundaryRunnerBase):
             info = self.apps[name]['ip_port_map'][task_id]
             port = info[0]
             ip = info[1]
-            l.info(port)
-            l.info(ip)
             ha_sub = HAnalyser(ip, port, task_id)
             # Signal it to reset all client stats
             ha_sub.reset_stats()
@@ -353,12 +351,13 @@ class RunTestBase(BoundaryRunnerBase):
             temp_dict[g_name] = []
         for item in remove_list:
             del self.apps[name]['ip_port_map'][item]
-            if self.app_group:
-                for g_name, g_list in self.app_group.items():
-                    if item in g_list:
-                        temp_dict[g_name].append(item)
+            for g_name, g_list in self.app_group.items():
+                l.info("Checking if bad client[%s] is in group[%s]", item, g_name)
+                if item in g_list:
+                    temp_dict[g_name].append(item)
         for g_name, bad_list in temp_dict.items():
             for bad_client in bad_list:
+                l.info("Removing client [%s] from group [%s]", bad_client, g_name)
                 self.app_group[g_name].remove(bad_client)
 
     def refresh_app_info(self, name):
