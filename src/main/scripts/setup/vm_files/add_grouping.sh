@@ -1,9 +1,11 @@
 #!/bin/bash
+tag=$1
+echo "${tag}"
 
 sudo service mesos-slave stop
 # Add grouping informaiton
 sudo mkdir -p /etc/mesos-slave/attributes/
-echo "cpu16:mem60" | sudo tee /etc/mesos-slave/attributes/group
+echo ${tag} | sudo tee /etc/mesos-slave/attributes/group
 # add additional port resources
 echo "ports:[2000-32000]" | sudo tee /etc/mesos-slave/resources
 # Linux by default uses port 23768-61000

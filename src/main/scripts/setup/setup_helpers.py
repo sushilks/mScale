@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 from shell_command import shell_call
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
@@ -60,6 +61,20 @@ def get_master_instances_ips():
     ips.append(instance["networkInterfaces"][0]["networkIP"])
   return ips
 
+def run_command(command):
+    p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
+    (output, err) = p.communicate()
+    return output
+
+def get_instance_tag(ip):
+  command = "gcloud compute instances list | grep -w " + ip
+  output = run_command(command)     # tahir-slave1-slave-set1-0 us-central1-f n1-standard-4 10.10.0.28 RUNNING
+  instance_name = output.split()[0] # tahir-slave1-slave-set1-0
+  tag_lst = instance_name.split("-")[2:-1]    # ['slave', 'set1']
+  tag = "-".join(tag_lst)
+  #print (tag)
+  return tag
+
 def get_slave_instances_ips():
   email_id = get_email_id()
   filt = "name eq " + email_id + "-slave.*"
@@ -111,10 +126,18 @@ def upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path, use_sudo=
 # use upload_to_host() function.
 def upload_to_multiple_hosts(dst_user_name, hosts_list, src_pathname, dst_path, use_sudo=False):
   for instance_ip in hosts_list:
-    if use_sudo:
-      upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path, use_sudo=True)
-    else:
-      upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path)
+    for retry in range(10):
+      try:
+        if use_sudo:
+          upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path, use_sudo=True)
+        else:
+          upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path)
+        break
+      except:
+        if retry == 10:
+          sys.exit("Unable to upload. Exiting.");
+        else:
+          print ("Going to upload try %d " % retry)
 
 def run_cmd_on_host(dst_user_name, instance_ip, cmd, use_sudo=False):
   with settings(host_string=instance_ip, user = dst_user_name):

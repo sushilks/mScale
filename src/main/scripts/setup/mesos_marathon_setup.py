@@ -27,9 +27,6 @@ config_file = args.config_file
 local_work_dir = args.local_work_dir
 dst_work_dir = args.dst_work_dir
 dst_user_name=args.dst_user_name
-#mesos_all_ips_list = setup_helpers.get_mesos_all_ips(local_work_dir)
-#mesos_masters_ips_list = setup_helpers.get_mesos_masters_ips(local_work_dir)
-#mesos_slaves_ips_list= setup_helpers.get_mesos_slaves_ips(local_work_dir)
 
 def setup(step):
   if step == 1:
