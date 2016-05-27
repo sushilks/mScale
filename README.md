@@ -81,10 +81,12 @@ source ../venv/bin/activate
 `pyb install_dependencies`
 
 ### Install RMQ pre-reqs for unit test using mock backend
-`sudo apt-get install rabbitmq-server`
-`sudo rabbitmqctl add_user hydra hydra`
-`sudo rabbitmqctl set_user_tags hydra administrator`
-`sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*`
+```
+sudo apt-get install rabbitmq-server
+sudo rabbitmqctl add_user hydra hydra
+sudo rabbitmqctl set_user_tags hydra administrator
+sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*
+```
 
 ### Install the hydra package
 `pyb install`
