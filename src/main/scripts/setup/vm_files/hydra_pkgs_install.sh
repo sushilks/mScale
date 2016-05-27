@@ -6,7 +6,7 @@ echo "**** $dst_work_dir"
 echo "Run pre script"
 wget https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
 mv zmq.hpp ${dst_work_dir}/hydra-master/src/main/c/zmq
-sudo apt-get install python-dev python-pip
+sudo apt-get -y install python-dev python-pip
 
 echo "Setup virtual environemnt"
 # Setup virtual environment

@@ -7,27 +7,29 @@ from oauth2client.client import GoogleCredentials
 from six.moves import input
 from tempfile import mkstemp
 from fabric.api import *
+import paramiko
+import socket
 
-project="festive-courier-755"
-zone="us-central1-f"
 credentials = GoogleCredentials.get_application_default()
 compute = discovery.build('compute', 'v1', credentials=credentials)
 
-def get_email_id():
-  f = open(os.environ['HOME'] + "/.aurora.conf")
-  for line in f:
-    if 'emailid' in line:
-      return line.rstrip('\n').split("emailid=",1)[1]
+def get_email_id(config):
+  email_id = get_setting_val(config, "EmailId")
+  return email_id.split("@")[1]
+  #f = open(os.environ['HOME'] + "/.aurora.conf")
+  #for line in f:
+  #  if 'emailid' in line:
+  #    return line.rstrip('\n').split("emailid=",1)[1]
 
 # Function to get mesos instances ips as a list.
 # IPs have already been written in a file.
 def get_mesos_x_ips(setup_ips_dir, x="all"):
   if x == "masters":
-    file_path_name = setup_ips_dir + '/mesos_masters_ips'
+    file_path_name = setup_ips_dir + '/.mesos_masters_ips'
   elif x == "slaves":
-    file_path_name = setup_ips_dir + '/mesos_slaves_ips'
+    file_path_name = setup_ips_dir + '/.mesos_slaves_ips'
   elif x == "all":
-    file_path_name = setup_ips_dir + '/mesos_all_ips'
+    file_path_name = setup_ips_dir + '/.mesos_all_ips'
 
   try:
     f = open(file_path_name)
@@ -37,6 +39,10 @@ def get_mesos_x_ips(setup_ips_dir, x="all"):
     print ("WARN: Perhaps file %s does not exist" % file_path_name)
     return
   return ips
+
+def get_setting_val(config, setting_name):
+  options_dict = config_section_map(config, "common")
+  return options_dict[setting_name]
 
 # Get all IP addresses (both masters and slaves)
 def get_mesos_all_ips(setup_ips_dir):
@@ -52,10 +58,10 @@ def get_mesos_slaves_ips(setup_ips_dir):
 
 # Function to get gcloud instances ips.
 # It is only for GCE.
-def get_master_instances_ips():
-  email_id = get_email_id()
-  filt = "name eq " + email_id + "-master.*"
-  results = compute.instances().list(project=project, zone=zone, filter=filt).execute()
+def get_master_instances_ips(did, config):
+  email_id = get_email_id(config)
+  filt = "name eq " + email_id + "-" + did + "-master.*"
+  results = compute.instances().list(project = get_setting_val(config, "project"), zone = get_setting_val(config, "zone"), filter=filt).execute()
   ips = list()
   for instance in results['items']:
     ips.append(instance["networkInterfaces"][0]["networkIP"])
@@ -68,46 +74,38 @@ def run_command(command):
 
 def get_instance_tag(ip):
   command = "gcloud compute instances list | grep -w " + ip
-  output = run_command(command)     # tahir-slave1-slave-set1-0 us-central1-f n1-standard-4 10.10.0.28 RUNNING
-  instance_name = output.split()[0] # tahir-slave1-slave-set1-0
-  tag_lst = instance_name.split("-")[2:-1]    # ['slave', 'set1']
+  output = run_command(command)     # tahir-deploymentid-section-tag-0 us-central1-f n1-standard-4 10.10.0.28 RUNNING
+  instance_name = output.split()[0] # tahir-deploymentid-section-tag-0
+  tag_lst = instance_name.split("-")[3:-1]    # ['slave', 'set1']
   tag = "-".join(tag_lst)
-  #print (tag)
   return tag
 
-def get_slave_instances_ips():
-  email_id = get_email_id()
-  filt = "name eq " + email_id + "-slave.*"
-  results = compute.instances().list(project=project, zone=zone, filter=filt).execute()
+def get_slave_instances_ips(did, config):
+  email_id = get_email_id(config)
+  filt = "name eq " + email_id + "-" + did + "-slave.*"
+  results = compute.instances().list(project=get_setting_val(config, "project"), zone=get_setting_val(config, "zone"), filter=filt).execute()
   ips = list()
   for instance in results['items']:
     ips.append(instance["networkInterfaces"][0]["networkIP"])
   return ips
 
-def spawn_instance(instance_name, os_name, machine_type="n1-standard-4", dst_user="plumgrid"):
+def spawn_instance(instance_name, os_name, dst_user, ssh_key_file, config, machine_type="n1-standard-4"):
+  email_id = get_email_id(config)
   instance_name = email_id + "-" + instance_name # Prefix emailid before instance name.
-  #(fd, pathname) = mkstemp(prefix="gce_key_")
   pathname="/tmp/gce_key.txt"
   tfile = open(pathname, 'w')
-  #tfile = os.fdopen(fd, "w")
 
-  with open("/home/muneeb/.ssh/id_rsa.pub") as f:
+  with open(ssh_key_file) as f:
     lines = f.readlines()
     tfile.writelines(dst_user + ":" + lines[0])
-    tfile.write(dst_user + ":" + COMMON_KEY + "\n")
-  print("pathname=%s" % pathname)
-  #key_cmd="echo plumgrid:$(cat " + os.environ['HOME'] + "/.ssh/id_rsa.pub) > " + pathname + " && echo plumgrid:$(echo " + COMMON_KEY + ") >> " + pathname
-  #shell_call(key_cmd)
+  tfile.close()
 
-  print ("Creating the disk[%s-d1] for the instance" % instance_name)
   disk1_cmd="gcloud compute disks create " + instance_name + "-d1 --image " + os_name + " --type pd-standard --size=30GB -q"
   print("disk1_cmd=%s" %disk1_cmd)
   shell_call(disk1_cmd)
-  print ("Creating the disk[%s-d2] for the instance" % instance_name)
   disk2_cmd="gcloud compute disks create " + instance_name + "-d2 --type pd-standard --size=75GB -q"
   print("disk2_cmd=%s" %disk2_cmd)
   shell_call(disk2_cmd)
-  print ("Creating the instance[instance_name] ")
   cmd = "gcloud compute instances create " + instance_name + " --machine-type " + machine_type + \
         " --network net-10-10 --maintenance-policy MIGRATE --scopes https://www.googleapis.com/auth/cloud-platform --disk name=" + \
         instance_name + "-d1,mode=rw,boot=yes,auto-delete=yes --disk name=" + instance_name + \
@@ -126,18 +124,10 @@ def upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path, use_sudo=
 # use upload_to_host() function.
 def upload_to_multiple_hosts(dst_user_name, hosts_list, src_pathname, dst_path, use_sudo=False):
   for instance_ip in hosts_list:
-    for retry in range(10):
-      try:
-        if use_sudo:
-          upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path, use_sudo=True)
-        else:
-          upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path)
-        break
-      except:
-        if retry == 10:
-          sys.exit("Unable to upload. Exiting.");
-        else:
-          print ("Going to upload try %d " % retry)
+    if use_sudo:
+      upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path, use_sudo=True)
+    else:
+      upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path)
 
 def run_cmd_on_host(dst_user_name, instance_ip, cmd, use_sudo=False):
   with settings(host_string=instance_ip, user = dst_user_name):
@@ -145,6 +135,29 @@ def run_cmd_on_host(dst_user_name, instance_ip, cmd, use_sudo=False):
       sudo(cmd)
     else:
       run(cmd)
+
+def is_host_up(ip):
+  original_timeout = socket.getdefaulttimeout()
+  new_timeout = 9
+  socket.setdefaulttimeout(new_timeout)
+  host_status = False
+  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  try:
+    s.connect((ip, 22))
+    host_status = True
+  except socket.error as e:
+    print "Error on connect: %s" % e
+  s.close()
+  socket.setdefaulttimeout(original_timeout)
+  return host_status
+
+def are_hosts_up(hosts_list):
+  for instance_ip in hosts_list:
+    up = is_host_up(instance_ip)
+    if not up:
+      sys.exit("%s does not seem ready. Exiting ..." % instance_ip)
+    else:
+      print("%s is ready" % instance_ip)
 
 # Assumes that all hosts have same username. If your hostnames are different then
 # use upload_to_host() function.
@@ -198,7 +211,6 @@ def config_section_map(config, section):
   for option in options:
     try:
       options_dict[option] = config.get(section, option)
-      print ("*** %s=%s" %(option, options_dict[option]))
       if options_dict[option] == -1:
         DebugPrint("skip: %s" % option)
     except:
