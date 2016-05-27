@@ -6,6 +6,7 @@ from optparse import OptionParser
 import logging
 from hydra.lib import util
 from hydra.lib.runtestbase import RunTestBase
+from hydra.kraken.kraken_api import KrakenApi
 
 try:
     # Python 2.x
@@ -21,14 +22,18 @@ l = util.createlogger('kraken', logging.INFO)
 class Kraken(RunTestBase):
     def __init__(self, options, runtest=True, mock=False):
         self.options = options
-
         self.config = ConfigParser()
+        self.k_api = KrakenApi()
         RunTestBase.__init__(self, 'kraken', self.options, self.config, startappserver=runtest, mock=mock)
 
     def release_the_kraken(self):
         """
         soon...
         """
+        ip_to_block = "200.200.200.200"
+        ip_to_unblock = "200.200.200.200"
+        self.k_api.block_ip_on_node(ip_to_block)
+        self.k_api.unblock_ip_on_node(ip_to_unblock)
 
 
 class RunTest(object):
