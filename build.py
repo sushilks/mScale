@@ -56,8 +56,8 @@ def set_properties(project):
     project.set_property('flake8_max_line_length', 130)
 
     project.set_property('analyze_command','./make_test_exec.sh')
-    project.set_property('publish_propagate_stderr', True)
-    project.set_property('publish_propagate_stdout', True)
+    project.set_property('analyze_propagate_stderr', True)
+    project.set_property('analyze_propagate_stdout', True)
 
     project.get_property('distutils_commands').append('bdist_wheel')
     project.set_property('distutils_classifiers', [
