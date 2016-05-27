@@ -24,7 +24,7 @@ if __name__ == "__main__":
                                                  'Engine instances. It will also install Hydra on one of master nodes.')
     parser.add_argument('--config_file', '-f', type=str, default=os.getcwd() + "/setup_config.ini",
                         help='Absolute path of configuration file which dictates the number of master/slave nodes '
-                             'along with their machine type. Default is ' + os.getcwd() + '/setup_config.ini')
+                             'along with their machine type. Default is ' + os.getcwd() + '/setup_config.ini .')
     parser.add_argument('--local_work_dir', '-l', type=str, default=DEFAULT_LOCAL_WORK_DIR,
                         help='Script will copy all downloaded/output files in this directory. '
                              'Default is ' + DEFAULT_LOCAL_WORK_DIR)
