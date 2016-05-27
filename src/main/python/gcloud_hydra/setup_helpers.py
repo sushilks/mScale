@@ -14,8 +14,8 @@ compute = discovery.build('compute', 'v1', credentials=credentials)
 
 
 def get_email_id(config):
-    email_id = get_setting_val(config, "EmailId")
-    return email_id.split("@")[1]
+    email_id = get_setting_val(config, "emailid")
+    return email_id.split("@")[0]
 
 
 # Function to get mesos instances ips as a list.
@@ -42,7 +42,6 @@ def get_mesos_x_ips(setup_ips_dir, x="all"):
 def get_setting_val(config, setting_name):
     options_dict = config_section_map(config, "common")
     return options_dict[setting_name]
-
 
 # Get all IP addresses (both masters and slaves)
 def get_mesos_all_ips(setup_ips_dir):
@@ -100,6 +99,11 @@ def get_slave_instances_ips(did, config):
 
 def spawn_instance(instance_name, os_name, dst_user, ssh_key_file, config, machine_type):
     email_id = get_email_id(config)
+    disk1_type = get_setting_val(config, "disk1type")
+    disk2_type = get_setting_val(config, "disk2type")
+    disk1_size = get_setting_val(config, "disk1size")
+    disk2_size = get_setting_val(config, "disk2size")
+
     instance_name = email_id + "-" + instance_name  # Prefix emailid before instance name.
     pathname = "/tmp/gce_key.txt"
     tfile = open(pathname, 'w')
@@ -110,10 +114,10 @@ def spawn_instance(instance_name, os_name, dst_user, ssh_key_file, config, machi
     tfile.close()
 
     disk1_cmd = "gcloud compute disks create " + instance_name + "-d1 --image " + os_name + \
-                " --type pd-standard --size=30GB -q"
+                " --type " + disk1_type + " --size=" + disk1_size + " -q"
     print("disk1_cmd=%s" % disk1_cmd)
     shell_call(disk1_cmd)
-    disk2_cmd = "gcloud compute disks create " + instance_name + "-d2 --type pd-standard --size=75GB -q"
+    disk2_cmd = "gcloud compute disks create " + instance_name + "-d2 --type " + disk2_type + " --size=" + disk2_size + " -q"
     print("disk2_cmd=%s" % disk2_cmd)
     shell_call(disk2_cmd)
     cmd = "gcloud compute instances create " + instance_name + " --machine-type " + machine_type + \
