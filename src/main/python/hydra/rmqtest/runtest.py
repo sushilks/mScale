@@ -49,6 +49,7 @@ class RunTestRMQ(RunTestBase):
             self.stop_appserver()
 
     def rerun_test(self, options):
+        l.info("THIS IS A TEST")
         self.options = options
         self.boundary_setup(self.options, 'msg_rate', self.boundary_resultfn)
         # self.test_duration = options.test_duration
