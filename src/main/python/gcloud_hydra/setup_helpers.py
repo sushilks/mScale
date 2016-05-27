@@ -4,9 +4,8 @@ import subprocess
 from shell_command import shell_call
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
-from six.moves import input
 from tempfile import mkstemp
-from fabric.api import *
+from fabric.api import put, run, settings, sudo
 import socket
 
 credentials = GoogleCredentials.get_application_default()
@@ -42,6 +41,7 @@ def get_mesos_x_ips(setup_ips_dir, x="all"):
 def get_setting_val(config, setting_name):
     options_dict = config_section_map(config, "common")
     return options_dict[setting_name]
+
 
 # Get all IP addresses (both masters and slaves)
 def get_mesos_all_ips(setup_ips_dir):
@@ -244,7 +244,7 @@ def config_section_map(config, section):
         try:
             options_dict[option] = config.get(section, option)
             if options_dict[option] == -1:
-                DebugPrint("skip: %s" % option)
+                print("skip: %s" % option)
         except:
             print("exception on %s!" % option)
             options_dict[option] = None

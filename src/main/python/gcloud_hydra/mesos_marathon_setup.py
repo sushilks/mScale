@@ -9,7 +9,6 @@ import setup_helpers
 import ConfigParser
 from shell_command import shell_call
 import ntpath
-from fabric.api import *
 
 parser = argparse.ArgumentParser(description='Mesos Marathon setup script')
 parser.add_argument('--config_file', '-f', type=str,

@@ -1,7 +1,6 @@
 import os
 import argparse
 import setup_helpers
-from fabric.api import *
 import ntpath
 
 parser = argparse.ArgumentParser(description='Hydra setup script')

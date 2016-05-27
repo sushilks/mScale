@@ -1,10 +1,6 @@
 import os
 import argparse
-import setup_helpers
-import ConfigParser
 from shell_command import shell_call
-import ntpath
-from fabric.api import *
 
 DEFAULT_LOCAL_WORK_DIR = os.environ['HOME'] + "/.setup_master"
 
