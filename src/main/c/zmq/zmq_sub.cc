@@ -137,8 +137,8 @@ int main (int argc, char** argv) {
   char message_ch[120];
   while(true) {
     zmq_pollitem_t items[] = {
-      {socket_rep, 0, ZMQ_POLLIN, 0},
-      {socket_sub, 0, ZMQ_POLLIN, 0}
+      {static_cast<void *>(socket_rep), 0, ZMQ_POLLIN, 0},
+      {static_cast<void *>(socket_sub), 0, ZMQ_POLLIN, 0}
     };
     int rc = zmq_poll(items, 2, -1);
     if (rc == -1) {

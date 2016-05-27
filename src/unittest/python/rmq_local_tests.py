@@ -35,7 +35,8 @@ class RMQLocalTest(unittest.TestCase):
         setattr(options, 'test_duration', 10)
         setattr(options, 'msg_batch', 50)
         setattr(options, 'msg_rate', 1000)
-        setattr(options, 'total_sub_apps', 1)
+        setattr(options, 'total_sub_apps', 20)
+        setattr(options, 'apps_in_group', 10)
         # TODO: AbdullahS: see if we can get rid of config file
         #       requirement for local tests
         setattr(options, 'config_file', pwd + '/src/unittest/python/test.ini')

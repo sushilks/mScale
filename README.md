@@ -18,7 +18,7 @@ I used ubuntu 14.04 as base when installing and had to additional java-8 repo
 `sudo add-apt-repository ppa:openjdk-r/ppa`
 
 download libprotobuf7 from http://launchpadlibrarian.net/160197953/libprotobuf7_2.4.1-3ubuntu4_amd64.deb
-and install 
+and install
 
 `sudo dpkg -i ./libprotobuf7_2.4.1-3ubuntu4_amd64.deb`
 
@@ -79,6 +79,14 @@ source ../venv/bin/activate
 
 ### Install all the dependencies
 `pyb install_dependencies`
+
+### Install RMQ pre-reqs for unit test using mock backend
+```
+sudo apt-get install rabbitmq-server
+sudo rabbitmqctl add_user hydra hydra
+sudo rabbitmqctl set_user_tags hydra administrator
+sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*
+```
 
 ### Install the hydra package
 `pyb install`
