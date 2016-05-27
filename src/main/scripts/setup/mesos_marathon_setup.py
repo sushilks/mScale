@@ -205,8 +205,11 @@ if __name__ == "__main__":
 
   if args.clean:
     # TODO: Needs to be updated. This should be a function and should clean the instances according to supplied tag.
-    shell_call("aurora rm instances master*")
-    shell_call("aurora rm instances slave*")
+    print "==> Removing deployment nodes"
+    f = open(local_work_dir + '/.mesos_all_ips', 'r')
+    for ip in f:
+      ip = ip.rstrip()
+      setup_helpers.delete_instance(config, ip)
     shell_call("rm " + local_work_dir + "/.mesos_all_ips")
     shell_call("rm " + local_work_dir + "/.mesos_masters_ips")
     shell_call("rm " + local_work_dir + "/.mesos_slaves_ips")

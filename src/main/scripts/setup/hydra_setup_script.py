@@ -59,7 +59,7 @@ def setup(step):
     setup_helpers.upload_to_multiple_hosts(dst_user_name, mesos_masters_ips_list, script_path_name, dst_work_dir)
 
     print ("==> Running %s/%s script" % (dst_work_dir, script_name))
-    #setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "/bin/bash " + dst_work_dir + "/" + script_name + " " + dst_work_dir)
+    setup_helpers.run_cmd_on_multiple_hosts(dst_user_name, mesos_masters_ips_list, "/bin/bash " + dst_work_dir + "/" + script_name + " " + dst_work_dir)
 
   elif step == 5:
     print "==> Install packages for hydra on slave"

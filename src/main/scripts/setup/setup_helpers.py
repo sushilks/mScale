@@ -16,10 +16,6 @@ compute = discovery.build('compute', 'v1', credentials=credentials)
 def get_email_id(config):
   email_id = get_setting_val(config, "EmailId")
   return email_id.split("@")[1]
-  #f = open(os.environ['HOME'] + "/.aurora.conf")
-  #for line in f:
-  #  if 'emailid' in line:
-  #    return line.rstrip('\n').split("emailid=",1)[1]
 
 # Function to get mesos instances ips as a list.
 # IPs have already been written in a file.
@@ -112,6 +108,13 @@ def spawn_instance(instance_name, os_name, dst_user, ssh_key_file, config, machi
         "-d2,mode=rw,boot=no,auto-delete=yes --no-address --tags no-ip --metadata-from-file sshKeys=" + pathname
   print ("create_instance_cmd=%s" %cmd)
   shell_call(cmd)
+
+def delete_instance(config, ip):
+  command = "gcloud compute instances list | grep -w " + ip
+  output = run_command(command)     # tahir-deploymentid-section-tag-0 us-central1-f n1-standard-4 10.10.0.28 RUNNING
+  instance_name = output.split()[0] # tahir-deploymentid-section-tag-0
+  print ("Removing instance %s" % instance_name)
+  compute.instances().delete(project = get_setting_val(config, "project"), zone = get_setting_val(config, "zone"), instance=instance_name).execute()
 
 def upload_to_host(dst_user_name, instance_ip, src_pathname, dst_path, use_sudo=False):
   with settings(host_string=instance_ip, user=dst_user_name):
