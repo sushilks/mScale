@@ -1,4 +1,4 @@
-# hydra [![Build Status](https://travis-ci.org/sushilks/hydra.svg?branch=master)](https://travis-ci.org/sushilks/hydra)
+# hydra [![Build Status](https://travis-ci.org/lake-lerna/hydra.svg?branch=master)](https://travis-ci.org/lake-lerna/hydra)
 A Scale Testing infra using Mesos and Marathon
 
 This is a work in progress.
