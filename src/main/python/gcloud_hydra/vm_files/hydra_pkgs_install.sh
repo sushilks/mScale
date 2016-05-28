@@ -27,10 +27,10 @@ pip install pybuilder
 pushd ${dst_work_dir}/hydra-master
 pyb install_dependencies
 pyb analyze
-pyb install
 
 echo "Run script"
 pyb publish -x run_unit_tests
 pyb install -x run_unit_tests
 
+pyb test --verbose
 popd
