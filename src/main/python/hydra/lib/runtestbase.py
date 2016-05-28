@@ -334,6 +334,7 @@ class RunTestBase(BoundaryRunnerBase):
             info = self.apps[name]['ip_port_map'][task_id]
             port = info[0]
             ip = info[1]
+            l.info(port)
             ha = HAnalyser(ip, port, task_id)
             # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
             res = ha.do_ping()
@@ -369,6 +370,7 @@ class RunTestBase(BoundaryRunnerBase):
         """ Refresh all the ip-port map for the application
         This is done by talking to marathon and getting the list of tasks
         """
+        l.info("REFRESH ===========================")
         assert(name in self.apps)
         self.apps[name] = {'ip_port_map': {},
                            'stats': {},
@@ -381,6 +383,7 @@ class RunTestBase(BoundaryRunnerBase):
                 ip_port_map[task.id + '_PORT' + str(app_rep_port)] = \
                     [app_rep_port, app_ip]
         self.all_task_ids[name] = self.apps[name]["ip_port_map"].keys()
+        l.info(self.all_task_ids)
         return len(tasks)
 
     def fetch_app_stats(self, name, group_name=""):
