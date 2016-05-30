@@ -37,9 +37,6 @@ def set_properties(project):
     project.build_depends_on('psutil')
     project.build_depends_on('pep8-naming')
     project.build_depends_on('pika')
-    project.build_depends_on('shell_command')
-    project.build_depends_on('fabric')
-    project.build_depends_on('google-api-python-client')
 
     if sys.version_info[0] == 3:
         project.build_depends_on('protobuf==3.0.0-b2')
