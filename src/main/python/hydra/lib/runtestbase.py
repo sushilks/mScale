@@ -414,6 +414,8 @@ class RunTestBase(BoundaryRunnerBase):
             info = self.apps[name]['ip_port_map'][task_id]
             port = info[0]
             ip = info[1]
+            l.info(info)
+            l.info(port)
             ha_sub = HAnalyser(ip, port, task_id)
             # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
             stats = ha_sub.get_stats()
