@@ -91,4 +91,7 @@ class ChildManager(object):
         children = parent_proc.children(recursive=True)
         for proc in children:
             l.debug(proc)
-            proc.send_signal(signal.SIGKILL)
+            try:
+                proc.send_signal(signal.SIGKILL)
+            except:
+                pass

@@ -6,6 +6,7 @@ from optparse import OptionParser
 import logging
 from hydra.lib import util
 from hydra.lib.runtestbase import RunTestBase
+from hydra.kraken.kraken_api import KrakenApi
 
 try:
     # Python 2.x
@@ -21,14 +22,15 @@ l = util.createlogger('kraken', logging.INFO)
 class Kraken(RunTestBase):
     def __init__(self, options, runtest=True, mock=False):
         self.options = options
-
         self.config = ConfigParser()
+        self.k_api = KrakenApi()
         RunTestBase.__init__(self, 'kraken', self.options, self.config, startappserver=runtest, mock=mock)
 
     def release_the_kraken(self):
         """
         soon...
         """
+        l.info("Kraken Launched")
 
 
 class RunTest(object):

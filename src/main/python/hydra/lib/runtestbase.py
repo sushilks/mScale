@@ -350,16 +350,20 @@ class RunTestBase(BoundaryRunnerBase):
         for g_name in self.app_group.keys():
             temp_dict[g_name] = []
         for item in remove_list:
+            l.info("Removing client [%s]" % (item))
             del self.apps[name]['ip_port_map'][item]
+            self.all_task_ids[name].remove(item)
             for g_name, g_list in self.app_group.items():
                 l.info("Checking if bad client[%s] is in group[%s]", item, g_name)
+                l.info(g_list)
                 if item in g_list:
+                    l.info("Appending [%s] in group [%s]", g_name)
                     temp_dict[g_name].append(item)
+        l.info(temp_dict)
         for g_name, bad_list in temp_dict.items():
             for bad_client in bad_list:
                 l.info("Removing client [%s] from group [%s]", bad_client, g_name)
                 self.app_group[g_name].remove(bad_client)
-                self.all_task_ids[name].remove(bad_client)
 
     def refresh_app_info(self, name):
         """ Refresh all the ip-port map for the application
