@@ -32,9 +32,9 @@ class KrakenLocalTest(unittest.TestCase):
         setattr(options, 'test_duration', 10)
         setattr(options, 'config_file', pwd + '/src/unittest/python/test.ini')
         k = Kraken(options, runtest=False, mock=True)
-        #k.start_appserver()
+        # k.start_appserver()
         res = k.release_the_kraken()
-        #k.stop_appserver()
+        # k.stop_appserver()
         print("RES = " + pformat(res))
 
         # Remove unittest process logs from live directory
