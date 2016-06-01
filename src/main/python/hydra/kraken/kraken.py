@@ -30,10 +30,7 @@ class Kraken(RunTestBase):
         """
         soon...
         """
-        ip_to_block = "200.200.200.200"
-        ip_to_unblock = "200.200.200.200"
-        self.k_api.block_ip_on_node(ip_to_block)
-        self.k_api.unblock_ip_on_node(ip_to_unblock)
+        l.info("Kraken Launched")
 
 
 class RunTest(object):

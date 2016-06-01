@@ -12,35 +12,40 @@ class KrakenApi(object):
     def __init__(self):
         l.info("Kraken_api initiated")
 
-    def block_ip_on_node(self, ip_to_block, host_ip="", user=""):
+    def block_ip_port_on_node(self, ip_to_block, port, chain="INPUT", protocol="tcp", host_ip="", user=""):
         """
         Blocks all incoming communication from an ip on a host (local or remote)
         @args:
         ip_to_block:     IP to block
+        port:            Port to block
+        chain:           rule chain, INPUT, OUTPUT
+        protocol:        tcp, udp
         host_ip:         Host to put this iptable rule on (Default executes on localhost)
         user:            Remote user
 
         """
-        l.info("Attempting to block all communication from ip [%s]", ip_to_block)
+        l.info("Attempting to block all communication from ip:port [%s:%s]", ip_to_block, port)
         # Block all incoming traffic from ip_to_block
-        cmd = "sudo /sbin/iptables -I INPUT -s %s -j DROP" % (ip_to_block)
+        cmd = "sudo /sbin/iptables -A %s -p %s --destination-port %s -s %s -j DROP" % (chain, protocol, port, ip_to_block)
         if host_ip and user:
             common.execute_remote_cmd(host_ip, user, cmd)
         else:
             common.execute_local_cmd(cmd)
 
-    def unblock_ip_on_node(self, ip_to_unblock, host_ip="", user=""):
+    def unblock_ip_port_on_node(self, ip_to_unblock, port, chain="INPUT", protocol="tcp", host_ip="", user=""):
         """
-        UNBlocks all incoming communication from an ip on a host (local or remote)
+        Blocks all incoming communication from an ip on a host (local or remote)
         @args:
-        ip_to_unblock:     IP to unblock
+        ip_to_block:     IP to block
+        port:            Port to block
+        chain:           rule chain, INPUT, OUTPUT
+        protocol:        tcp, udp
         host_ip:         Host to put this iptable rule on (Default executes on localhost)
         user:            Remote user
-
         """
+        l.info("Attempting to UNblock all communication from ip:port [%s:%s]", ip_to_unblock, port)
         # Block all incoming traffic from ip_to_block
-        l.info("Attempting to unblock all communication from ip [%s]", ip_to_unblock)
-        cmd = "sudo /sbin/iptables -D INPUT -s %s -j DROP" % (ip_to_unblock)
+        cmd = "sudo /sbin/iptables -D %s -p %s --destination-port %s -s %s -j DROP" % (chain, protocol, port, ip_to_unblock)
         if host_ip and user:
             common.execute_remote_cmd(host_ip, user, cmd)
         else:
