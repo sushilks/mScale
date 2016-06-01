@@ -40,6 +40,7 @@ class RMQLocalTest(unittest.TestCase):
         # TODO: AbdullahS: see if we can get rid of config file
         #       requirement for local tests
         setattr(options, 'config_file', pwd + '/src/unittest/python/test.ini')
+        #setattr(options, 'config_file', pwd + '/test.ini')
         r = RunTestRMQ(options, runtest=False, mock=True)
         r.start_appserver()
         res = r.run_test()
