@@ -34,7 +34,7 @@ class KrakenApi(object):
 
     def unblock_ip_port_on_node(self, ip_to_unblock, port, chain="INPUT", protocol="tcp", host_ip="", user=""):
         """
-        Blocks all incoming communication from an ip on a host (local or remote)
+        Blocks  all incoming communication from an ip on a host (local or remote)
         @args:
         ip_to_block:     IP to block
         port:            Port to block
