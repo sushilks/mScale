@@ -15,7 +15,7 @@ use_plugin("python.pycharm")
 use_plugin("exec")
 
 name = "hydra"
-url = 'https://github.com/lake-lerna/hydra'
+url = 'https://github.com/sushilks/hydra'
 information = "Please visit {url}".format(url=url)
 
 authors = [Author('Sushil Singh', 'sushilks@gmail.com')]
@@ -38,6 +38,7 @@ def set_properties(project):
     project.build_depends_on('pep8-naming')
     project.build_depends_on('pika')
     project.build_depends_on('websocket-client')
+    project.build_depends_on('kafka-python')
 
     if sys.version_info[0] == 3:
         project.build_depends_on('protobuf==3.0.0-b2')
@@ -55,11 +56,10 @@ def set_properties(project):
     project.set_property('flake8_verbose_output', True)
     project.set_property('flake8_break_build', True)
     project.set_property('flake8_include_test_sources', True)
-    project.set_property('flake8_max_line_length', 130)
 
-    project.set_property('analyze_command','./make_test_exec.sh')
-    project.set_property('analyze_propagate_stderr', True)
-    project.set_property('analyze_propagate_stdout', True)
+    project.set_property('publish_command','./make_test_exec.sh')
+    project.set_property('publish_propagate_stderr', True)
+    project.set_property('publish_propagate_stdout', True)
 
     project.get_property('distutils_commands').append('bdist_wheel')
     project.set_property('distutils_classifiers', [
