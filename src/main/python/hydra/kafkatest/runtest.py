@@ -217,7 +217,7 @@ class RunTestKAFKA(RunTestBase):
                                                     operator='CLUSTER', value=self.mesos_cluster[1]['match']))
         self.create_hydra_app(name=self.kafkasub, app_path='hydra.kafkatest.kafka_sub.run10',
                               app_args='%s %s %s' % (topic_name, self.pub_ip,
-                                                  self.options.),
+                                                  self.options.consumer_max_buffer_size),
                               cpus=0.01, mem=32,
                               ports=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                               constraints=constraints)
@@ -257,7 +257,6 @@ class RunTest(object):
         parser.add_option("--acks", dest='acks', type='int', default=1)
         parser.add_option("--linger_ms", dest='linger_ms', type='int', default=0)
         parser.add_option("--consumer_max_buffer_size", dest='consumer_max_buffer_size', type='int', default=0)
-
 
         (options, args) = parser.parse_args()
         if ((len(args) != 0)):

@@ -98,6 +98,7 @@ def run(argv):
     consumer = KafkaConsumer(bootstrap_servers=kafka_server,
                              auto_offset_reset='earliest')
     consumer.max_buffer_size = consumer_max_buffer_size
+
     # Specify the list of topics which the consumer will subscribe to
     consumer.subscribe([topic_name])
 

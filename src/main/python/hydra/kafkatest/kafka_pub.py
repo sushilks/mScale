@@ -72,7 +72,6 @@ def run(argv):
         acks = int(acks)
         linger_ms = int(linger_ms)
 
-
     # Initialize Kafka PUB Server
     l.info("Starting Kafka Publisher (producer)")
     # Estimate average message size to compute batch_size in [bytes] / Requested by Kafka
@@ -80,7 +79,8 @@ def run(argv):
     max_message_size = len(str(msg_requested_rate) + ' msg' + str(msg_requested_rate))
     average_message_size = (min_message_size + max_message_size) / 2
     batch_estimated_size = (average_message_size) * msg_batch
-    producer = KafkaProducer(bootstrap_servers='localhost:9092', batch_size=batch_estimated_size, linger_ms=linger_ms, acks=acks)
+    producer = KafkaProducer(bootstrap_servers='localhost:9092', batch_size=batch_estimated_size, linger_ms=linger_ms,
+                             acks=acks)
 
     # Initialize simple Rep server, this is used to listen
     # for the signal to start sending data
