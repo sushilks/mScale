@@ -81,6 +81,7 @@ def run(argv):
     batch_estimated_size = (average_message_size) * msg_batch
     producer = KafkaProducer(bootstrap_servers='localhost:9092', batch_size=batch_estimated_size, linger_ms=linger_ms,
                              acks=acks)
+
     # Initialize simple Rep server, this is used to listen
     # for the signal to start sending data
     pub_rep_port = os.environ.get('PORT0')

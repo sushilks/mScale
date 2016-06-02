@@ -20,8 +20,11 @@ classPath = {
     'kafka': 'hydra.kafkatest.runtest.RunTest',
     'kafkapub': 'hydra.kafkatest.kafka_pub.run',
     'kafkasub': 'hydra.kafkatest.kafka_sub.run',
+<<<<<<< 5de707d2902381b5dbdfc16e85a40d416505b7e5
     'kafkafixed': 'hydra.kafkatest.fixed_test.run',
     'kafkarate': 'hydra.kafkatest.maxrate_test.Run',
+=======
+>>>>>>> Kafka Scaling Test
 }
 if len(sys.argv) < 2 or sys.argv[1] == '-h' or sys.argv[1] == '--help':
     print("Options are %s " % sys.argv[0] + " " + pformat(classPath.keys()))
