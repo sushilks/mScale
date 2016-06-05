@@ -6,7 +6,7 @@ from optparse import OptionParser
 import logging
 from hydra.lib import util
 from hydra.lib.runtestbase import RunTestBase
-from hydra.kraken.kraken_api import KrakenApi
+from hydra.kraken.kraken_factory import KrakenFactory
 
 try:
     # Python 2.x
@@ -23,14 +23,15 @@ class Kraken(RunTestBase):
     def __init__(self, options, runtest=True, mock=False):
         self.options = options
         self.config = ConfigParser()
-        self.k_api = KrakenApi()
         RunTestBase.__init__(self, 'kraken', self.options, self.config, startappserver=runtest, mock=mock)
 
     def release_the_kraken(self):
         """
-        soon...
+        Loads the factory that loads the appropriate class
         """
-        l.info("Kraken Launched")
+        #return KrakenFactory.load_kraken_test_factory(db_type="PG", test_name="Sanity", h_han=self)
+        return KrakenFactory.load_kraken_test_factory(db_type=self.options.db_type,
+                                                      test_name=self.options.test_name, h_han=self)
 
 
 class RunTest(object):
@@ -38,22 +39,16 @@ class RunTest(object):
         usage = ('python %prog --test_duration=<time to run test>')
         parser = OptionParser(description='KRAKEN !!!',
                               version="0.1", usage=usage)
-        parser.add_option("--test_duration", dest='test_duration', type='float', default=10)
+        parser.add_option("--db_type", dest='db_type', type='string', default="PG")
+        parser.add_option("--test_name", dest='test_name', type='string', default="Sanity")
 
         (options, args) = parser.parse_args()
         if ((len(args) != 0)):
             parser.print_help()
             sys.exit(1)
-        r = Kraken(options, False)
-        r.start_appserver()
-        res = r.release_the_kraken()
-        r.delete_all_launched_apps()
+        k = Kraken(options, False)
+        k.start_appserver()
+        res = k.release_the_kraken()
+        k.delete_all_launched_apps()
         print("RES = " + pformat(res))
-        if not options.keep_running:
-            r.stop_appserver()
-        else:
-            print("Keep running is set: Leaving the app server running")
-            print("   you can use the marathon gui/cli to scale the app up.")
-            print("   after you are done press enter on this window")
-            input('>')
-            r.stop_appserver()
+        k.stop_appserver()
