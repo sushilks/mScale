@@ -27,7 +27,8 @@ class Kraken(RunTestBase):
 
     def release_the_kraken(self):
         """
-        Loads the factory that loads the appropriate class
+        Loads the factory that loads the appropriate
+        class
         """
         return KrakenFactory.load_kraken_test_factory(db_type=self.options.db_type,
                                                       test_name=self.options.test_name, h_han=self)
