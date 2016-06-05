@@ -21,7 +21,7 @@ before_script:
   - sudo rabbitmqctl set_user_tags hydra administrator
   - sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*"
   - wget https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
-  - mv zmq.hpp /home/travis/build/sushilks/hydra/src/main/c/zmq
+  - mv zmq.hpp /home/travis/build/lake-lerna/hydra/src/main/c/zmq
 
 install:
   - pip install pybuilder
@@ -34,4 +34,4 @@ script:
   - pyb test --verbose
 
 after_script:
-  - cat /home/travis/build/sushilks/hydra/live/*.log
+  - cat /home/travis/build/lake-lerna/hydra/live/*.log

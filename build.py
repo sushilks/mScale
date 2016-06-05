@@ -15,7 +15,7 @@ use_plugin("python.pycharm")
 use_plugin("exec")
 
 name = "hydra"
-url = 'https://github.com/sushilks/hydra'
+url = 'https://github.com/lake-lerna/hydra'
 information = "Please visit {url}".format(url=url)
 
 authors = [Author('Sushil Singh', 'sushilks@gmail.com')]
@@ -56,9 +56,9 @@ def set_properties(project):
     project.set_property('flake8_include_test_sources', True)
     project.set_property('flake8_max_line_length', 130)
 
-    project.set_property('publish_command','./make_test_exec.sh')
-    project.set_property('publish_propagate_stderr', True)
-    project.set_property('publish_propagate_stdout', True)
+    project.set_property('analyze_command','./make_test_exec.sh')
+    project.set_property('analyze_propagate_stderr', True)
+    project.set_property('analyze_propagate_stdout', True)
 
     project.get_property('distutils_commands').append('bdist_wheel')
     project.set_property('distutils_classifiers', [
