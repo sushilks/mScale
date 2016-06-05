@@ -48,6 +48,7 @@ class PGKrakenTestSanity(KrakenTestBase):
         self.h_han.start_init()
         self.launch_db()
         self.assert_pg_broker_ring_green(self.ip_list)
+        self.launch_test_client()
 
     def launch_broker(self, broker_idx, ip_list):
         """
@@ -70,6 +71,24 @@ class PGKrakenTestSanity(KrakenTestBase):
                                      ports=[0],
                                      constraints=constraints)
 
+    def launch_test_client(self):
+        """
+        Launch PG broker
+        @args:
+        broker_idx:   Broker index e-g 0,1,2
+        ip_list:      iplist of nodes expected to form a ring
+        """
+        field = "group"
+        value = "node-0"
+        constraints = []
+        constraints.append(self.h_han.app_constraints(field=field, operator='CLUSTER', value=value))
+        self.h_han.create_binary_app(name=self.test_name,
+                                     app_script='./src/main/python/hydra/kraken/plumgrid/launch_test_client.sh',
+                                     cpus=0.1, mem=256,
+                                     ports=[0],
+                                     constraints=constraints)
+        self.h_han.scale_and_verify_app(self.test_name, 10)
+
     def launch_db(self):
         """
         Launch PG DB
@@ -87,10 +106,12 @@ class PGKrakenTestSanity(KrakenTestBase):
         """
         self.broker_name_list = []
         self.broker_nodes = 3
+        self.test_name = "broker-client"
         for x in range(self.broker_nodes):
             app_name = "broker" + "-%d" % x
             self.h_han.add_appid(app_name)
             self.broker_name_list.append(app_name)
+        self.h_han.add_appid(self.test_name)
 
     def check_pg_broker_node_health(self, ip):
         """
