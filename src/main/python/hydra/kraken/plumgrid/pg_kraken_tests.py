@@ -47,7 +47,7 @@ class PGKrakenTestSanity(KrakenTestBase):
         self.prep_app_name()
         self.h_han.start_init()
         self.launch_db()
-        self.assert_pg_dht_green(self.ip_list)
+        self.assert_pg_broker_ring_green(self.ip_list)
 
     def launch_broker(self, broker_idx, ip_list):
         """
@@ -92,7 +92,7 @@ class PGKrakenTestSanity(KrakenTestBase):
             self.h_han.add_appid(app_name)
             self.broker_name_list.append(app_name)
 
-    def check_pg_dht_node_health(self, ip):
+    def check_pg_broker_node_health(self, ip):
         """
         Function to check pg dht node health
         Does a websocket query
@@ -108,9 +108,9 @@ class PGKrakenTestSanity(KrakenTestBase):
         rep = json.loads(rep)
         return rep["service_health"]
 
-    def assert_pg_dht_green(self, ip_list, timeout=20):
+    def assert_pg_broker_ring_green(self, ip_list, timeout=20):
         """
-        Function to check dht health
+        Function to check pg broker ring  health
         asserts if any node is degraded
         @args:
         ip_list:        list of ips to query for health
@@ -121,7 +121,7 @@ class PGKrakenTestSanity(KrakenTestBase):
         while (time.time() - start_time < timeout):
             fail = False
             for ip in ip_list:
-                res = self.check_pg_dht_node_health(ip)
+                res = self.check_pg_broker_node_health(ip)
                 if not res:
                     l.info("Unable to get pg dht node health status")
                     fail = True
