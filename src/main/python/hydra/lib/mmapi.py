@@ -165,9 +165,3 @@ class MesosIF(object):
     def get_slave_ip_from_hn(self, slave_hn):
         pid = self.slavesHN[slave_hn]['pid']
         return self.get_ip_from_pid(pid)
-
-    def get_slave_ip_from_attribute(self, attr):
-        for host_ip, info in self.slavesHN.items():
-            if info["attributes"]["group"] == attr:
-                return host_ip
-        raise Exception("NO slave exists with attribtue [%s]" % attr)

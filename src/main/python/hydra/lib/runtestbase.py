@@ -153,14 +153,6 @@ class RunTestBase(BoundaryRunnerBase):
         for app in self.appIdList:
             self.__mt.wait_app_removal(app)
 
-    def delete_all_launched_apps(self):
-        l.info("Delete all apps")
-        for app in self.appIdList:
-            self.delete_app(app, 12, False)
-        l.info("Waiting for delete to complete")
-        for app in self.appIdList:
-            self.__mt.wait_app_removal(app)
-
     def get_appserver_addr(self):
         return self.myaddr
 
@@ -189,12 +181,6 @@ class RunTestBase(BoundaryRunnerBase):
         """ Get the ip of a mesos slave
         """
         return self.__mesos.get_slave_ip_from_hn(hostname)
-
-    def get_mesos_slave_ip_attr(self, attr):
-        """
-        Get the ip of a mesos slave that matches the provided attribute
-        """
-        return self.__mesos.get_slave_ip_from_attribute(attr)
 
     def get_cmd(self, function_path, arguments):
         return 'env && cd ./src/main/scripts && ./hydra ' + \
