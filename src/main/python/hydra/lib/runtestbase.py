@@ -308,7 +308,6 @@ class RunTestBase(BoundaryRunnerBase):
             ha_sub.reset_stats()
             ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
 
-
     def ping_all_app_inst(self, name, group_name=""):
         """
         Ping all the application task's and if any of they don't respond to
