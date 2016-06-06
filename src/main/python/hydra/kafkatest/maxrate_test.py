@@ -27,6 +27,9 @@ class RunSuitMaxRate(object):
         setattr(options, 'msg_rate', 10000)
         setattr(options, 'keep_running', False)
         setattr(options, 'acks', 0)
+        setattr(options, 'linger_ms', 0)
+        setattr(options, 'consumer_max_buffer_size', 0)
+
         self.first_test = None
 
         # Parameters

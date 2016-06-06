@@ -189,11 +189,11 @@ class RunTestKAFKA(RunTestBase):
                                                     operator='CLUSTER', value=self.mesos_cluster[0]['match']))
         self.create_hydra_app(name=self.kafkapub, app_path='hydra.kafkatest.kafka_pub.run',
                               app_args='%s %s %s %s %s %s' % (self.options.test_duration,
-                                                        self.options.msg_batch,
-                                                        self.options.msg_rate,
-                                                        topic_name,
-                                                        self.options.acks,
-                                                        self.options.linger_ms),
+                                                              self.options.msg_batch,
+                                                              self.options.msg_rate,
+                                                              topic_name,
+                                                              self.options.acks,
+                                                              self.options.linger_ms),
                               cpus=0.01, mem=32,
                               ports=[0],
                               constraints=constraints)
@@ -217,7 +217,7 @@ class RunTestKAFKA(RunTestBase):
                                                     operator='CLUSTER', value=self.mesos_cluster[1]['match']))
         self.create_hydra_app(name=self.kafkasub, app_path='hydra.kafkatest.kafka_sub.run10',
                               app_args='%s %s %s' % (topic_name, self.pub_ip,
-                                                  self.options.consumer_max_buffer_size),
+                                                     self.options.consumer_max_buffer_size),
                               cpus=0.01, mem=32,
                               ports=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                               constraints=constraints)
