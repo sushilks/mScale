@@ -38,6 +38,10 @@ class HAnalyser(object):
         l.debug("Conneced...")
 
     def do_req_resp(self, cmd, timeout=10000, **kwargs):
+        self.do_req_only(cmd, **kwargs)
+        return self.do_resp_only(timeout)
+
+    def do_req_only(self, cmd, **kwargs):
         req_msg = self.req_msg
         req_msg.Clear()
         req_msg.type = hdaemon_pb2.CommandMessage.SUBCMD
@@ -58,6 +62,8 @@ class HAnalyser(object):
 
         l.debug("Sending message %s" % req_msg)
         self.socket.send(req_msg.SerializeToString())
+
+    def do_resp_only(self, timeout=10000):
         l.debug("Waiting for server to respond...")
         self.poller.register(self.socket, zmq.POLLIN)
         msgs = dict(self.poller.poll(timeout))
