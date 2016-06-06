@@ -43,7 +43,7 @@ def debug(sig, frame):
 
 class RunTestBase(BoundaryRunnerBase):
     def __init__(self, test_name, options, config=None,
-                 startappserver=True, mock=False):
+                 startappserver=True, mock=False, app_dirs=['target', 'src']):
         if not config:
             config = ConfigParser()
         config_filename = 'hydra.ini'
@@ -85,7 +85,7 @@ class RunTestBase(BoundaryRunnerBase):
         self.appIdList = []
         self.__mesos = None
         self.__mt = None
-        self.appItemToUpload = ['target', 'src']
+        self.appItemToUpload = app_dirs
         self.appserver_init_done = False
         BoundaryRunnerBase.__init__(self)
         if startappserver:
@@ -504,11 +504,11 @@ class RunTestBase(BoundaryRunnerBase):
         for app in self.appIdList:
             self.__mt.wait_app_removal(app)
 
-    def get_mesos_slave_ips_attr(self, attr):
+    def get_mesos_slave_ips_attr(self, attr_type, attr_value):
         """
         Get the ip of a mesos slave that matches the provided attribute
         """
-        return self.__mesos.get_slave_ips_from_attribute(attr)
+        return self.__mesos.get_slave_ips_from_attribute(attr_type, attr_value)
 
     @staticmethod
     def block_ip_port_on_node(ip_to_block, port, chain="INPUT", protocol="tcp", host_ip="", user=""):
