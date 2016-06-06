@@ -4,19 +4,17 @@ path.append("src/main/python")
 
 import unittest
 import logging
-import os
 import time
 import socket
 from pprint import pprint, pformat  # NOQA
 from hydra.lib import util
-from hydra.kraken.kraken import Kraken
-from hydra.kraken.kraken_api import KrakenApi
+from hydra.lib.runtestbase import RunTestBase
 from hydra.lib.utility.h_threading import HThreading
 
-l = util.createlogger('KrakenLocalTest', logging.INFO)
+l = util.createlogger('RuntestLocalTest', logging.INFO)
 
 
-class KrakenLocalTest(unittest.TestCase):
+class RuntestLocalTest(unittest.TestCase):
     """
     Test class that attempts to unit test
     kraken functionality.
@@ -24,40 +22,16 @@ class KrakenLocalTest(unittest.TestCase):
     it matures.
     """
     def setUp(self):
-        l.info("KrakenLocalTest initated")
+        l.info("LocalTest initialized")
 
-    def test1(self):
-        return
-        l.info("test1 launched")
-        pwd = os.getcwd()
-        l.info("CWD = " + pformat(pwd))
-
-        def options():
-            None
-        setattr(options, 'test_duration', 10)
-        setattr(options, 'config_file', pwd + '/src/unittest/python/test.ini')
-        k = Kraken(options, runtest=False, mock=True)
-        res = k.release_the_kraken()
-        print("RES = " + pformat(res))
-
-        # Remove unittest process logs from live directory
-        files = [f for f in os.listdir("./live") if f.endswith(".log")]
-        for f in files:
-            try:
-                f_name = "./live/" + f
-                l.debug("removing %s", f_name)
-                os.remove(f_name)
-            except:
-                pass
-
-    def test2(self):
-        l.info("test 2 launched")
+    def test_ip_block(self):
+        l.info("test ip block launched")
         self.TCP_IP = '127.0.0.1'
         self.TCP_PORT = 5005
         self.BUFFER_SIZE = 5
         self.t_exceptions = []
         self.h_threading = HThreading()
-        self.k_api = KrakenApi()
+        self.k_api = RunTestBase
         self.pkts_dropped = 0  # loose count, not 100% accurate
         self.pkts_received = 0
         self.stop = False

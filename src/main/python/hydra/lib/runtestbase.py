@@ -14,7 +14,7 @@ from pprint import pprint, pformat  # NOQA
 from hydra.lib import appserver, mmapi, util, mock_backend
 from hydra.lib.boundary import BoundaryRunnerBase
 from hydra.lib.h_analyser import HAnalyser
-
+from hydra.lib import common
 
 try:
     # Python 2.x
@@ -43,7 +43,7 @@ def debug(sig, frame):
 
 class RunTestBase(BoundaryRunnerBase):
     def __init__(self, test_name, options, config=None,
-                 startappserver=True, mock=False):
+                 startappserver=True, mock=False, app_dirs=['target', 'src']):
         if not config:
             config = ConfigParser()
         config_filename = 'hydra.ini'
@@ -85,7 +85,7 @@ class RunTestBase(BoundaryRunnerBase):
         self.appIdList = []
         self.__mesos = None
         self.__mt = None
-        self.appItemToUpload = ['target', 'src']
+        self.appItemToUpload = app_dirs
         self.appserver_init_done = False
         BoundaryRunnerBase.__init__(self)
         if startappserver:
@@ -147,11 +147,7 @@ class RunTestBase(BoundaryRunnerBase):
         self.init_mesos()
         self.init_marathon()
         l.info("Delete any pre-existing apps")
-        for app in self.appIdList:
-            self.delete_app(app, 12, False)
-        l.info("Waiting for delete to complete")
-        for app in self.appIdList:
-            self.__mt.wait_app_removal(app)
+        self.delete_all_launched_apps()
 
     def get_appserver_addr(self):
         return self.myaddr
@@ -499,6 +495,61 @@ class RunTestBase(BoundaryRunnerBase):
             r = randint(0, len(ipm) - 1)
             cset += [ipm.keys()[r]]
         return cset
+
+    def delete_all_launched_apps(self):
+        l.info("Delete all apps")
+        for app in self.appIdList:
+            self.delete_app(app, 12, False)
+        l.info("Waiting for delete to complete")
+        for app in self.appIdList:
+            self.__mt.wait_app_removal(app)
+
+    def get_mesos_slave_ips_attr(self, attr_type, attr_value):
+        """
+        Get the ip of a mesos slave that matches the provided attribute
+        """
+        return self.__mesos.get_slave_ips_from_attribute(attr_type, attr_value)
+
+    @staticmethod
+    def block_ip_port_on_node(ip_to_block, port, chain="INPUT", protocol="tcp", host_ip="", user=""):
+        """
+        Blocks all incoming communication from an ip on a host (local or remote)
+        @args:
+        ip_to_block:     IP to block
+        port:            Port to block
+        chain:           rule chain, INPUT, OUTPUT
+        protocol:        tcp, udp
+        host_ip:         Host to put this iptable rule on (Default executes on localhost)
+        user:            Remote user
+
+        """
+        l.info("Attempting to block all communication from ip:port [%s:%s]", ip_to_block, port)
+        # Block all incoming traffic from ip_to_block
+        cmd = "sudo /sbin/iptables -A %s -p %s --destination-port %s -s %s -j DROP" % (chain, protocol, port, ip_to_block)
+        if host_ip and user:
+            common.execute_remote_cmd(host_ip, user, cmd)
+        else:
+            common.execute_local_cmd(cmd)
+
+    @staticmethod
+    def unblock_ip_port_on_node(ip_to_unblock, port, chain="INPUT", protocol="tcp", host_ip="", user=""):
+        """
+        Blocks  all incoming communication from an ip on a host (local or remote)
+        @args:
+        ip_to_block:     IP to block
+        port:            Port to block
+        chain:           rule chain, INPUT, OUTPUT
+        protocol:        tcp, udp
+        host_ip:         Host to put this iptable rule on (Default executes on localhost)
+        user:            Remote user
+        """
+        l.info("Attempting to UNblock all communication from ip:port [%s:%s]", ip_to_unblock, port)
+        # Block all incoming traffic from ip_to_block
+        cmd = "sudo /sbin/iptables -D %s -p %s --destination-port %s -s %s -j DROP" % (chain, protocol, port, ip_to_unblock)
+        if host_ip and user:
+            common.execute_remote_cmd(host_ip, user, cmd)
+        else:
+            common.execute_local_cmd(cmd)
 
 '''
     def find_ip_uniqueapp(self, app):

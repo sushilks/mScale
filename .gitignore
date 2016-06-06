@@ -58,3 +58,9 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+#Protobuf files
+*.pb.cc
+*.pb.h
+*_pb2.py
+
