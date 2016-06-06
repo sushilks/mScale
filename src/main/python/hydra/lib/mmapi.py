@@ -165,3 +165,10 @@ class MesosIF(object):
     def get_slave_ip_from_hn(self, slave_hn):
         pid = self.slavesHN[slave_hn]['pid']
         return self.get_ip_from_pid(pid)
+
+    def get_slaves_ips_from_attribute(self, attr_type, attr_value):
+        ret = []
+        for host_ip, info in self.slavesHN.items():
+            if info["attributes"][attr_type] == attr_value:
+                ret.append(host_ip)
+        return ret

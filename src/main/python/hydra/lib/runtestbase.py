@@ -147,11 +147,7 @@ class RunTestBase(BoundaryRunnerBase):
         self.init_mesos()
         self.init_marathon()
         l.info("Delete any pre-existing apps")
-        for app in self.appIdList:
-            self.delete_app(app, 12, False)
-        l.info("Waiting for delete to complete")
-        for app in self.appIdList:
-            self.__mt.wait_app_removal(app)
+        self.delete_all_launched_apps()
 
     def get_appserver_addr(self):
         return self.myaddr
@@ -499,6 +495,20 @@ class RunTestBase(BoundaryRunnerBase):
             r = randint(0, len(ipm) - 1)
             cset += [ipm.keys()[r]]
         return cset
+
+    def delete_all_launched_apps(self):
+        l.info("Delete all apps")
+        for app in self.appIdList:
+            self.delete_app(app, 12, False)
+        l.info("Waiting for delete to complete")
+        for app in self.appIdList:
+            self.__mt.wait_app_removal(app)
+
+    def get_mesos_slave_ips_attr(self, attr):
+        """
+        Get the ip of a mesos slave that matches the provided attribute
+        """
+        return self.__mesos.get_slave_ips_from_attribute(attr)
 
     @staticmethod
     def block_ip_port_on_node(ip_to_block, port, chain="INPUT", protocol="tcp", host_ip="", user=""):
