@@ -71,11 +71,15 @@ def run10(argv):
 def run(argv):
     l.info("JOB RUN : " + pformat(argv))
     pub_ip = ''
-    if len(argv) > 1:
+    if len(argv) > 3:
         topic_name = argv[1]
         pub_ip = argv[2]
+        consumer_max_buffer_size = argv[3]
         l.info("Kafka SUB will subscribe to topic [%s]" % topic_name)
         l.info("Kafka Broker is hosted in [%s]" % pub_ip)
+        l.info("Kafka Consumer MAX Buffer size is [%s]" % consumer_max_buffer_size)
+        consumer_max_buffer_size = int(consumer_max_buffer_size)
+
     if not topic_name:
         raise Exception("Kafka-Sub needs a TOPIC to subscribe to.")
     if not pub_ip:
@@ -93,7 +97,7 @@ def run(argv):
     kafka_server = str(pub_ip) + ":9092"
     consumer = KafkaConsumer(bootstrap_servers=kafka_server,
                              auto_offset_reset='earliest')
-    consumer.max_buffer_size = 0
+    consumer.max_buffer_size = consumer_max_buffer_size
     # Specify the list of topics which the consumer will subscribe to
     consumer.subscribe([topic_name])
 

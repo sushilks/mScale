@@ -58,15 +58,20 @@ class HDKafkapRepSrv(HDaemonRepSrv):
 
 
 def run(argv):
-    if len(argv) > 3:
+    if len(argv) > 4:
         test_duration = argv[1]
         msg_batch = argv[2]
         msg_requested_rate = argv[3]
         topic_name = argv[4]
+        acks = argv[5]
+        linger_ms = argv[6]
         msg_batch = int(msg_batch)
         msg_requested_rate = float(msg_requested_rate)
         test_duration = float(test_duration)
         topic_name = str(topic_name)
+        acks = int(acks)
+        linger_ms = int(linger_ms)
+
 
     # Initialize Kafka PUB Server
     l.info("Starting Kafka Publisher (producer)")
@@ -75,7 +80,7 @@ def run(argv):
     max_message_size = len(str(msg_requested_rate) + ' msg' + str(msg_requested_rate))
     average_message_size = (min_message_size + max_message_size) / 2
     batch_estimated_size = (average_message_size) * msg_batch
-    producer = KafkaProducer(bootstrap_servers='localhost:9092', batch_size=batch_estimated_size, linger_ms=0, acks=1)
+    producer = KafkaProducer(bootstrap_servers='localhost:9092', batch_size=batch_estimated_size, linger_ms=linger_ms, acks=acks)
 
     # Initialize simple Rep server, this is used to listen
     # for the signal to start sending data

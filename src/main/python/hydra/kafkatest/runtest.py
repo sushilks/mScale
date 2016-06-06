@@ -188,10 +188,12 @@ class RunTestKAFKA(RunTestBase):
             constraints.append(self.app_constraints(field=self.mesos_cluster[0]['cat'],
                                                     operator='CLUSTER', value=self.mesos_cluster[0]['match']))
         self.create_hydra_app(name=self.kafkapub, app_path='hydra.kafkatest.kafka_pub.run',
-                              app_args='%s %s %s %s' % (self.options.test_duration,
+                              app_args='%s %s %s %s %s %s' % (self.options.test_duration,
                                                         self.options.msg_batch,
                                                         self.options.msg_rate,
-                                                        topic_name),
+                                                        topic_name,
+                                                        self.options.acks,
+                                                        self.options.linger_ms),
                               cpus=0.01, mem=32,
                               ports=[0],
                               constraints=constraints)
@@ -214,7 +216,8 @@ class RunTestKAFKA(RunTestBase):
             constraints.append(self.app_constraints(field=self.mesos_cluster[1]['cat'],
                                                     operator='CLUSTER', value=self.mesos_cluster[1]['match']))
         self.create_hydra_app(name=self.kafkasub, app_path='hydra.kafkatest.kafka_sub.run10',
-                              app_args='%s %s' % (topic_name, self.pub_ip),
+                              app_args='%s %s %s' % (topic_name, self.pub_ip,
+                                                  self.options.),
                               cpus=0.01, mem=32,
                               ports=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                               constraints=constraints)
@@ -236,7 +239,9 @@ class RunTest(object):
     def __init__(self, argv):
         usage = ('python %prog --test_duration=<time to run test> --msg_batch=<msg burst batch before sleep>'
                  '--msg_rate=<rate in packet per secs> --total_sub_apps=<Total sub apps to launch>'
-                 '--config_file=<path_to_config_file> --keep_running')
+                 '--config_file=<path_to_config_file> --keep_running'
+                 '--acks=<server_acknowledgement> --linger_ms=<linger_ms>'
+                 '--consumer_max_buffer_size=<consumer_buffer_size>')
         # Parse Command-Line options and set to default values if not specified
         parser = OptionParser(description='kafka scale test master',
                               version="0.1", usage=usage)
@@ -246,6 +251,13 @@ class RunTest(object):
         parser.add_option("--total_sub_apps", dest='total_sub_apps', type='int', default=20)
         parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
         parser.add_option("--keep_running", dest='keep_running', action="store_true", default=False)
+        # Kafka-related configuration parameters
+        # parser.add_option("--fetch_min_bytes", dest='fetch_min_bytes', type='int', default=1)
+        # parser.add_option("--fetch_wait_max_ms", dest='fetch_wait_max_ms', type='int', default=100)
+        parser.add_option("--acks", dest='acks', type='int', default=1)
+        parser.add_option("--linger_ms", dest='linger_ms', type='int', default=0)
+        parser.add_option("--consumer_max_buffer_size", dest='consumer_max_buffer_size', type='int', default=0)
+
 
         (options, args) = parser.parse_args()
         if ((len(args) != 0)):
