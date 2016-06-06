@@ -51,8 +51,10 @@ class HAnalyser(object):
                 arg.intValue = kwargs[key]
             elif t is float:
                 arg.floatValue = kwargs[key]
-            else:
+            elif util.istext(str(kwargs[key])):
                 arg.strValue = str(kwargs[key])
+            else:
+                arg.byteValue = str(kwargs[key])
 
         l.debug("Sending message %s" % req_msg)
         self.socket.send(req_msg.SerializeToString())
@@ -77,6 +79,8 @@ class HAnalyser(object):
                 rdic[itm.name] = itm.intValue
             elif itm.HasField("floatValue"):
                 rdic[itm.name] = itm.floatValue
+            elif itm.HasField("byteValue"):
+                rdic[itm.name] = itm.byteValue
             else:
                 rdic[itm.name] = True
 
