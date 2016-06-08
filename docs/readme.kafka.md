@@ -10,6 +10,9 @@ The results shown in this document can be reproduced on any cloud or physical se
 
    These tests where initially run using the **kafka-python** client (available at: https://github.com/dpkp/kafka-python), however, producer's throughput was significantly under expected rate (when compared against benchmark reported values and those obtained by running the integrated kafka performance tool). For this reason, we alternatively used the **pykafka** client (available at: https://github.com/Parsely/pykafka) which clearly outperformed the former library.
 
+**DISCLAIMER**
+   This is still WORK IN PROGRESS and will be progressively updated.  
+
 ### Test Setup
 
 For these tests, we had a total of five (5) google cloud instances, with the following specs:
@@ -177,12 +180,12 @@ Next, we present performance results in a Table and the following graphs depict 
  The results show that client loss is experienced under this scenario when the number of clients increases beyond 120.
 
 
- |   Client # |   Avrg Tx Rate |   Avrg Rx Rate |   Client Loss[%] |   Failed Clients | Total pckts Tx   | Total pckts Rx   |
- |-----------:|---------------:|---------------:|-----------------:|-----------------:|:-----------------|:-----------------|
- |         30 |        7190.53 |       7225.42  |         0        |                0 | 71906            | 71906            |
- |         60 |        6999.73 |       6860.66  |         0        |                0 | 69998            | 69998            |
- |        120 |        7602.66 |       1569.84  |         2.45713  |                8 | 76027            | 74158            |
- |        240 |        7455.71 |       2453.13  |         0.494229 |                6 | 74558            | 74189            |
- |        480 |        7449.06 |       1173.02  |         1.4111   |               15 | 74491            | 73439            |
- |        960 |        7313.26 |        575.527 |         0.739413 |               18 | 73133            | 72592            |
- |       1920 |        6446.53 |        281.702 |         1.4252   |               48 | 64466            | 63547            |
+|   Client # |   Avrg Tx Rate |   Avrg Rx Rate |   Client Loss[%] |   Failed Clients | Total pckts Tx   | Total pckts Rx   |
+|-----------:|---------------:|---------------:|-----------------:|-----------------:|:-----------------|:-----------------|
+|         30 |        7190.53 |       7225.42  |         0        |                0 | 71906            | 71906            |
+|         60 |        6999.73 |       6860.66  |         0        |                0 | 69998            | 69998            |
+|        120 |        7602.66 |       1569.84  |         2.45713  |                8 | 76027            | 74158            |
+|        240 |        7455.71 |       2453.13  |         0.494229 |                6 | 74558            | 74189            |
+|        480 |        7449.06 |       1173.02  |         1.4111   |               15 | 74491            | 73439            |
+|        960 |        7313.26 |        575.527 |         0.739413 |               18 | 73133            | 72592            |
+|       1920 |        6446.53 |        281.702 |         1.4252   |               48 | 64466            | 63547            |
