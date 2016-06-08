@@ -140,11 +140,11 @@ class RunTestBase(BoundaryRunnerBase):
         return self.app_prefix + name
 
     def start_appserver(self):
+        self.init_appserver_dir()
         if not self.appserver_running:
             self.myserver = appserver.TServer(self.myport, self.pwd + '/live')
             self.myserver.start()
             self.appserver_running = True
-        self.init_appserver_dir()
 
     def stop_appserver(self):
         self.myserver.stop()
