@@ -11,6 +11,7 @@ from hydra.lib.hdaemon import HDaemonRepSrv
 from hydra.lib.childmgr import ChildManager
 from pprint import pformat
 from kafka import KafkaConsumer
+from pykafka import KafkaClient
 
 l = util.createlogger('HSub', logging.INFO)
 
@@ -69,7 +70,7 @@ def run10(argv):
 
 
 def run(argv):
-    old_client = True
+    old_client = False
 
     l.info("JOB RUN : " + pformat(argv))
     pub_ip = ''
@@ -103,13 +104,39 @@ def run(argv):
         consumer.max_buffer_size = consumer_max_buffer_size
         # Specify the list of topics which the consumer will subscribe to
         consumer.subscribe([topic_name])
-    # else:
-        # client = KafkaClient(hosts=kafka_server)
-        # topic = client.topics['test']
-        # consumer = topic.get_simple_consumer()
+    else:
+        client = KafkaClient(hosts=kafka_server)
+        topic = client.topics[topic_name]
+        consumer = topic.get_simple_consumer()
 
     while True:
-        for message in consumer:
+        if old_client:
+            for message in consumer:
+                # If first message:
+                if hd.msg_cnt == 0:
+                    hd.run_data['first_msg_time_r'] = time.time()
+                    hd.run_data['stats']['first_msg_time'] = json.dumps(hd.run_data['first_msg_time_r'])
+                    l.info("[Kafka-Sub] Setting the 'first_msg_time' to = " +
+                           pformat(hd.run_data['stats']['first_msg_time']))
+                # Increment received message counter
+                hd.msg_cnt = hd.msg_cnt + 1
+
+                hd.run_data['last_msg_time_r'] = time.time()
+                hd.run_data['stats']['last_msg_time'] = json.dumps(hd.run_data['last_msg_time_r'])
+
+                # Limit the 'receive' rate if necessary
+                if hd.recv_rate != 0:
+                    # Check the rate from beginning of first message to now
+                    duration = float(hd.msg_cnt) / hd.recv_rate
+                    current_duration = time.time() - hd.run_data['first_msg_time_r']
+                    if current_duration < duration:
+                        sleep_time = duration - current_duration
+                        if sleep_time > 1:
+                            sleep_time = 1
+                        time.sleep(sleep_time)
+                hd.run_data['msg_cnt'] = hd.msg_cnt
+        else:
+            consumer.consume()  # Read one message from Kafka
             # If first message:
             if hd.msg_cnt == 0:
                 hd.run_data['first_msg_time_r'] = time.time()
@@ -132,6 +159,5 @@ def run(argv):
                     if sleep_time > 1:
                         sleep_time = 1
                     time.sleep(sleep_time)
-
-            # duration = hd.run_data['last_msg_time_r'] - hd.run_data['first_msg_time_r']
             hd.run_data['msg_cnt'] = hd.msg_cnt
+            continue

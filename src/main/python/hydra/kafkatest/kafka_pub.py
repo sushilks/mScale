@@ -10,6 +10,7 @@ from hydra.lib import util
 from hydra.lib.hdaemon import HDaemonRepSrv
 from kafka import KafkaProducer
 from kafka.errors import KafkaTimeoutError
+from pykafka import KafkaClient
 
 l = util.createlogger('HPub', logging.INFO)
 
@@ -58,7 +59,7 @@ class HDKafkapRepSrv(HDaemonRepSrv):
 
 
 def run(argv):
-    old_client = True
+    old_client = False
 
     if len(argv) > 4:
         test_duration = argv[1]
@@ -86,10 +87,10 @@ def run(argv):
     if old_client:
         producer = KafkaProducer(bootstrap_servers=['localhost:9092'], batch_size=batch_estimated_size,
                                  linger_ms=linger_ms, acks=acks)
-    # else:
-        # client = KafkaClient(hosts='localhost:9092')
-        # topic = client.topics['test']
-        # producer = topic.get_producer()
+    else:
+        client = KafkaClient(hosts='localhost:9092')
+        topic = client.topics[topic_name]
+        producer = topic.get_producer(min_queued_messages=batch_estimated_size, linger_ms=linger_ms, required_acks=acks)
 
     # Initialize simple Rep server, this is used to listen
     # for the signal to start sending data
@@ -127,8 +128,8 @@ def run(argv):
                 # topic: specifies the 'topic' where the message will be published
                 if old_client:
                     producer.send(topic=topic_name, value=message)
-                # else:
-                    # producer.produce(message)
+                else:
+                    producer.produce(message)
             except KafkaTimeoutError as e:
                 l.error("Unable to publish message to the Kafka Cluster. ERROR: %s" % e.message)
 
