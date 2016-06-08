@@ -33,7 +33,7 @@ class RunSuitMaxRate(object):
         self.first_test = None
 
         # Parameters
-        client_set = [30, 60, 90, 180, 500, 1000, 2000, 4000, 8000]
+        client_set = [30, 60, 120, 240, 480, 960, 1920, 3840, 7680, 10000]
 
         for client_count in client_set:
             setattr(options, 'total_sub_apps', int(client_count / 10))

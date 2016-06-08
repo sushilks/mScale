@@ -69,6 +69,8 @@ def run10(argv):
 
 
 def run(argv):
+    old_client = True
+
     l.info("JOB RUN : " + pformat(argv))
     pub_ip = ''
     if len(argv) > 3:
@@ -95,12 +97,16 @@ def run(argv):
     # Init Kafka Consumer
     l.info("Kafka SUB client (consumer) connecting to Kafka Server (broker) at localhost:9092")
     kafka_server = str(pub_ip) + ":9092"
-    consumer = KafkaConsumer(bootstrap_servers=kafka_server,
+    if old_client:
+        consumer = KafkaConsumer(bootstrap_servers=[kafka_server],
                              auto_offset_reset='earliest')
-    consumer.max_buffer_size = consumer_max_buffer_size
-
-    # Specify the list of topics which the consumer will subscribe to
-    consumer.subscribe([topic_name])
+        consumer.max_buffer_size = consumer_max_buffer_size
+        # Specify the list of topics which the consumer will subscribe to
+        consumer.subscribe([topic_name])
+    # else:
+        # client = KafkaClient(hosts=kafka_server)
+        # topic = client.topics['test']
+        # consumer = topic.get_simple_consumer()
 
     while True:
         for message in consumer:
@@ -126,9 +132,5 @@ def run(argv):
                     if sleep_time > 1:
                         sleep_time = 1
                     time.sleep(sleep_time)
-            duration = hd.run_data['last_msg_time_r'] - hd.run_data['first_msg_time_r']
+            # duration = hd.run_data['last_msg_time_r'] - hd.run_data['first_msg_time_r']
             hd.run_data['msg_cnt'] = hd.msg_cnt
-
-            if duration >= 10:
-                consumer.close()
-                break

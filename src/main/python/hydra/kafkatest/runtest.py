@@ -95,7 +95,8 @@ class RunTestKAFKA(RunTestBase):
         return res
 
     def get_topic_name(self):
-        return 'topic_' + str(self.options.total_sub_apps) + '_' + str(self.options.msg_rate)
+        return 'topic_' + str(self.options.total_sub_apps) + '_' + str(self.options.msg_rate) + '_' \
+               + str(self.options.msg_batch)
 
     def boundary_resultfn(self, options, res):
         message_rate = options.msg_rate

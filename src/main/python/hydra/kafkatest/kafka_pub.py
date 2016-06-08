@@ -58,6 +58,8 @@ class HDKafkapRepSrv(HDaemonRepSrv):
 
 
 def run(argv):
+    old_client = True
+
     if len(argv) > 4:
         test_duration = argv[1]
         msg_batch = argv[2]
@@ -79,8 +81,15 @@ def run(argv):
     max_message_size = len(str(msg_requested_rate) + ' msg' + str(msg_requested_rate))
     average_message_size = (min_message_size + max_message_size) / 2
     batch_estimated_size = (average_message_size) * msg_batch
-    producer = KafkaProducer(bootstrap_servers='localhost:9092', batch_size=batch_estimated_size, linger_ms=linger_ms,
-                             acks=acks)
+    l.info("Message Average Size is: [%s]. Kafka Batch Size in Bytes set to: [%s]" % (average_message_size,
+                                                                                      batch_estimated_size))
+    if old_client:
+        producer = KafkaProducer(bootstrap_servers=['localhost:9092'], batch_size=batch_estimated_size,
+                                 linger_ms=linger_ms, acks=acks)
+    # else:
+        # client = KafkaClient(hosts='localhost:9092')
+        # topic = client.topics['test']
+        # producer = topic.get_producer()
 
     # Initialize simple Rep server, this is used to listen
     # for the signal to start sending data
@@ -116,7 +125,10 @@ def run(argv):
             try:
                 # Publish message to the Kafka Cluster
                 # topic: specifies the 'topic' where the message will be published
-                producer.send(topic=topic_name, value=message)
+                if old_client:
+                    producer.send(topic=topic_name, value=message)
+                else:
+                    producer.produce(message)
             except KafkaTimeoutError as e:
                 l.error("Unable to publish message to the Kafka Cluster. ERROR: %s" % e.message)
 
@@ -149,7 +161,7 @@ def run(argv):
         run_data['test_status'] = 'stopping'
         # Go back to waiting for the next test
         run_data['start'] = False
-        producer.close()
-        l.info("PUB Server stopping after sending %d messages elapsed time %f and message rate %f" %
-               (msg_cnt, elapsed_time, run_data['stats']['rate']))
-        break
+        continue
+    producer.close()
+    l.info("PUB Server stopping after sending %d messages elapsed time %f and message rate %f" %
+           (msg_cnt, elapsed_time, run_data['stats']['rate']))
