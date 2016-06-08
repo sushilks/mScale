@@ -64,16 +64,21 @@ class RunTestRMQ(RunTestBase):
         l.info("PUB server updated")
 
         # Create test groups
-        self.create_app_group(self.rmqsub, "test-group", apps_in_group=10)
-        self.create_app_group(self.rmqsub, "test-group2", apps_in_group=5)
-        self.create_app_group(self.rmqsub, "test-group3", apps_in_group=5)
+        g1 = self.create_app_group(self.rmqsub, "test-group", apps_in_group=10, analyser=HAnalyser)
+        g2 = self.create_app_group(self.rmqsub, "test-group2", apps_in_group=5, analyser=HAnalyser)
+        g3 = self.create_app_group(self.rmqsub, "test-group3", apps_in_group=5, analyser=HAnalyser)
+
         l.info("Groups created")
         self.ping_all_app_inst(self.rmqsub)
 
+        g1._execute("do_ping")
+        g2._execute("do_ping")
+        g3._execute("do_ping")
+
         # Pass signals in groups of apps
-        self.reset_all_app_stats(self.rmqsub, group_name="test-group")
-        self.reset_all_app_stats(self.rmqsub, group_name="test-group2")
-        self.reset_all_app_stats(self.rmqsub, group_name="test-group3")
+        g1._execute("reset_stats")
+        g2._execute("reset_stats")
+        g3._execute("reset_stats")
 
         # Signal message sending
         l.info("Sending signal to PUB to start sending all messages..")
