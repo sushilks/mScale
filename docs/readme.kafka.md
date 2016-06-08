@@ -8,7 +8,7 @@ The results shown in this document can be reproduced on any cloud or physical se
 
 **IMPORTANT**
 
-   These tests where initially run using the **kafka-python** client (available at: https://github.com/dpkp/kafka-python), however, producer's throughput was significantly under expected rate (when compared against benchmark reported values and those obtained by running the integrated kafka performance tool). For this reason, we alternatively used the **pykafka** client (available at: https://github.com/Parsely/pykafka) which clearly outperformed the former library. 
+   These tests where initially run using the **kafka-python** client (available at: https://github.com/dpkp/kafka-python), however, producer's throughput was significantly under expected rate (when compared against benchmark reported values and those obtained by running the integrated kafka performance tool). For this reason, we alternatively used the **pykafka** client (available at: https://github.com/Parsely/pykafka) which clearly outperformed the former library.
 
 ### Test Setup
 
@@ -53,6 +53,8 @@ The results show how the producer's throughput changes as a function of the batc
 
 Next, we present performance results in a Table and the following graphs depict the **average producer rate [pps]**, **average client rate [pps]** and **average packet loss [%]** as a function of the **batch size**.
 
+
+**KAFKA-PYTHON CLIENT RESULTS**
 
 |   Client # |   Batch |   Avrg Tx Rate |   Avrg Rx Rate |   Client Loss[%] |   Failed Clients | Total pckts Tx   | Total pckts Rx   |
 |-----------:|--------:|---------------:|---------------:|-----------------:|-----------------:|:-----------------|:-----------------|
@@ -107,6 +109,59 @@ Next, we present performance results in a Table and the following graphs depict 
 </div>
 
 ---
+
+
+**PYKAFKA CLIENT RESULTS**
+
+|   Client # |   Batch |   Avrg Tx Rate |   Avrg Rx Rate |   Client Loss[%] |   Failed Clients | Total pckts Tx   | Total pckts Rx   |
+|-----------:|--------:|---------------:|---------------:|-----------------:|-----------------:|:-----------------|:-----------------|
+|        960 |     200 |        20646   |        475.379 |         18.0642  |              305 | 206470           | 169172           |
+|        960 |     500 |        21680.2 |        473.972 |         18.8726  |              303 | 216803           | 175886           |
+|        960 |    1000 |        21482.4 |        467.672 |         20.2038  |              455 | 214825           | 171422           |
+|        960 |    2000 |        18722.2 |        494.646 |         15.9007  |              246 | 187222           | 157452           |
+|        960 |    5000 |        19872.7 |        471.189 |         17.0968  |              284 | 198728           | 164751           |
+|         30 |     200 |        23613   |      10154.6   |          1.32814 |                3 | 236267           | 233129           |
+|         30 |     500 |        23515.7 |       6427.79  |         18.645   |               17 | 235202           | 191348           |
+|         30 |    1000 |        24901.2 |      10231.5   |          4.82651 |                5 | 249013           | 236994           |
+|         30 |    2000 |        24352.2 |       9894.25  |          4.18307 |                6 | 243523           | 233336           |
+|         30 |    5000 |        23842.7 |       9540.05  |          5.69791 |                7 | 238427           | 224841           |
+|         60 |     200 |        23914.2 |       2915.44  |         16.9635  |               25 | 239143           | 198576           |
+|         60 |     500 |        21630.8 |       9452.7   |          1.81988 |                5 | 216308           | 212371           |
+|         60 |    1000 |        21954.3 |       8197.49  |          7.05474 |               14 | 219543           | 204054           |
+|         60 |    2000 |        22220.1 |       8375.48  |          4.49105 |               10 | 222201           | 212221           |
+|         60 |    5000 |        20545.2 |       9553.08  |          3.96436 |                9 | 205452           | 197307           |
+|        120 |     200 |        19576.2 |       4770.66  |          5.01561 |               21 | 195762           | 185943           |
+|        120 |     500 |        19651   |       4829.79  |          5.03766 |               21 | 196510           | 186610           |
+|        120 |    1000 |        20605.3 |       4799.83  |          4.55567 |               19 | 206231           | 196835           |
+|        120 |    2000 |        19884.9 |       4798.92  |          5.17319 |               26 | 198851           | 188564           |
+|        120 |    5000 |        20477.6 |       4779.5   |          7.35196 |               21 | 204809           | 189751           |
+|        480 |     200 |        19931.1 |       1073.62  |         10.2422  |               83 | 199311           | 178897           |
+|        480 |     500 |        15326.8 |       1092.26  |          2.72844 |               29 | 153289           | 149106           |
+|        480 |    1000 |        15606.3 |       1041.91  |         14.1434  |              154 | 156063           | 133990           |
+|        480 |    2000 |        18351.1 |       1049.26  |          9.71524 |               80 | 183511           | 165682           |
+|        480 |    5000 |        21661.5 |       1076.5   |          6.02582 |               54 | 216624           | 203570           |
+|        240 |     200 |        22814.7 |       2033.41  |          5.18104 |               30 | 228339           | 216508           |
+|        240 |     500 |        20140.6 |       2137.01  |          7.08103 |               33 | 201409           | 187147           |
+|        240 |    1000 |        20414.5 |       2218.47  |         21.134   |               77 | 204174           | 161023           |
+|        240 |    2000 |        20375.3 |       2095.42  |          4.92151 |               29 | 203759           | 193730           |
+|        240 |    5000 |        20340.1 |       2095.18  |          5.78136 |               39 | 203402           | 191642           |
+
+
+<div>
+    <a href="https://plot.ly/~anny.martinez/42/" target="_blank" title="Average Producer Rate vs. Batch" style="display: block; text-align: center;"><img src="https://plot.ly/~anny.martinez/42.png" alt="Average Producer Rate vs. Batch" style="max-width: 100%;width: 1129px;"  width="1129" onerror="this.onerror=null;this.src='https://plot.ly/404.png';" /></a>
+    <script data-plotly="anny.martinez:42"  src="https://plot.ly/embed.js" async></script>
+</div>
+
+<div>
+    <a href="https://plot.ly/~anny.martinez/43/" target="_blank" title="Average Client Rate vs. Batch" style="display: block; text-align: center;"><img src="https://plot.ly/~anny.martinez/43.png" alt="Average Client Rate vs. Batch" style="max-width: 100%;width: 1129px;"  width="1129" onerror="this.onerror=null;this.src='https://plot.ly/404.png';" /></a>
+    <script data-plotly="anny.martinez:43"  src="https://plot.ly/embed.js" async></script>
+</div>
+
+<div>
+    <a href="https://plot.ly/~anny.martinez/44/" target="_blank" title="Average Packet Loss vs. Batch" style="display: block; text-align: center;"><img src="https://plot.ly/~anny.martinez/44.png" alt="Average Packet Loss vs. Batch" style="max-width: 100%;width: 1129px;"  width="1129" onerror="this.onerror=null;this.src='https://plot.ly/404.png';" /></a>
+    <script data-plotly="anny.martinez:44"  src="https://plot.ly/embed.js" async></script>
+</div>
+
 
 
 **Command Line**
