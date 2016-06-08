@@ -17,6 +17,12 @@ classPath = {
     'rmq' : 'hydra.rmqtest.runtest.RunTest',
     'rmqpub' : 'hydra.rmqtest.rmq_pub.run',
     'rmqfixed': 'hydra.rmqtest.fixed_test.run',
+    'kafka': 'hydra.kafkatest.runtest.RunTest',
+    'kafkapub': 'hydra.kafkatest.kafka_pub.run',
+    'kafkasub': 'hydra.kafkatest.kafka_sub.run',
+    'kafkafixed': 'hydra.kafkatest.fixed_test.run',
+    'kafkarate': 'hydra.kafkatest.maxrate_test.Run',
+    'kafka-batch': 'hydra.kafkatest.batchsize_test.Run',
 }
 if len(sys.argv) < 2 or sys.argv[1] == '-h' or sys.argv[1] == '--help':
     print("Options are %s " % sys.argv[0] + " " + pformat(classPath.keys()))
