@@ -15,7 +15,7 @@ use_plugin("python.pycharm")
 use_plugin("exec")
 
 name = "hydra"
-url = 'https://github.com/sushilks/hydra'
+url = 'https://github.com/lake-lerna/hydra'
 information = "Please visit {url}".format(url=url)
 
 authors = [Author('Sushil Singh', 'sushilks@gmail.com')]

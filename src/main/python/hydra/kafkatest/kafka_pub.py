@@ -127,8 +127,8 @@ def run(argv):
                 # topic: specifies the 'topic' where the message will be published
                 if old_client:
                     producer.send(topic=topic_name, value=message)
-                else:
-                    producer.produce(message)
+                # else:
+                    # producer.produce(message)
             except KafkaTimeoutError as e:
                 l.error("Unable to publish message to the Kafka Cluster. ERROR: %s" % e.message)
 

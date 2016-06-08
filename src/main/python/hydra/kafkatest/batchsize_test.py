@@ -4,7 +4,6 @@ from pprint import pprint, pformat  # NOQA
 import logging
 from hydra.lib import util
 from hydra.kafkatest.runtest import RunTestKAFKA
-import time
 import os
 
 l = util.createlogger('batchTest', logging.INFO)

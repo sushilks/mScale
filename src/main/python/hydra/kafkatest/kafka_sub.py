@@ -99,7 +99,7 @@ def run(argv):
     kafka_server = str(pub_ip) + ":9092"
     if old_client:
         consumer = KafkaConsumer(bootstrap_servers=[kafka_server],
-                             auto_offset_reset='earliest')
+                                 auto_offset_reset='earliest')
         consumer.max_buffer_size = consumer_max_buffer_size
         # Specify the list of topics which the consumer will subscribe to
         consumer.subscribe([topic_name])
@@ -132,5 +132,6 @@ def run(argv):
                     if sleep_time > 1:
                         sleep_time = 1
                     time.sleep(sleep_time)
+
             # duration = hd.run_data['last_msg_time_r'] - hd.run_data['first_msg_time_r']
             hd.run_data['msg_cnt'] = hd.msg_cnt
