@@ -41,6 +41,48 @@ def debug(sig, frame):
     i.interact(message)
 
 
+class AppGroup(object):
+    """
+    Class to hold info about an APP group.
+    Allows cabilities to execute methods on the analyser
+    as passed by the caller
+    @args:
+    hydra:          hydra handle
+    app_name:       App name
+    group_name:     group name
+    analyser:       Analyser class "name" e-g HAnalyser not HAnalyser()
+    """
+    def __init__(self, hydra, app_name, group_name, analyser=None):
+        self.group_info = {}
+        self.hydra = hydra
+        if not analyser:
+            raise Exception("AppGroup needs analyser class name passed as a name, curr val = %s" % analyser)
+        self.analyser = analyser
+        self.group_name = group_name
+        self.app_name = app_name
+        self.group_info[group_name] = self.hydra.app_group[group_name]
+
+    def _execute(self, method, **kwargs):
+        """
+        Execute provided method on self.analyser instance
+        @args:
+        method:    Method to execute e-g "do_ping"
+        **kwargs:  kwargs to pass down to the method (Method MUST have arg implementation)
+        """
+        assert(self.group_name in self.hydra.app_group)
+        task_list = self.hydra.app_group[self.group_name]
+        task_list = self.group_info[self.group_name]
+        for task_id in task_list:
+            info = self.hydra.apps[self.app_name]['ip_port_map'][task_id]
+            port = info[0]
+            ip = info[1]
+            ha = self.analyser(ip, port, task_id)
+            assert(method in dir(ha))
+            func = getattr(ha, method)
+            func(**kwargs)
+            ha.stop()
+
+
 class RunTestBase(BoundaryRunnerBase):
     def __init__(self, test_name, options, config=None,
                  startappserver=True, mock=False, app_dirs=['target', 'src']):
@@ -98,11 +140,11 @@ class RunTestBase(BoundaryRunnerBase):
         return self.app_prefix + name
 
     def start_appserver(self):
+        self.init_appserver_dir()
         if not self.appserver_running:
             self.myserver = appserver.TServer(self.myport, self.pwd + '/live')
             self.myserver.start()
             self.appserver_running = True
-        self.init_appserver_dir()
 
     def stop_appserver(self):
         self.myserver.stop()
@@ -220,13 +262,14 @@ class RunTestBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
-    def create_app_group(self, name, group_name, apps_in_group):
+    def create_app_group(self, name, group_name, apps_in_group, analyser):
         """
         Create relevant dictionaries containting info about
         process info categorized into groups.
         @args:
         name:            Name of the app
         apps_in_group:   Number of apps to group together
+        analyser:        Analyser class "name" e-g HAnalyser not HAnalyser()
 
         NOTE: This only groups process info like ip:port to talk to that process
               it DOES NOT group process launches
@@ -250,6 +293,7 @@ class RunTestBase(BoundaryRunnerBase):
                 temp_list.append(r_key)
                 break
         self.app_group[group_name] = temp_list
+        return AppGroup(self, name, group_name, analyser)
 
     def create_binary_app(self, name, app_script, cpus, mem, ports=None, constraints=None):
         """ Create an application that is a binary and not a shell script.

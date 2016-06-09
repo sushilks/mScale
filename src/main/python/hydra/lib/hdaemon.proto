@@ -15,6 +15,7 @@ message CommandMessage {
     optional string strValue = 2;
     optional int64 intValue = 3;
     optional float floatValue = 4;
+    optional bytes byteValue = 5;
  }
 
  message Command {
@@ -32,7 +33,8 @@ message ResponseMessage {
    required string name = 1;
    optional string strValue = 2;
    optional int64  intValue = 3;
-   optional float  floatValue = 4;
+   optional float floatValue = 4;
+   optional bytes byteValue = 5;
   }
   required string status = 1;
   repeated Resp resp = 2;

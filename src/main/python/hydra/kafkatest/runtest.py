@@ -1,4 +1,4 @@
-__author__ = 'AbdullahS'
+__author__ = 'annyz'
 
 import sys
 from pprint import pprint, pformat  # NOQA
@@ -23,26 +23,27 @@ tout_30s = 30000
 tout_10s = 10000
 
 
-class RMQPubAnalyser(HAnalyser):
+class KAFKAPubAnalyser(HAnalyser):
     def __init__(self, server_ip, server_port, task_id):
         HAnalyser.__init__(self, server_ip, server_port, task_id)
 
 
-class RMQSubAnalyser(HAnalyser):
+class KAFKASubAnalyser(HAnalyser):
     def __init__(self, server_ip, server_port):
         HAnalyser.__init__(self, server_ip, server_port)
 
 
-class RunTestRMQ(RunTestBase):
+class RunTestKAFKA(RunTestBase):
     def __init__(self, options, runtest=True, mock=False):
-        self.options = options
 
-        self.config = ConfigParser()
-        RunTestBase.__init__(self, 'RMQScale', self.options, self.config, startappserver=runtest, mock=mock)
-        self.rmqpub = '/rmq-pub'
-        self.rmqsub = '/rmq-sub'
-        self.add_appid(self.rmqpub)
-        self.add_appid(self.rmqsub)
+        self.options = options          # Object contains 'options' parsed from the Command-Line Interface
+        self.config = ConfigParser()    # Object contains 'configurations' parsed from hydra.ini config file
+
+        RunTestBase.__init__(self, 'KAFKAScale', self.options, self.config, startappserver=runtest, mock=mock)
+        self.kafkapub = self.format_appname('/kafka-pub')
+        self.kafkasub = self.format_appname('/kafka-sub')
+        self.add_appid(self.kafkapub)
+        self.add_appid(self.kafkasub)
         self.boundary_setup(self.options, 'msg_rate', self.boundary_resultfn)
         if runtest:
             self.run_test()
@@ -51,9 +52,7 @@ class RunTestRMQ(RunTestBase):
     def rerun_test(self, options):
         self.options = options
         self.boundary_setup(self.options, 'msg_rate', self.boundary_resultfn)
-        # self.test_duration = options.test_duration
-        # self.msg_batch = options.msg_batch
-        # self.msg_rate = options.msg_rate
+
         l.info("Updating test metrics: test_duration=%s, msg_batch=%s, msg_rate=%s",
                self.options.test_duration, self.options.msg_batch, self.options.msg_rate)
 
@@ -63,35 +62,20 @@ class RunTestRMQ(RunTestBase):
                                   msg_requested_rate=self.options.msg_rate)
         l.info("PUB server updated")
 
-        # Create test groups
-        g1 = self.create_app_group(self.rmqsub, "test-group", apps_in_group=10, analyser=HAnalyser)
-        g2 = self.create_app_group(self.rmqsub, "test-group2", apps_in_group=5, analyser=HAnalyser)
-        g3 = self.create_app_group(self.rmqsub, "test-group3", apps_in_group=5, analyser=HAnalyser)
-
-        l.info("Groups created")
-        self.ping_all_app_inst(self.rmqsub)
-
-        g1._execute("do_ping")
-        g2._execute("do_ping")
-        g3._execute("do_ping")
-
-        # Pass signals in groups of apps
-        g1._execute("reset_stats")
-        g2._execute("reset_stats")
-        g3._execute("reset_stats")
+        self.reset_all_app_stats(self.kafkasub)
 
         # Signal message sending
         l.info("Sending signal to PUB to start sending all messages..")
         self.ha_pub.start_test()
         self.ha_pub.wait_for_testend()
-        self.fetch_app_stats(self.rmqpub)
-        assert(len(self.apps[self.rmqpub]['stats']) == 1)
-        pub_data = self.apps[self.rmqpub]['stats'].values()[0]
+        self.fetch_app_stats(self.kafkapub)
+        assert(len(self.apps[self.kafkapub]['stats']) == 1)
+        pub_data = self.apps[self.kafkapub]['stats'].values()[0]
         l.info("Publisher send %d packets at the rate of %d pps" % (pub_data['msg_cnt'],
                                                                     pub_data['rate']))
 
         # Fetch all sub client data
-        self.fetch_app_stats(self.rmqsub)
+        self.fetch_app_stats(self.kafkasub)
 
         return self.result_parser()
 
@@ -99,14 +83,20 @@ class RunTestRMQ(RunTestBase):
         self.start_init()
         if hasattr(self, 'sub_app_ip_rep_port_map'):
             # If Sub's have been launched Reset first
-            self.reset_all_app_stats(self.rmqsub)
-        # Launch zmq pub
-        self.launch_rmq_pub()
-        # Launch zmq sub up to self.total_sub_apps
-        self.launch_rmq_sub()
-        # rerun the test
+            self.reset_all_app_stats(self.kafkasub)
+        topic_name = self.get_topic_name()
+        # Launch Kafka Pub App
+        self.launch_kafka_pub(topic_name)
+        # Launch Kafka Sub App(s)
+        self.launch_kafka_sub(topic_name)
+        # Rerun Kafka Test
         res = self.rerun_test(self.options)
+
         return res
+
+    def get_topic_name(self):
+        return 'topic_' + str(self.options.total_sub_apps) + '_' + str(self.options.msg_rate) + '_' \
+               + str(self.options.msg_batch)
 
     def boundary_resultfn(self, options, res):
         message_rate = options.msg_rate
@@ -133,18 +123,17 @@ class RunTestRMQ(RunTestBase):
             'failing_clients': 0,
             'average_packet_loss': 0
         }
-        pub_data = self.apps[self.rmqpub]['stats'].values()[0]
+        pub_data = self.apps[self.kafkapub]['stats'].values()[0]
         msg_cnt_pub_tx = pub_data['msg_cnt']
         bad_clients = 0
         client_rate = 0
         bad_client_rate = 0
         clients_packet_count = 0
-        stats = self.get_app_stats(self.rmqsub)
+        stats = self.get_app_stats(self.kafkasub)
         num_subs = len(stats)
 
         for client in stats.keys():
             info = stats[client]
-            # l.info(" CLIENT = " + pformat(client) + " DATA = " + pformat(info))
             client_rate += info['rate']
             clients_packet_count += info['msg_cnt']
             if info['msg_cnt'] != msg_cnt_pub_tx:
@@ -188,82 +177,94 @@ class RunTestRMQ(RunTestBase):
         l.debug(" RESULTS on TEST = " + pformat(result))
         return result
 
-    def launch_rmq_pub(self):
-        l.info("Launching the RabbitMQ pub app")
+    def launch_kafka_pub(self, topic_name):
+        l.info("Launching the KAFKA PUB app...")
+        # Define Marathon Constraints to define where apps should run for optimization
         constraints = [self.app_constraints(field='hostname', operator='UNIQUE')]
 
         # Use cluster0 for launching the PUB
         if 0 in self.mesos_cluster:
+            l.info('Constraint Attribute to match: [%s] Value to match: [%s]' % (self.mesos_cluster[0]['cat'],
+                                                                                 self.mesos_cluster[0]['match']))
             constraints.append(self.app_constraints(field=self.mesos_cluster[0]['cat'],
                                                     operator='CLUSTER', value=self.mesos_cluster[0]['match']))
-        self.create_hydra_app(name=self.rmqpub, app_path='hydra.rmqtest.rmq_pub.run',
-                              app_args='%s %s %s' % (self.options.test_duration,
-                                                     self.options.msg_batch,
-                                                     self.options.msg_rate),
+        self.create_hydra_app(name=self.kafkapub, app_path='hydra.kafkatest.kafka_pub.run',
+                              app_args='%s %s %s %s %s %s' % (self.options.test_duration,
+                                                              self.options.msg_batch,
+                                                              self.options.msg_rate,
+                                                              topic_name,
+                                                              self.options.acks,
+                                                              self.options.linger_ms),
                               cpus=0.01, mem=32,
                               ports=[0],
                               constraints=constraints)
-        ipm = self.get_app_ipport_map(self.rmqpub)
+        ipm = self.get_app_ipport_map(self.kafkapub)
         assert(len(ipm) == 1)
         self.pub_ip = ipm.values()[0][1]
         self.pub_rep_taskport = str(ipm.values()[0][0])
 
-        l.info("[rmq_pub] RMQ pub server running at [%s]", self.pub_ip)
-        l.info("[rmq_pub] RMQ REP server running at [%s:%s]", self.pub_ip, self.pub_rep_taskport)
-        # Init RMQPubAnalyser
-        self.ha_pub = RMQPubAnalyser(self.pub_ip, self.pub_rep_taskport, ipm.keys()[0])
+        l.info("[KafkaTest.launch_pub] KAFKA pub server running at [%s]", self.pub_ip)
+        l.info("[KafkaTest.launch_pub] KAFKA REP server running at [%s:%s]", self.pub_ip, self.pub_rep_taskport)
 
-    def launch_rmq_sub(self):
-        l.info("Launching the sub app")
-        self.total_app_groups = self.options.total_sub_apps / self.options.apps_in_group
-        self.options.total_sub_apps = self.options.total_sub_apps / self.options.apps_in_group
+        # Initialize KAFKAPubAnalyser (to control & collect stats from test instances)
+        self.ha_pub = KAFKAPubAnalyser(self.pub_ip, self.pub_rep_taskport, ipm.keys()[0])
+
+    def launch_kafka_sub(self, topic_name):
+        l.info("[KafkaTest.launch_sub] Launching KAFKA sub app...")
         constraints = []
-        # Use cluster 1 for launching the SUB
+        # Use cluster 1 for launching the SUB (control where the SUB apps will run)
         if 1 in self.mesos_cluster:
             constraints.append(self.app_constraints(field=self.mesos_cluster[1]['cat'],
                                                     operator='CLUSTER', value=self.mesos_cluster[1]['match']))
-        self.create_hydra_app(name=self.rmqsub, app_path='hydra.rmqtest.rmq_sub.run10',
-                              app_args='%s' % (self.pub_ip),
+        self.create_hydra_app(name=self.kafkasub, app_path='hydra.kafkatest.kafka_sub.run10',
+                              app_args='%s %s %s' % (topic_name, self.pub_ip,
+                                                     self.options.consumer_max_buffer_size),
                               cpus=0.01, mem=32,
                               ports=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                               constraints=constraints)
-
+        # Scale KAFKA Sub App
         self.scale_sub_app()
 
     def scale_sub_app(self):
-        self.scale_and_verify_app(self.rmqsub, self.options.total_sub_apps, ping=False)
+        self.scale_and_verify_app(self.kafkasub, self.options.total_sub_apps)
 
     def delete_all_launched_apps(self):
-        l.info("Deleting all launched apps")
-        l.info("Deleting PUB")
-        self.delete_app(self.rmqpub)
-        l.info("Deleting SUBs")
-        self.delete_app(self.rmqsub)
+        l.info("[KafkaTest.delete_all_launched_apps] Deleting ALL (PUB & SUBs) launched apps")
+        l.info("[KafkaTest.delete_all_launched_apps] (1/2) Deleting PUB")
+        self.delete_app(self.kafkapub)
+        l.info("[KafkaTest.delete_all_launched_apps] (2/2) Deleting SUBs")
+        self.delete_app(self.kafkasub)
 
 
 class RunTest(object):
     def __init__(self, argv):
         usage = ('python %prog --test_duration=<time to run test> --msg_batch=<msg burst batch before sleep>'
                  '--msg_rate=<rate in packet per secs> --total_sub_apps=<Total sub apps to launch>'
-                 '--config_file=<path_to_config_file> --keep_running')
-        parser = OptionParser(description='zmq scale test master',
+                 '--config_file=<path_to_config_file> --keep_running'
+                 '--acks=<server_acknowledgement> --linger_ms=<linger_ms>'
+                 '--consumer_max_buffer_size=<consumer_buffer_size>')
+        # Parse Command-Line options and set to default values if not specified
+        parser = OptionParser(description='kafka scale test master',
                               version="0.1", usage=usage)
         parser.add_option("--test_duration", dest='test_duration', type='float', default=10)
         parser.add_option("--msg_batch", dest='msg_batch', type='int', default=100)
         parser.add_option("--msg_rate", dest='msg_rate', type='float', default=10000)
         parser.add_option("--total_sub_apps", dest='total_sub_apps', type='int', default=20)
-        parser.add_option("--apps_in_group", dest='apps_in_group', type='int', default=10)
         parser.add_option("--config_file", dest='config_file', type='string', default='hydra.ini')
         parser.add_option("--keep_running", dest='keep_running', action="store_true", default=False)
+        # Kafka-related configuration parameters
+        # parser.add_option("--fetch_min_bytes", dest='fetch_min_bytes', type='int', default=1)
+        # parser.add_option("--fetch_wait_max_ms", dest='fetch_wait_max_ms', type='int', default=100)
+        parser.add_option("--acks", dest='acks', type='int', default=1)
+        parser.add_option("--linger_ms", dest='linger_ms', type='int', default=0)
+        parser.add_option("--consumer_max_buffer_size", dest='consumer_max_buffer_size', type='int', default=0)
 
         (options, args) = parser.parse_args()
         if ((len(args) != 0)):
             parser.print_help()
             sys.exit(1)
-        r = RunTestRMQ(options, False)
-
+        r = RunTestKAFKA(options, False)      # Initialize ALL variables (from CLI options and hydra.ini config file)
         r.start_appserver()
-
         res = r.run_test()
         r.delete_all_launched_apps()
         print("RES = " + pformat(res))

@@ -15,7 +15,7 @@ l = util.createlogger('HDaemon', logging.INFO)
 
 class HDaemonRepSrv(object):
     def __init__(self, port):
-        l.info("initiated..., REP port[%s]", port)
+        l.info("initiated... REP port[%s]", port)
         self.port = port
         self.data = {}  # Dict calling class can use to store data, can be fetched later
         self.t_exceptions = []

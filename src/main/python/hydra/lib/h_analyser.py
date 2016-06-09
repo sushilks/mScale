@@ -38,6 +38,10 @@ class HAnalyser(object):
         l.debug("Conneced...")
 
     def do_req_resp(self, cmd, timeout=10000, **kwargs):
+        self.do_req_only(cmd, **kwargs)
+        return self.do_resp_only(timeout)
+
+    def do_req_only(self, cmd, **kwargs):
         req_msg = self.req_msg
         req_msg.Clear()
         req_msg.type = hdaemon_pb2.CommandMessage.SUBCMD
@@ -51,11 +55,15 @@ class HAnalyser(object):
                 arg.intValue = kwargs[key]
             elif t is float:
                 arg.floatValue = kwargs[key]
-            else:
+            elif util.istext(str(kwargs[key])):
                 arg.strValue = str(kwargs[key])
+            else:
+                arg.byteValue = str(kwargs[key])
 
         l.debug("Sending message %s" % req_msg)
         self.socket.send(req_msg.SerializeToString())
+
+    def do_resp_only(self, timeout=10000):
         l.debug("Waiting for server to respond...")
         self.poller.register(self.socket, zmq.POLLIN)
         msgs = dict(self.poller.poll(timeout))
@@ -77,6 +85,8 @@ class HAnalyser(object):
                 rdic[itm.name] = itm.intValue
             elif itm.HasField("floatValue"):
                 rdic[itm.name] = itm.floatValue
+            elif itm.HasField("byteValue"):
+                rdic[itm.name] = itm.byteValue
             else:
                 rdic[itm.name] = True
 
