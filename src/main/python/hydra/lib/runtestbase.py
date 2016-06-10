@@ -60,7 +60,7 @@ class AppGroup(object):
         self.analyser = analyser
         self.group_name = group_name
         self.app_name = app_name
-        self.group_info[group_name] = self.hydra.app_group[group_name]
+        self.group_info[self.group_name] = self.hydra.app_group[self.group_name]
 
     def _execute(self, method, **kwargs):
         """
@@ -70,17 +70,29 @@ class AppGroup(object):
         **kwargs:  kwargs to pass down to the method (Method MUST have arg implementation)
         """
         assert(self.group_name in self.hydra.app_group)
-        task_list = self.hydra.app_group[self.group_name]
         task_list = self.group_info[self.group_name]
         for task_id in task_list:
             info = self.hydra.apps[self.app_name]['ip_port_map'][task_id]
             port = info[0]
             ip = info[1]
             ha = self.analyser(ip, port, task_id)
+            l.info("ip:port  %s:%s", ip, str(port))
             assert(method in dir(ha))
             func = getattr(ha, method)
             func(**kwargs)
             ha.stop()
+
+    def _get_group_info(self):
+        """
+        Return group info
+        """
+        return self.group_info
+
+    def _get_tasklist(self):
+        """
+        Return group tasklist
+        """
+        return self.group_info[self.group_name]
 
 
 class RunTestBase(BoundaryRunnerBase):
@@ -284,8 +296,9 @@ class RunTestBase(BoundaryRunnerBase):
             while True:
                 key_generated = True
                 r_key = random.choice(self.all_task_ids[name])
+                l.debug("r_key = %s", r_key)
                 for g_list in self.app_group.values():
-                    if r_key in g_list:
+                    if (r_key in g_list or r_key in temp_list):
                         key_generated = False
                         break
                 if not key_generated:
