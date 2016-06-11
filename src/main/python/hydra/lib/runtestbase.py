@@ -60,7 +60,7 @@ class AppGroup(object):
         self.analyser = analyser
         self.group_name = group_name
         self.app_name = app_name
-        self.group_info[group_name] = self.hydra.app_group[group_name]
+        self.group_info[self.group_name] = self.hydra.app_group[self.group_name]
 
     def _execute(self, method, **kwargs):
         """
@@ -70,17 +70,29 @@ class AppGroup(object):
         **kwargs:  kwargs to pass down to the method (Method MUST have arg implementation)
         """
         assert(self.group_name in self.hydra.app_group)
-        task_list = self.hydra.app_group[self.group_name]
         task_list = self.group_info[self.group_name]
         for task_id in task_list:
             info = self.hydra.apps[self.app_name]['ip_port_map'][task_id]
             port = info[0]
             ip = info[1]
             ha = self.analyser(ip, port, task_id)
+            l.info("ip:port  %s:%s", ip, str(port))
             assert(method in dir(ha))
             func = getattr(ha, method)
             func(**kwargs)
             ha.stop()
+
+    def _get_group_info(self):
+        """
+        Return group info
+        """
+        return self.group_info
+
+    def _get_tasklist(self):
+        """
+        Return group tasklist
+        """
+        return self.group_info[self.group_name]
 
 
 class RunTestBase(BoundaryRunnerBase):
@@ -245,18 +257,39 @@ class RunTestBase(BoundaryRunnerBase):
         return self.__mt.ping()
 
     def app_constraints(self, field, operator, value=None):
+        """
+            Constraints control where apps run. It is to allow optimizing for either fault tolerance (by spreading a task
+            out on multiple nodes) or locality (by running all of an application tasks on the same node). Constraints have
+            three parts
+            :param field: Field can be the hostname of the agent node or any attribute of the agent node.
+            :param operator: e.g. UNIQUE tells Marathon to enforce uniqueness of the attribute across all of an app's tasks.
+                                  This allows you, for example, to run only one app taks on each host.
+                                  CLUSTER allows you to run all of your app's tasks on agent nodes that share a certain
+                                  attribute. Think about having special hardware needs.
+                                  GROUP_BY can be used to distribute tasks evenly across racks or datacenters for high
+                                  availibility.
+                                  LIKE accepts a regular expression as parameter, and allows you to run your tasks only on
+                                  the agent nodes whose field values match the regular expression.
+                                  UNLIKE accepts a regular expression as parameter, and allows you to run your tasks on
+                                  agent nodes whose field values do NOT match the regular expression.
+            :param value:
+            :return:
+        """
         return MarathonConstraint(field=field, operator=operator, value=value)
 
     def create_hydra_app(self, name, app_path, app_args, cpus, mem, ports=None, constraints=None):
         """ Create an application that is a shell script.
         """
         assert(name not in self.apps)
+        command = self.get_cmd(app_path, app_args)
+        app_uri = self.get_app_uri()
+        print ("cmd=%s, app_uri=%s" %(command, app_uri))
         r = self.__mt.create_app(
-            name, MarathonApp(cmd=self.get_cmd(app_path, app_args),
+            name, MarathonApp(cmd=command,
                               cpus=cpus, mem=mem,
                               ports=ports,
                               constraints=constraints,
-                              uris=[self.get_app_uri()]))
+                              uris=[app_uri]))
         self.apps[name] = {'app': r, 'type': 'script'}
         self.wait_app_ready(name, 1)
         self.refresh_app_info(name)
@@ -284,8 +317,9 @@ class RunTestBase(BoundaryRunnerBase):
             while True:
                 key_generated = True
                 r_key = random.choice(self.all_task_ids[name])
+                l.debug("r_key = %s", r_key)
                 for g_list in self.app_group.values():
-                    if r_key in g_list:
+                    if (r_key in g_list or r_key in temp_list):
                         key_generated = False
                         break
                 if not key_generated:

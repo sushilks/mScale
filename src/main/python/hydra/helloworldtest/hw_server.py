@@ -3,20 +3,22 @@
 import time
 import zmq
 
-context = zmq.Context()
-socket = context.socket(zmq.REP)
-socket.bind("tcp://*:5555")
 
-while True:
-    #  Wait for next request from client
-    message = socket.recv()
-    print("Received request: %s" % message)
+def run():
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind("tcp://*:5555")
 
-    #  Do some 'work'
-    time.sleep(1)
+    while True:
+        #  Wait for next request from client
+        message = socket.recv()
+        print("Received request: %s" % message)
 
-    #  Send reply back to client
-    if message == "Hello":
-        socket.send_string("Hi")
-    elif message == "As salam u alaicum":
-        socket.send_string("Wa alaicum us salam")
+        #  Do some 'work'
+        time.sleep(1)
+
+        #  Send reply back to client
+        if message == "Hello":
+            socket.send_string("Hi")
+        elif message == "As salam u alaicum":
+            socket.send_string("Wa alaicum us salam")

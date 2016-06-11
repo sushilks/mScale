@@ -54,8 +54,15 @@ class MarathonIF(object):
         raise
 
     def create_app(self, app_id, attr):
+        """
+            Create and start an app.
+            :param app_id: (str) - Application ID
+            :param attr: marathon.models.app.MarathonApp application to create.
+            :return: the created app
+        """
         for idx in range(0, 10):
             try:
+                print ("app_id=%s, attr=%s" %(app_id, attr))
                 a = self.mcli.create_app(app_id, attr)
                 return a
             except marathon.exceptions.MarathonHttpError as e:

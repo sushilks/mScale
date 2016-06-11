@@ -1,16 +1,23 @@
 from hydra.lib.runtestbase import RunTestBase
-from optparse import OptionParser
-
+try:
+    # Python 2.x
+    from ConfigParser import ConfigParser
+except ImportError:
+    # Python 3.x
+    from configparser import ConfigParser
 
 class HW(RunTestBase):
     def __init__(self):
-        self.hw_server_app_id = "hw_server"
-        self.hw_client_app_id = "hw_client"
+        self.config = ConfigParser()
+        RunTestBase.__init__(self, 'HelloWorld', None, None, startappserver=True, mock=False)
+        self.hw_server_app_id = super(HW, self).format_appname("/hw_server")
+        self.hw_client_app_id = super(HW, self).format_appname("/hw_client")
         self.hw_server_task_ip = None
         self.hw_server_task_port = None
         self.hw_client_task_ip = None
         self.hw_client_task_port = None
-        RunTestBase.__init__(self, 'HelloWorld', None, None, startappserver=True, mock=False)
+        self.add_appid(self.hw_server_app_id)
+        self.add_appid(self.hw_client_app_id)
 
     def run_test(self):
         # Get Mesos/Marathon client
@@ -30,7 +37,7 @@ class HW(RunTestBase):
             constraints.append(self.app_constraints(field=self.mesos_cluster[0]['cat'],
                                                     operator='CLUSTER', value=self.mesos_cluster[0]['match']))
         self.create_hydra_app(name=self.hw_server_app_id, app_path='hydra.helloworld.hw_server.run',
-                              app_args=None,
+                              app_args="10",
                               cpus=0.01, mem=32,
                               ports=[0],
                               constraints=constraints)
@@ -44,7 +51,6 @@ class HW(RunTestBase):
         info = ipm[task_id]
         self.hw_server_task_ip = info[1]
         self.hw_server_task_port = info[0]
-
 
     def launch_hw_client(self):
         print ("Launching the sub app")
@@ -66,14 +72,6 @@ class RunTest(object):
         r = HW()
         r.start_appserver()
 
-        res = r.run_test()
+        r.run_test()
         r.delete_all_launched_apps()
-        print("RES = " + pformat(res))
-        if not options.keep_running:
-            r.stop_appserver()
-        else:
-            print("Keep running is set: Leaving the app server running")
-            print("   you can use the marathon gui/cli to scale the app up.")
-            print("   after you are done press enter on this window")
-            input('>')
-            r.stop_appserver()
+        r.stop_appserver()
