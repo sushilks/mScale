@@ -9,6 +9,7 @@ import json
 import time
 import sys
 import logging
+import re
 
 l = util.createlogger('API', logging.INFO)
 # l.setLevel(logging.DEBUG)
@@ -53,6 +54,13 @@ class MarathonIF(object):
                 time.sleep(10)
         raise
 
+    @staticmethod
+    def is_valid_app_id(app_id):
+        # allowed: lowercase letters, digits, hyphens
+        if re.match("^[A-Za-z0-9-/]*$", app_id):
+            return True
+        return False
+
     def create_app(self, app_id, attr):
         """
             Create and start an app.
@@ -60,7 +68,11 @@ class MarathonIF(object):
             :param attr: marathon.models.app.MarathonApp application to create.
             :return: the created app
         """
-        # TODO: Validate that app_id conforms to allowed naming scheme.
+        # Validate that app_id conforms to allowed naming scheme.
+        if not self.is_valid_app_id(app_id):
+            l.error("Error: Only lowercase letters, digits, hyphens are allowed in app_id. %s" % app_id)
+            raise Exception("Invalid app_id")
+
         for idx in range(0, 10):
             try:
                 a = self.mcli.create_app(app_id, attr)

@@ -19,6 +19,8 @@ class HW(RunTestBase):
         self.hw_server_task_port = None
         self.hw_client_task_ip = None
         self.hw_client_task_port = None
+        self.add_appid(self.hw_server_app_id)
+        self.add_appid(self.hw_client_app_id)
 
     def run_test(self):
         # Get Mesos/Marathon client
@@ -69,8 +71,6 @@ class HW(RunTestBase):
                               cpus=0.01, mem=32,
                               ports=[0],
                               constraints=constraints)
-        print("[helloworldtest.hw_client] hw_client running at [%s:%s]", self.hw_client_task_ip,
-              self.hw_client_task_port)
 
 
 class RunTest(object):
@@ -78,6 +78,7 @@ class RunTest(object):
         r = HW()
         r.start_appserver()
         r.run_test()
-        time.sleep(100)
+        time.sleep(60)
+        print ("Going to delete all launched apps")
         r.delete_all_launched_apps()
         r.stop_appserver()
