@@ -60,9 +60,9 @@ class MarathonIF(object):
             :param attr: marathon.models.app.MarathonApp application to create.
             :return: the created app
         """
+        # TODO: Validate that app_id conforms to allowed naming scheme.
         for idx in range(0, 10):
             try:
-                print ("app_id=%s, attr=%s" %(app_id, attr))
                 a = self.mcli.create_app(app_id, attr)
                 return a
             except marathon.exceptions.MarathonHttpError as e:

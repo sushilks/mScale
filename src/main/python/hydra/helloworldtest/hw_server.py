@@ -4,7 +4,7 @@ import time
 import zmq
 
 
-def run():
+def run(argv):
     context = zmq.Context()
     socket = context.socket(zmq.REP)
     socket.bind("tcp://*:5555")
@@ -19,6 +19,6 @@ def run():
 
         #  Send reply back to client
         if message == "Hello":
-            socket.send_string("Hi")
-        elif message == "As salam u alaicum":
-            socket.send_string("Wa alaicum us salam")
+            socket.send_string("World")
+        elif message == "request1":
+            socket.send_string("response1")

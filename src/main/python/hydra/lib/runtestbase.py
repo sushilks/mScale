@@ -283,7 +283,6 @@ class RunTestBase(BoundaryRunnerBase):
         assert(name not in self.apps)
         command = self.get_cmd(app_path, app_args)
         app_uri = self.get_app_uri()
-        print ("cmd=%s, app_uri=%s" %(command, app_uri))
         r = self.__mt.create_app(
             name, MarathonApp(cmd=command,
                               cpus=cpus, mem=mem,
