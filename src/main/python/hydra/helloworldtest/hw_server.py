@@ -14,9 +14,7 @@ def run(argv):
         message = socket.recv()
         print("Received request: %s" % message)
 
-        #  Do some 'work'
         time.sleep(1)
-
         #  Send reply back to client
         if message == "Hello":
             socket.send_string("World")

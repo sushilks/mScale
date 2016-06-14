@@ -56,8 +56,8 @@ class MarathonIF(object):
 
     @staticmethod
     def is_valid_app_id(app_id):
-        # allowed: lowercase letters, digits, hyphens
-        if re.match("^[A-Za-z0-9-/]*$", app_id):
+        # allowed: lowercase letters, digits, hyphens, slash, dot
+        if re.match("^[A-Za-z0-9-/.]*$", app_id):
             return True
         return False
 

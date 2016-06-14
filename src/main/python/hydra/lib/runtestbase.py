@@ -628,7 +628,6 @@ class RunTestBase(BoundaryRunnerBase):
         else:
             common.execute_local_cmd(cmd)
 
-'''
     def find_ip_uniqueapp(self, app):
         a1 = self.__mt.wait_app_ready(app, 1)
         for task in a1.tasks:
@@ -637,4 +636,3 @@ class RunTestBase(BoundaryRunnerBase):
             return self.__mesos.get_slave_ip_from_hn(task.host)
         l.warn("Unable to find IP address for app " + app)
         return None
-'''
