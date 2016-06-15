@@ -257,18 +257,38 @@ class RunTestBase(BoundaryRunnerBase):
         return self.__mt.ping()
 
     def app_constraints(self, field, operator, value=None):
+        """
+            Constraints control where apps run. It is to allow optimizing for either fault tolerance (by spreading a task
+            out on multiple nodes) or locality (by running all of an application tasks on the same node). Constraints have
+            three parts
+            :param field: Field can be the hostname of the agent node or any attribute of the agent node.
+            :param operator: e.g. UNIQUE tells Marathon to enforce uniqueness of the attribute across all of an app's tasks.
+                                  This allows you, for example, to run only one app taks on each host.
+                                  CLUSTER allows you to run all of your app's tasks on agent nodes that share a certain
+                                  attribute. Think about having special hardware needs.
+                                  GROUP_BY can be used to distribute tasks evenly across racks or datacenters for high
+                                  availibility.
+                                  LIKE accepts a regular expression as parameter, and allows you to run your tasks only on
+                                  the agent nodes whose field values match the regular expression.
+                                  UNLIKE accepts a regular expression as parameter, and allows you to run your tasks on
+                                  agent nodes whose field values do NOT match the regular expression.
+            :param value:
+            :return:
+        """
         return MarathonConstraint(field=field, operator=operator, value=value)
 
     def create_hydra_app(self, name, app_path, app_args, cpus, mem, ports=None, constraints=None):
         """ Create an application that is a shell script.
         """
         assert(name not in self.apps)
+        command = self.get_cmd(app_path, app_args)
+        app_uri = self.get_app_uri()
         r = self.__mt.create_app(
-            name, MarathonApp(cmd=self.get_cmd(app_path, app_args),
+            name, MarathonApp(cmd=command,
                               cpus=cpus, mem=mem,
                               ports=ports,
                               constraints=constraints,
-                              uris=[self.get_app_uri()]))
+                              uris=[app_uri]))
         self.apps[name] = {'app': r, 'type': 'script'}
         self.wait_app_ready(name, 1)
         self.refresh_app_info(name)
@@ -608,7 +628,6 @@ class RunTestBase(BoundaryRunnerBase):
         else:
             common.execute_local_cmd(cmd)
 
-'''
     def find_ip_uniqueapp(self, app):
         a1 = self.__mt.wait_app_ready(app, 1)
         for task in a1.tasks:
@@ -617,4 +636,3 @@ class RunTestBase(BoundaryRunnerBase):
             return self.__mesos.get_slave_ip_from_hn(task.host)
         l.warn("Unable to find IP address for app " + app)
         return None
-'''
