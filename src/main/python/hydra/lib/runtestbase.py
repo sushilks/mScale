@@ -106,8 +106,13 @@ class RunTestBase(BoundaryRunnerBase):
         if not os.path.isfile(config_filename):
             l.error("Unable to open config file %s" % config_filename)
             raise Exception("Unable to open config file %s" % config_filename)
+        cwd = ""
+        if hasattr(options, 'live_dir'):
+            cwd = options.live_dir
         config.read(config_filename)
         self.pwd = os.getcwd()
+        if cwd:
+            self.pwd = cwd
         self.testName = test_name
         self.appserver_running = False
         self.myport = config.getint('hydra', 'port')
