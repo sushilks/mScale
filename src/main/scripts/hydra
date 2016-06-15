@@ -17,7 +17,6 @@ classPath = {
     'rmq' : 'hydra.rmqtest.runtest.RunTest',
     'rmqpub' : 'hydra.rmqtest.rmq_pub.run',
     'rmqfixed': 'hydra.rmqtest.fixed_test.run',
-    'hw': 'hydra.helloworldtest.runtest.RunTest',
     'kafka': 'hydra.kafkatest.runtest.RunTest',
     'kafkapub': 'hydra.kafkatest.kafka_pub.run',
     'kafkasub': 'hydra.kafkatest.kafka_sub.run',
