@@ -10,7 +10,7 @@ import time
 import zmq
 
 from pprint import pprint
-from hydra.lib.runtestbase import RunTestBase
+from hydra.lib.hydrabase import HydraBase
 
 '''
 tests :
@@ -54,8 +54,8 @@ class hydraUnitTest(unittest.TestCase):  # NOQA
         # print("SETUP CLASS CALLED")
         # rt = cls()
         # cls._rt = .init('basicTest', 'hydra.ini')
-        cls.runtest = RunTestBase('basicTest', None, None,
-                                  startappserver=False)
+        cls.runtest = HydraBase('basicTest', None, None,
+                                startappserver=False)
         # return rt
 
     @classmethod

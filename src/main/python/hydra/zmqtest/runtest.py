@@ -7,7 +7,7 @@ import logging
 from sets import Set
 from hydra.lib import util
 from hydra.lib.h_analyser import HAnalyser
-from hydra.lib.runtestbase import RunTestBase
+from hydra.lib.hydrabase import HydraBase
 try:
     # Python 2.x
     from ConfigParser import ConfigParser
@@ -33,7 +33,7 @@ class ZMQSubAnalyser(HAnalyser):
         HAnalyser.__init__(self, server_ip, server_port, task_id)
 
 
-class RunTestZMQ(RunTestBase):
+class RunTestZMQ(HydraBase):
     def __init__(self, options, runtest=True):
         # self.options = options
         # self.test_duration = options.test_duration
@@ -44,7 +44,7 @@ class RunTestZMQ(RunTestBase):
         # self.keep_running = options.keep_running
 
         self.config = ConfigParser()
-        RunTestBase.__init__(self, 'zmqScale', options, self.config, startappserver=runtest)
+        HydraBase.__init__(self, 'zmqScale', options, self.config, startappserver=runtest)
         self.zstpub = self.format_appname('/zst-pub')
         self.zstsub = self.format_appname('/zst-sub')
         self.add_appid(self.zstpub)

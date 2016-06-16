@@ -6,7 +6,7 @@ from optparse import OptionParser
 import logging
 from hydra.lib import util
 from hydra.lib.h_analyser import HAnalyser
-from hydra.lib.runtestbase import RunTestBase
+from hydra.lib.hydrabase import HydraBase
 
 try:
     # Python 2.x
@@ -33,13 +33,13 @@ class KAFKASubAnalyser(HAnalyser):
         HAnalyser.__init__(self, server_ip, server_port)
 
 
-class RunTestKAFKA(RunTestBase):
+class RunTestKAFKA(HydraBase):
     def __init__(self, options, runtest=True, mock=False):
 
         self.options = options          # Object contains 'options' parsed from the Command-Line Interface
         self.config = ConfigParser()    # Object contains 'configurations' parsed from hydra.ini config file
 
-        RunTestBase.__init__(self, 'KAFKAScale', self.options, self.config, startappserver=runtest, mock=mock)
+        HydraBase.__init__(self, 'KAFKAScale', self.options, self.config, startappserver=runtest, mock=mock)
         self.kafkapub = self.format_appname('/kafka-pub')
         self.kafkasub = self.format_appname('/kafka-sub')
         self.add_appid(self.kafkapub)
