@@ -23,6 +23,7 @@ classPath = {
     'kafkafixed': 'hydra.kafkatest.fixed_test.run',
     'kafkarate': 'hydra.kafkatest.maxrate_test.Run',
     'kafka-batch': 'hydra.kafkatest.batchsize_test.Run',
+    'cassandra-stress': 'hydra.cassandra.runtest.RunTest',
 }
 if len(sys.argv) < 2 or sys.argv[1] == '-h' or sys.argv[1] == '--help':
     print("Options are %s " % sys.argv[0] + " " + pformat(classPath.keys()))

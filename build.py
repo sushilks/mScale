@@ -39,6 +39,7 @@ def set_properties(project):
     project.build_depends_on('websocket-client')
     project.build_depends_on('kafka-python')
     project.build_depends_on('pykafka')
+    project.build_depends_on('apscheduler')
 
     if sys.version_info[0] == 3:
         project.build_depends_on('protobuf==3.0.0-b2')
