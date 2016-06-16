@@ -35,7 +35,7 @@ class HAnalyser(object):
         l.debug("Connecting to server at [%s:%s]", self.server_ip, self.port)
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect("tcp://%s:%s" % (self.server_ip, self.port))
-        l.debug("Conneced...")
+        l.debug("Connected...")
 
     def do_req_resp(self, cmd, timeout=10000, **kwargs):
         self.do_req_only(cmd, **kwargs)
@@ -104,9 +104,9 @@ class HAnalyser(object):
         (status, response) = self.do_req_resp('ping')
         return (status == 'ok') and (response == 'pong')
 
-    def start_test(self):
+    def start_test(self, **kwargs):
         l.info("Sending Start test to %s", self.task_id)
-        (status, resp) = self.do_req_resp(cmd='teststart', timeout=tout_60s)
+        (status, resp) = self.do_req_resp(cmd='teststart', timeout=tout_60s, **kwargs)
         l.info("Start test came back with status " + pformat(status) + " resp = " + pformat(resp))
         assert(status == 'ok')
 

@@ -47,7 +47,7 @@ class HDaemonRepSrv(object):
     def ping_task(self):
         return ('ok', 'pong')
 
-    def test_start(self):
+    def test_start(self, **kwargs):
         l.info('TEST START NEED TO BE IMPLEMENTED')
         return('ok', None)
 
