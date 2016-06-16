@@ -8,7 +8,7 @@ import time
 import socket
 from pprint import pprint, pformat  # NOQA
 from hydra.lib import util
-from hydra.lib.runtestbase import RunTestBase
+from hydra.lib.hydrabase import HydraBase
 from hydra.lib.utility.h_threading import HThreading
 
 l = util.createlogger('RuntestLocalTest', logging.INFO)
@@ -31,7 +31,7 @@ class RuntestLocalTest(unittest.TestCase):
         self.BUFFER_SIZE = 5
         self.t_exceptions = []
         self.h_threading = HThreading()
-        self.k_api = RunTestBase
+        self.k_api = HydraBase
         self.pkts_dropped = 0  # loose count, not 100% accurate
         self.pkts_received = 0
         self.stop = False

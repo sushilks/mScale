@@ -17,7 +17,7 @@ from hydra.lib.h_analyser import HAnalyser
 from hydra.lib import common
 from ConfigParser import ConfigParser
 
-l = util.createlogger('runTestBase', logging.INFO)
+l = util.createlogger('HydraBase', logging.INFO)
 from marathon.models import MarathonApp, MarathonConstraint
 # l.setLevel(logging.DEBUG)
 
