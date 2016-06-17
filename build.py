@@ -6,7 +6,7 @@ use_plugin("python.core")
 use_plugin("copy_resources")
 use_plugin("filter_resources")
 use_plugin("python.unittest")
-use_plugin("python.integrationtest")
+#use_plugin("python.integrationtest")
 use_plugin("python.install_dependencies")
 use_plugin("python.flake8")
 #use_plugin("python.coverage")
@@ -39,6 +39,7 @@ def set_properties(project):
     project.build_depends_on('websocket-client')
     project.build_depends_on('kafka-python')
     project.build_depends_on('pykafka')
+    project.build_depends_on('pyyaml')
 
     if sys.version_info[0] == 3:
         project.build_depends_on('protobuf==3.0.0-b2')
