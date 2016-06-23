@@ -64,9 +64,9 @@ class RunTestRMQ(RunTestBase):
         l.info("PUB server updated")
 
         # Create test groups
-        g1 = self.create_app_group(self.rmqsub, "test-group", apps_in_group=10, analyser=HAnalyser)
-        g2 = self.create_app_group(self.rmqsub, "test-group2", apps_in_group=5, analyser=HAnalyser)
-        g3 = self.create_app_group(self.rmqsub, "test-group3", apps_in_group=5, analyser=HAnalyser)
+        g1 = self.create_app_instances_group(self.rmqsub, "test-group", apps_in_group=10, analyser=HAnalyser)
+        g2 = self.create_app_instances_group(self.rmqsub, "test-group2", apps_in_group=5, analyser=HAnalyser)
+        g3 = self.create_app_instances_group(self.rmqsub, "test-group3", apps_in_group=5, analyser=HAnalyser)
 
         l.info("Groups created")
         self.ping_all_app_inst(self.rmqsub)

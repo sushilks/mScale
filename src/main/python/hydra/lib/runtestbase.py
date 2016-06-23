@@ -52,7 +52,7 @@ class AppGroup(object):
     group_name:     group name
     analyser:       Analyser class "name" e-g HAnalyser not HAnalyser()
     """
-    def __init__(self, hydra, app_name, group_name, analyser=None):
+    def __init__(self, hydra, app_name, group_name, num_app_instances, analyser=None):
         self.group_info = {}
         self.hydra = hydra
         if not analyser:
@@ -60,6 +60,7 @@ class AppGroup(object):
         self.analyser = analyser
         self.group_name = group_name
         self.app_name = app_name
+        self.num_app_instances = num_app_instances
         self.group_info[self.group_name] = self.hydra.app_group[self.group_name]
 
     def _execute(self, method, **kwargs):
@@ -299,28 +300,30 @@ class RunTestBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
-    def create_app_group(self, name, group_name, apps_in_group, analyser):
+    def create_app_instances_group(self, app_name, group_name, num_app_instances, analyser):
         """
         Create relevant dictionaries containting info about
         process info categorized into groups.
         @args:
-        name:            Name of the app
-        apps_in_group:   Number of apps to group together
-        analyser:        Analyser class "name" e-g HAnalyser not HAnalyser()
+        test_client_name:               Name of the app
+        group_name:                     Name of the group.
+        num_app_instances:     Number of app instances to group together
+        analyser:          Analyser class "name" e-g HAnalyser not HAnalyser()
 
         NOTE: This only groups process info like ip:port to talk to that process
               it DOES NOT group process launches
         """
-        l.info("Grouping process port info")
-        assert(name in self.apps)
+        l.info("Grouping process port info, name:%s group_name:%s, apps_in_group:%s, anaylzer:%s"
+               %(app_name, group_name, num_app_instances, analyser))
+        assert(app_name in self.apps)
         if group_name not in self.app_group:
             self.app_group[group_name] = []
 
         temp_list = []
-        for x in range(apps_in_group):
+        for x in range(num_app_instances):
             while True:
                 key_generated = True
-                r_key = random.choice(self.all_task_ids[name])
+                r_key = random.choice(self.all_task_ids[app_name])
                 l.debug("r_key = %s", r_key)
                 for g_list in self.app_group.values():
                     if (r_key in g_list or r_key in temp_list):
@@ -331,7 +334,7 @@ class RunTestBase(BoundaryRunnerBase):
                 temp_list.append(r_key)
                 break
         self.app_group[group_name] = temp_list
-        return AppGroup(self, name, group_name, analyser)
+        return AppGroup(self, app_name, group_name, num_app_instances, analyser)
 
     def create_binary_app(self, name, app_script, cpus, mem, ports=None, constraints=None):
         """ Create an application that is a binary and not a shell script.
