@@ -6,7 +6,7 @@ from optparse import OptionParser
 import logging
 from hydra.lib import util
 from hydra.lib.h_analyser import HAnalyser
-from hydra.lib.runtestbase import RunTestBase
+from hydra.lib.hydrabase import HydraBase
 
 try:
     # Python 2.x
@@ -33,12 +33,12 @@ class RMQSubAnalyser(HAnalyser):
         HAnalyser.__init__(self, server_ip, server_port)
 
 
-class RunTestRMQ(RunTestBase):
+class RunTestRMQ(HydraBase):
     def __init__(self, options, runtest=True, mock=False):
         self.options = options
 
         self.config = ConfigParser()
-        RunTestBase.__init__(self, 'RMQScale', self.options, self.config, startappserver=runtest, mock=mock)
+        HydraBase.__init__(self, 'RMQScale', self.options, self.config, startappserver=runtest, mock=mock)
         self.rmqpub = '/rmq-pub'
         self.rmqsub = '/rmq-sub'
         self.add_appid(self.rmqpub)
@@ -64,9 +64,9 @@ class RunTestRMQ(RunTestBase):
         l.info("PUB server updated")
 
         # Create test groups
-        g1 = self.create_app_instances_group(self.rmqsub, "test-group", apps_in_group=10, analyser=HAnalyser)
-        g2 = self.create_app_instances_group(self.rmqsub, "test-group2", apps_in_group=5, analyser=HAnalyser)
-        g3 = self.create_app_instances_group(self.rmqsub, "test-group3", apps_in_group=5, analyser=HAnalyser)
+        g1 = self.create_app_instances_group(self.rmqsub, "test-group", num_app_instances=10, analyser=HAnalyser)
+        g2 = self.create_app_instances_group(self.rmqsub, "test-group2", num_app_instances=5, analyser=HAnalyser)
+        g3 = self.create_app_instances_group(self.rmqsub, "test-group3", num_app_instances=5, analyser=HAnalyser)
 
         l.info("Groups created")
         self.ping_all_app_inst(self.rmqsub)
