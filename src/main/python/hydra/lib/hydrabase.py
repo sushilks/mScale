@@ -294,7 +294,7 @@ class HydraBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
-    def create_app_instances_group(self, app_name, group_name, num_app_instances, analyser):
+    def create_app_group(self, app_name, group_name, num_app_instances, analyser):
         """
         Create relevant dictionaries containting info about
         process info categorized into groups.
