@@ -258,22 +258,22 @@ class HydraBase(BoundaryRunnerBase):
 
     def app_constraints(self, field, operator, value=None):
         """
-            Constraints control where apps run. It is to allow optimizing for either fault tolerance (by spreading a task
-            out on multiple nodes) or locality (by running all of an application tasks on the same node). Constraints have
-            three parts
-            :param field: Field can be the hostname of the agent node or any attribute of the agent node.
-            :param operator: e.g. UNIQUE tells Marathon to enforce uniqueness of the attribute across all of an app's tasks.
-                                  This allows you, for example, to run only one app taks on each host.
-                                  CLUSTER allows you to run all of your app's tasks on agent nodes that share a certain
-                                  attribute. Think about having special hardware needs.
-                                  GROUP_BY can be used to distribute tasks evenly across racks or datacenters for high
-                                  availibility.
-                                  LIKE accepts a regular expression as parameter, and allows you to run your tasks only on
-                                  the agent nodes whose field values match the regular expression.
-                                  UNLIKE accepts a regular expression as parameter, and allows you to run your tasks on
-                                  agent nodes whose field values do NOT match the regular expression.
-            :param value:
-            :return:
+        Constraints control where apps run. It is to allow optimizing for either fault tolerance (by spreading a task
+        out on multiple nodes) or locality (by running all of an application tasks on the same node). Constraints have
+        three parts
+        :param field: Field can be the hostname of the agent node or any attribute of the agent node.
+        :param operator: e.g. UNIQUE tells Marathon to enforce uniqueness of the attribute across all of an app's tasks.
+                              This allows you, for example, to run only one app taks on each host.
+                              CLUSTER allows you to run all of your app's tasks on agent nodes that share a certain
+                              attribute. Think about having special hardware needs.
+                              GROUP_BY can be used to distribute tasks evenly across racks or datacenters for high
+                              availibility.
+                              LIKE accepts a regular expression as parameter, and allows you to run your tasks only on
+                              the agent nodes whose field values match the regular expression.
+                              UNLIKE accepts a regular expression as parameter, and allows you to run your tasks on
+                              agent nodes whose field values do NOT match the regular expression.
+        :param value:
+        :return:
         """
         return MarathonConstraint(field=field, operator=operator, value=value)
 
@@ -303,6 +303,21 @@ class HydraBase(BoundaryRunnerBase):
         group_name:             Name of the group.
         num_app_instances:     Number of app instances to group together
         analyser:        Analyser class "name" e-g HAnalyser not HAnalyser()
+
+        NOTE: This only groups process info like ip:port to talk to that process
+              it DOES NOT group process launches
+        """
+        return self.create_app_instances_group(app_name, group_name, num_app_instances, analyser)
+
+    def create_app_instances_group(self, app_name, group_name, num_app_instances, analyser):
+        """
+        Many instances of app can combine together to form a group. A group is just a data structure, holding,
+        instance name a.k.a task name and ip:port of the app instance.
+        :param app_name:            Name of the app whose instances are needed to be combined in a group.
+        :param group_name:          Name of the app instances' group
+        :param num_app_instances:   Number of app instances to group together.
+        :param analyser:            Analyser class "name" e-g HAnalyser not HAnalyser().
+        :return:                    Instance of AppGroup class.
 
         NOTE: This only groups process info like ip:port to talk to that process
               it DOES NOT group process launches
@@ -604,7 +619,8 @@ class HydraBase(BoundaryRunnerBase):
         """
         l.info("Attempting to block all communication from ip:port [%s:%s]", ip_to_block, port)
         # Block all incoming traffic from ip_to_block
-        cmd = "sudo /sbin/iptables -A %s -p %s --destination-port %s -s %s -j DROP" % (chain, protocol, port, ip_to_block)
+        cmd = "sudo /sbin/iptables -A %s -p %s --destination-port %s -s %s -j DROP" \
+              % (chain, protocol, port, ip_to_block)
         if host_ip and user:
             common.execute_remote_cmd(host_ip, user, cmd)
         else:
@@ -624,7 +640,8 @@ class HydraBase(BoundaryRunnerBase):
         """
         l.info("Attempting to UNblock all communication from ip:port [%s:%s]", ip_to_unblock, port)
         # Block all incoming traffic from ip_to_block
-        cmd = "sudo /sbin/iptables -D %s -p %s --destination-port %s -s %s -j DROP" % (chain, protocol, port, ip_to_unblock)
+        cmd = "sudo /sbin/iptables -D %s -p %s --destination-port %s -s %s -j DROP" \
+              % (chain, protocol, port, ip_to_unblock)
         if host_ip and user:
             common.execute_remote_cmd(host_ip, user, cmd)
         else:
