@@ -330,12 +330,12 @@ class RunTestZMQ(HydraBase):
 
 class RunNegativeTest(object):
     def __init__(self, argv):
-       raise Exception("Negative Test for Exception.")
+        raise Exception("Negative Test for Exception.")
 
 
 class RunPositiveTest(object):
     def __init__(self, argv):
-       pass
+        pass
 
 
 class RunTest(object):
