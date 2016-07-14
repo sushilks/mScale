@@ -8,6 +8,8 @@ path.append("../python")
 
 classPath = {
     'cli' : 'hydra.lib.cli.cli',
+    'negative-test' : 'hydra.zmqtest.runtest.RunNegativeTest',
+    'positive-test' : 'hydra.zmqtest.runtest.RunPositiveTest',
     'zmq' : 'hydra.zmqtest.runtest.RunTest',
     'zmqrate': 'hydra.zmqtest.maxrate_test.Run',
     'zmqdrop': 'hydra.zmqtest.pktdrop_test.Run',
@@ -40,5 +42,6 @@ if '__main__' == __name__:
     argv = sys.argv
     print ("Running command : " + argv[0] + ' ' + '.'.join(argv[1:]))
     del argv[1]
-    exit(iFunc(argv))
+    iFunc(argv)
+    exit(0)
 
