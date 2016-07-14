@@ -328,6 +328,16 @@ class RunTestZMQ(HydraBase):
         self.delete_app(self.zstsub)
 
 
+class RunNegativeTest(object):
+    def __init__(self, argv):
+       raise Exception("Negative Test for Exception.")
+
+
+class RunPositiveTest(object):
+    def __init__(self, argv):
+       pass
+
+
 class RunTest(object):
     def __init__(self, argv):
         usage = ('python %prog --test_duration=<time to run test> --msg_batch=<msg burst batch before sleep>'

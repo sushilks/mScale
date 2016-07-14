@@ -1,5 +1,7 @@
 from pybuilder.core import use_plugin, init, Author, task, description, depends
 from pybuilder.plugins.exec_plugin import run_command
+from pybuilder.pluginhelper.external_command import ExternalCommandBuilder
+from pybuilder.errors import BuildFailedException
 import sys
 
 use_plugin("python.core")
@@ -85,3 +87,27 @@ def set_properties(project):
 @depends('run_unit_tests')
 def test(project, logger):
     pass
+
+@task
+@description("Run a negative test that will fail due to exception.")
+def negative_test(project, logger):
+    print("Running a -ve test")
+    command = ExternalCommandBuilder('hydra', project)
+    command.use_argument('negative-test-exception')
+    result = command.run_on_production_source_files(logger)
+    #print(result.error_report_lines)
+    if result.exit_code:
+       raise BuildFailedException("Exit code is set")
+    return result.exit_code
+
+@task
+@description("Run a positive test case.")
+def positive_test(project, logger):
+    print("Running a postive test")
+    command = ExternalCommandBuilder('hydra', project)
+    command.use_argument('positive-test')
+    result = command.run_on_production_source_files(logger)
+    #print(result.error_report_lines)
+    #print(result.report_lines)
+    if result.exit_code:
+       raise BuildFailedException("Exit code is set")
