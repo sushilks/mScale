@@ -32,7 +32,7 @@ script:
   - pyb publish -x run_unit_tests -x run_integration_tests -x verify
   - pyb install -x run_unit_tests -x run_integration_tests -x verify
   - pyb positive_test || false 
-  - !pyb negative_test || false
+  - (!pyb negative_test) || false
   - pyb test --verbose
 
 after_script:
