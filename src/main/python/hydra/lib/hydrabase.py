@@ -71,7 +71,7 @@ class AppGroup(object):
             port = info[0]
             ip = info[1]
             ha = self.analyser(ip, port, task_id)
-            l.info("ip:port  %s:%s", ip, str(port))
+            l.debug("ip:port  %s:%s", ip, str(port))
             assert(method in dir(ha))
             func = getattr(ha, method)
             func(**kwargs)
