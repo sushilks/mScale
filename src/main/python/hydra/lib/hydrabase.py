@@ -415,9 +415,9 @@ class HydraBase(BoundaryRunnerBase):
         if group_name:
             assert(group_name in self.app_group)
             task_list = self.app_group[group_name]
-            l.info('Pinging group instances of app[%s], group[%s] to make sure they are started....', name, group_name)
+            l.debug('Pinging group instances of app[%s], group[%s] to make sure they are started....', name, group_name)
         else:
-            l.info('Pinging instances of app[%s] to make sure they are started....', name)
+            l.debug('Pinging instances of app[%s] to make sure they are started....', name)
         cnt = 0
         remove_list = []
         for task_id in task_list:
