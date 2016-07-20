@@ -11,8 +11,6 @@ from hydra.lib import util, hdaemon_pb2
 l = util.createlogger('HDaemon', logging.INFO)
 # l.setLevel(logging.DEBUG)
 
-zmq_context = zmq.Context()
-zmq_poller = zmq.Poller()
 
 tout_60s = 60000
 tout_30s = 30000
@@ -28,8 +26,8 @@ class HAnalyser(object):
         self.port = server_port
         self.task_id = task_id
         self.data = {}  # This is where all received data will be stored
-        self.context = zmq_context
-        self.poller = zmq_poller
+        self.context = zmq.Context()
+        self.poller = zmq.Poller()
         self.req_msg = hdaemon_pb2.CommandMessage()
         self.resp_msg = hdaemon_pb2.ResponseMessage()
         l.debug("Connecting to server at [%s:%s]", self.server_ip, self.port)
