@@ -26,7 +26,7 @@ class HAnalyser(object):
         self.port = server_port
         self.task_id = task_id
         self.data = {}  # This is where all received data will be stored
-        self.context = zmq.Context()
+        self.context = zmq.Context.instance()
         self.poller = zmq.Poller()
         self.req_msg = hdaemon_pb2.CommandMessage()
         self.resp_msg = hdaemon_pb2.ResponseMessage()
