@@ -322,8 +322,8 @@ class HydraBase(BoundaryRunnerBase):
         NOTE: This only groups process info like ip:port to talk to that process
               it DOES NOT group process launches
         """
-        l.info("Grouping process port info, name:%s group_name:%s, apps_in_group:%s, anaylzer:%s"
-               % (app_name, group_name, num_app_instances, analyser))
+        l.debug("Grouping process port info, name:%s group_name:%s, apps_in_group:%s, anaylzer:%s"
+                % (app_name, group_name, num_app_instances, analyser))
         assert(app_name in self.apps)
         if group_name not in self.app_group:
             self.app_group[group_name] = []
@@ -444,8 +444,8 @@ class HydraBase(BoundaryRunnerBase):
             del self.apps[name]['ip_port_map'][item]
             self.all_task_ids[name].remove(item)
             for g_name, g_list in self.app_group.items():
-                l.info("Checking if bad client[%s] is in group[%s]", item, g_name)
-                l.info(g_list)
+                l.debug("Checking if bad client[%s] is in group[%s]", item, g_name)
+                l.debug(g_list)
                 if item in g_list:
                     l.info("Appending [%s] in group [%s]", g_name)
                     temp_dict[g_name].append(item)
@@ -590,10 +590,10 @@ class HydraBase(BoundaryRunnerBase):
             cset += [ipm.keys()[r]]
         return cset
 
-    def delete_all_launched_apps(self):
+    def delete_all_launched_apps(self, timeout=12):
         l.info("Delete all apps")
         for app in self.appIdList:
-            self.delete_app(app, 12, False)
+            self.delete_app(app, timeout, False)
         l.info("Waiting for delete to complete")
         for app in self.appIdList:
             self.__mt.wait_app_removal(app)
