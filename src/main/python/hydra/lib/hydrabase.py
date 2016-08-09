@@ -360,7 +360,7 @@ class HydraBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
-    def scale_and_verify_app(self, name, scale_cnt, ping=True):
+    def scale_and_verify_app(self, name, scale_cnt, ping=True, sleep_before_next_try=1):
         """ Scale an application to the given count
          and then wait for the application to scale and
          complete deployment.
@@ -370,7 +370,7 @@ class HydraBase(BoundaryRunnerBase):
         l.info("Scaling %s app to [%d]", name, scale_cnt)
         assert(name in self.apps)
         self.__scale_app(name, scale_cnt)
-        self.wait_app_ready(name, scale_cnt)
+        self.wait_app_ready(name, scale_cnt, sleep_before_next_try)
 
         inst_cnt = self.refresh_app_info(name)
         assert(inst_cnt == scale_cnt)
@@ -473,35 +473,6 @@ class HydraBase(BoundaryRunnerBase):
         self.all_task_ids[name] = self.apps[name]["ip_port_map"].keys()
         return len(tasks)
 
-    def are_tasks_evenly_distributed(self, app_name, num_hosts):
-        """
-        See whether tasks of a given app has been distributed evenly among hosts?
-        So, if app has 12 tasks and num_hosts are 3. Then function expect at_least 4 tasks at every host.
-        :param app_name: Name of the app whose tasks to be checked.
-        :param num_hosts: Number of racks on which tasks need to be distributed.
-        :return: True: If distributed evenly
-                 False: If distributed unevenly
-        """
-        tasks = self.get_app_tasks(app_name)
-        num_tasks = len(tasks)
-        req_task_per_host = num_tasks / num_hosts
-        task_map = dict()
-        for task in tasks:
-            task_host = task.host
-            cur_num_tasks_on_host = task_map.get(task_host, 0)
-            task_map[task_host] = cur_num_tasks_on_host + 1
-
-        l.info(task_map)
-        # First check that atleast every host has been engaged.
-        if len(task_map) != num_hosts:
-            return False
-        # Every host should have atleast req_task_per_host.
-        for task_per_host in task_map.values():
-            if task_per_host < req_task_per_host:
-                return False
-
-        return True
-
     def fetch_app_stats(self, name, group_name=""):
         """
         Fetch stats from all the instances of the
@@ -584,10 +555,10 @@ class HydraBase(BoundaryRunnerBase):
         assert(name in self.apps)
         return len(self.apps[name]['ip_port_map'])
 
-    def wait_app_ready(self, name, cnt):
+    def wait_app_ready(self, name, cnt, sleep_before_next_try=1):
         """ Wait till the application has as many instances as 'cnt'
         """
-        return self.__mt.wait_app_ready(name, cnt)
+        return self.__mt.wait_app_ready(name, cnt, sleep_before_next_try)
 
     def __scale_app(self, name, cnt):
         return self.__mt.scale_app(name, cnt)
