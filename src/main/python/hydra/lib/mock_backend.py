@@ -212,7 +212,7 @@ class MockMarathonIF(object):
                 l.info("Stuck waiting for %s to be deleted CNT=%d" % (app, cnt))
         return True
 
-    def wait_app_ready(self, app, running_count):
+    def wait_app_ready(self, app, running_count, sleep_before_next_try=1):
         """
         Wait for app to be ready
 
@@ -226,7 +226,7 @@ class MockMarathonIF(object):
             if a1.tasks_running == running_count:
                 return a1
             cnt += 1
-            time.sleep(1)
+            time.sleep(sleep_before_next_try)
             if (cnt % 30) == 29:
                 l.info("Waiting for app [%s] to launch", app)
 

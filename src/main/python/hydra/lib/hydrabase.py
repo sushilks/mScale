@@ -360,7 +360,7 @@ class HydraBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
-    def scale_and_verify_app(self, name, scale_cnt, ping=True):
+    def scale_and_verify_app(self, name, scale_cnt, ping=True, sleep_before_next_try=1):
         """ Scale an application to the given count
          and then wait for the application to scale and
          complete deployment.
@@ -370,7 +370,7 @@ class HydraBase(BoundaryRunnerBase):
         l.info("Scaling %s app to [%d]", name, scale_cnt)
         assert(name in self.apps)
         self.__scale_app(name, scale_cnt)
-        self.wait_app_ready(name, scale_cnt)
+        self.wait_app_ready(name, scale_cnt, sleep_before_next_try)
 
         inst_cnt = self.refresh_app_info(name)
         assert(inst_cnt == scale_cnt)
@@ -555,10 +555,10 @@ class HydraBase(BoundaryRunnerBase):
         assert(name in self.apps)
         return len(self.apps[name]['ip_port_map'])
 
-    def wait_app_ready(self, name, cnt):
+    def wait_app_ready(self, name, cnt, sleep_before_next_try=1):
         """ Wait till the application has as many instances as 'cnt'
         """
-        return self.__mt.wait_app_ready(name, cnt)
+        return self.__mt.wait_app_ready(name, cnt, sleep_before_next_try)
 
     def __scale_app(self, name, cnt):
         return self.__mt.scale_app(name, cnt)

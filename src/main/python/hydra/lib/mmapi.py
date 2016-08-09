@@ -95,14 +95,14 @@ class MarathonIF(object):
                 l.info("Stuck waiting for %s to be deleted CNT=%d" % (app, cnt))
         return True
 
-    def wait_app_ready(self, app, running_count):
+    def wait_app_ready(self, app, running_count, sleep_before_next_try=1):
         cnt = 0
         while True:
             a1 = self.get_app(app)
             if a1.tasks_running == running_count:
                 return a1
             cnt += 1
-            time.sleep(1)
+            time.sleep(sleep_before_next_try)
             if (cnt % 30) == 29:
                 l.info("[%d]Waiting for task to move to running stage, " % cnt +
                        "current stat staged=%d running=%d expected Running=%d" %
