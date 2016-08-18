@@ -34,162 +34,8 @@ def debug(sig, frame):
     message += ''.join(traceback.format_stack(frame))
     i.interact(message)
 
-class HydraApp(object):
-    def __init__(self, hydra_app_name, app_path, app_args, cpus, mem, ports, hydra, binary=True):
-        self.hydra_app_name = hydra_app_name
-        self.app_path = app_path
-        self.cpus = cpus
-        self.mem = mem
-        self.ports = ports
-        self.hydra = hydra
 
-        if binary:
-            self.command = app_path
-        else:
-            self.command = self.hydra.get_cmd(app_path, app_args)
-        self.app_uri = self.hydra.get_app_uri()
-        # Number of marathon apps under this Hydra App.
-        self.num_mt_apps = 0
-        # Marathon apps dictionary. key:mt_app_name value:mt_app(dict)
-        self.mt_apps = dict()
-        # Taks groups under HydraApp. key:group_name value:group_obj
-        self.tasks_groups = dict()
-
-    def create(self):
-        slaves_count = self.hydra.get_mesos_slave_count()
-        l.info("slaves_count:%s" % slaves_count)
-        for slave_num in range(slaves_count):
-            field = self.hydra.mesos_cluster[slave_num]['cat']
-            value = self.hydra.mesos_cluster[slave_num]['match']
-            l.info("field:%s, value:%s" % (field, value))
-
-            constraints = [self.hydra.app_constraints(field=field, operator='CLUSTER', value=value)]
-            mt_app_name = self.hydra_app_name + "-" + str(slave_num)
-            r = self.hydra.mt.create_app(mt_app_name,
-                                         MarathonApp(cmd=self.command, cpus=self.cpus, mem=self.mem,
-                                                     ports=self.ports, constraints=constraints,
-                                                     uris=[self.app_uri]))
-            self.hydra.wait_app_ready(mt_app_name, 1)
-
-            # populate data structures
-            self.num_mt_apps += 1
-            mt_app = dict()
-            mt_app["obj"] = r
-            mt_app["tasks"] = dict()
-            self.mt_apps[mt_app_name] = mt_app
-        self.refresh_tasks_info()
-
-    def delete(self, wait=True):
-        # TODO:             self.num_mt_apps -= 1
-        for mt_app_name, mt_app in self.mt_apps:
-            a = self.hydra.mt.get_app(mt_app_name)
-            if a and (a.tasks_running > 50):
-                l.info("Found %d instances of old running app. Scaling down to 1" % a.tasks_running)
-                self.hydra.mt.scale_app(mt_app_name, 1)
-                self.hydra.wait_app_ready(mt_app_name, 1)
-            if a:
-                for deployment in a.deployments:
-                    self.hydra.mt.delete_deployment(deployment.id)
-            self.hydra.mt.delete_app_ifexisting(mt_app_name, timeout=2)
-            if wait:
-                self.hydra.mt.wait_app_removal(mt_app_name)
-
-    def get_round_robin_number_list(self, number, num_entities):
-        quotient = number / num_entities
-        reminder = number % num_entities
-        round_robin_number = [quotient] * num_entities
-        for i in range(reminder):
-            round_robin_number[i] += 1
-
-        return round_robin_number
-
-    def scale(self, num_tasks, policy):
-        policy_type = policy["type"]
-        slave_list = policy["slave_list"]
-        num_slaves = len(slave_list)
-
-        l.info("policy_type:%s, slave_list:%s, num_slaves:%s" %(policy_type, slave_list, num_slaves))
-        if policy_type == "RR":
-            num_tasks_on_slave = self.get_round_robin_number_list(num_tasks, num_slaves)
-            for i in range(num_slaves):
-                scale_count = num_tasks_on_slave[i]
-                slave_num = slave_list[i]
-                mt_app_name = self.hydra_app_name + "-" + str(slave_num)
-                self.hydra.scale_app(mt_app_name, scale_count)
-                self.hydra.wait_app_ready(mt_app_name, scale_count, sleep_before_next_try=2)
-            self.refresh_tasks_info()
-
-    def get_all_tasks(self):
-        all_tasks = dict()
-        mt_apps_name = self.mt_apps.keys()
-        for mt_app_name in mt_apps_name:
-            mt_app_tasks = self.mt_apps[mt_app_name]["tasks"]
-            all_tasks.update(mt_app_tasks)
-        return all_tasks
-
-    def get_all_tasks_on_particular_slaves(self, slave_list):
-        all_tasks_on_particular_slaves = dict()
-        for slave_num in slave_list:
-            mt_app_name = self.hydra_app_name + "-" + str(slave_num)
-            mt_app_tasks = self.mt_apps[mt_app_name]["tasks"]
-            all_tasks_on_particular_slaves.update(mt_app_tasks)
-        return all_tasks_on_particular_slaves
-
-    def get_lonelier_tasks_on_particular_slaves(self, slave_list):
-        lonelier_tasks_on_particular_slaves = dict()
-        for slave_num in slave_list:
-            lonelier_tasks_on_particular_slaves[slave_num] = dict()
-            mt_app_name = self.hydra_app_name + "-" + str(slave_num)
-            mt_app_tasks = self.mt_apps[mt_app_name]["tasks"]
-            for task_name, task_info in mt_app_tasks.items():
-                if task_info["group"] is None:
-                    lonelier_tasks_on_particular_slaves[slave_num][task_name] = task_info
-
-        return lonelier_tasks_on_particular_slaves
-
-    def refresh_tasks_info(self):
-        for mt_app_name, mt_app in self.mt_apps.items():
-            mt_app_tasks = mt_app["tasks"]
-            tasks = self.hydra.get_app_tasks(mt_app_name)
-            for task in tasks:
-                task_host = task.host
-                task_ip = self.hydra.get_ip_hostname(task_host)
-                for task_rep_port in task.ports:
-                    task_name = task.id + '_PORT' + str(task_rep_port)
-                    task_info = mt_app_tasks.get(task_name)
-                    if task_info is None:
-                        task_info = {"host": task_host, "ip": task_ip, "rep_port": task_rep_port,
-                                     "stats": None, "group": None}
-                    else:
-                        task_info["host"] = task_host
-                        task_info["ip"] = task_ip
-                        task_info["rep_port"] = task_rep_port
-
-                    mt_app_tasks[task_name] = task_info
-
-    def remove_non_responsive_tasks(self):
-        non_responsive_tasks = self.get_non_responsive_tasks()
-        for mt_app_name, non_responsive_tasks_name_list in non_responsive_tasks.items():
-            for non_responsive_task_name in non_responsive_tasks_name_list:
-                del self.mt_apps[mt_app_name]["tasks"][non_responsive_task_name]
-
-    def get_non_responsive_tasks(self):
-        non_responsive_tasks = dict()
-        for mt_app_name, mt_app in self.mt_apps.items():
-            non_responsive_tasks[mt_app_name] = list()
-            for task_name, task_info in mt_app["tasks"].items():
-                port = task_info["rep_port"]
-                ip = task_info["ip"]
-                ha = HAnalyser(ip, port, task_name)
-                res = ha.do_ping()
-                if not res:
-                    l.info("Ping failed to [%s] %s:%s. removing from client list" % (task_name, ip, port))
-                    non_responsive_tasks[mt_app_name].append(task_name)
-                ha.stop()
-        return non_responsive_tasks
-
-
-class TasksGroup(object):
+class AppGroup(object):
     """
     Class to hold info about an APP group.
     Allows cabilities to execute methods on the analyser
@@ -200,41 +46,16 @@ class TasksGroup(object):
     group_name:     group name
     analyser:       Analyser class "name" e-g HAnalyser not HAnalyser()
     """
-    def __init__(self, hydra, hydra_app_name, tasks_group_name, analyser=None):
+    def __init__(self, hydra, app_name, group_name, num_app_instances, analyser=None):
+        self.group_info = {}
         self.hydra = hydra
-        self.hydra_app_name = hydra_app_name
-        self.tasks_group_name = tasks_group_name
-        self.num_tasks = 0
         if not analyser:
             raise Exception("AppGroup needs analyser class name passed as a name, curr val = %s" % analyser)
         self.analyser = analyser
-        self.tasks_group = dict()
-
-    def add_tasks_to_group(self, num_tasks, policy):
-        policy_type = policy["type"]
-        slave_list = policy["slave_list"]
-        num_slaves = len(slave_list)
-
-        hydra_app = self.hydra.hydra_apps[self.hydra_app_name]
-        hydra_app.scale(num_tasks, policy)
-        hydra_app.remove_non_responsive_tasks()
-
-        lonelier_tasks = hydra_app.get_lonelier_tasks_on_particular_slaves(slave_list)
-
-        if policy_type == "RR":
-            lst_desired_num_tasks_on_slave = hydra_app.get_round_robin_number_list(num_tasks, num_slaves)
-            for i in range(num_slaves):
-                slave_num = slave_list[i]
-                desired_num_tasks_on_slave = lst_desired_num_tasks_on_slave[i]
-                lonlier_tasks_of_slave = lonelier_tasks[i]
-                j = 0
-                for task_name, task_info in lonlier_tasks_of_slave.items():
-                    self.tasks_group[task_name] = task_info
-                    self.num_tasks += 1
-                    j += 1
-                    if j == desired_num_tasks_on_slave:
-                        break
-        hydra_app.tasks_groups[self.tasks_group_name] = self.tasks_group
+        self.group_name = group_name
+        self.app_name = app_name
+        self.num_app_instances = num_app_instances
+        self.group_info[self.group_name] = self.hydra.app_group[self.group_name]
 
     def _execute(self, method, **kwargs):
         """
@@ -243,18 +64,31 @@ class TasksGroup(object):
         method:    Method to execute e-g "do_ping"
         **kwargs:  kwargs to pass down to the method (Method MUST have arg implementation)
         """
-        hydra_app = self.hydra.hydra_apps[self.hydra_app_name]
-        assert(self.tasks_group_name in hydra_app.tasks_groups)
-        task_list = self.tasks_group
-        for task_name, task_info in task_list:
-            port = task_info["rep_port"]
-            ip = task_info["ip"]
-            ha = self.analyser(ip, port, task_name)
+        assert(self.group_name in self.hydra.app_group)
+        task_list = self.group_info[self.group_name]
+        for task_id in task_list:
+            info = self.hydra.apps[self.app_name]['ip_port_map'][task_id]
+            port = info[0]
+            ip = info[1]
+            ha = self.analyser(ip, port, task_id)
             l.debug("ip:port  %s:%s", ip, str(port))
             assert(method in dir(ha))
             func = getattr(ha, method)
             func(**kwargs)
             ha.stop()
+
+    def _get_group_info(self):
+        """
+        Return group info
+        """
+        return self.group_info
+
+    def _get_tasklist(self):
+        """
+        Return group tasklist
+        """
+        return self.group_info[self.group_name]
+
 
 class HydraBase(BoundaryRunnerBase):
     def __init__(self, test_name, options, config=None,
@@ -282,7 +116,9 @@ class HydraBase(BoundaryRunnerBase):
         self.myaddr = 'http://' + self.myip + ':' + str(self.myport)
         self.config = config
         self.options = options
-        self.hydra_apps = {}
+        self.apps = {}
+        self.app_group = {}
+        self.all_task_ids = {}
         self.mock = mock
         signal.signal(signal.SIGUSR1, debug)
 
@@ -365,7 +201,7 @@ class HydraBase(BoundaryRunnerBase):
         self.init_mesos()
         self.init_marathon()
         l.info("Delete any pre-existing apps")
-        self.delete_all_launched_hydra_apps(timeout=5)
+        self.delete_all_launched_apps()
 
     def get_appserver_addr(self):
         return self.myaddr
@@ -400,6 +236,23 @@ class HydraBase(BoundaryRunnerBase):
         return 'env && cd ./src/main/scripts && ./hydra ' + \
                function_path + ' ' + arguments
 
+    def delete_app(self, app, timeout=1, wait=True):
+        """ Delete an application
+        """
+        if app in self.apps:
+            del self.apps[app]
+        a = self.__mt.get_app(app)
+        if a and (a.tasks_running > 50):
+            l.info("Found %d instances of old running app. Scaling down to 1" % a.tasks_running)
+            self.__mt.scale_app(app, 1)
+            self.wait_app_ready(app, 1)
+        if a:
+            for deployment in a.deployments:
+                self.__mt.delete_deployment(deployment.id)
+        self.__mt.delete_app_ifexisting(app, timeout)
+        if wait:
+            self.__mt.wait_app_removal(app)
+
     def ping(self):
         return self.__mt.ping()
 
@@ -424,36 +277,73 @@ class HydraBase(BoundaryRunnerBase):
         """
         return MarathonConstraint(field=field, operator=operator, value=value)
 
-    def create_hydra_app(self, hydra_app_name, app_path, app_args, cpus, mem, ports=None):
+    def create_hydra_app(self, name, app_path, app_args, cpus, mem, ports=None, constraints=None):
+        """ Create an application that is a shell script.
         """
-        Create an application that is a shell script.
+        assert(name not in self.apps)
+        command = self.get_cmd(app_path, app_args)
+        app_uri = self.get_app_uri()
+        r = self.__mt.create_app(
+            name, MarathonApp(cmd=command,
+                              cpus=cpus, mem=mem,
+                              ports=ports,
+                              constraints=constraints,
+                              uris=[app_uri]))
+        self.apps[name] = {'app': r, 'type': 'script'}
+        self.wait_app_ready(name, 1)
+        self.refresh_app_info(name)
+        return r
+
+    def create_app_group(self, app_name, group_name, num_app_instances, analyser):
         """
-        assert (hydra_app_name not in self.hydra_apps)
-        hydra_app = HydraApp(hydra_app_name, app_path, app_args, cpus, mem, ports, self)
-        hydra_app.create()
-        self.hydra_apps[hydra_app_name] = hydra_app
-
-    def delete_hydra_app(self, hydra_app_name):
-        if hydra_app_name in self.hydra_apps:
-            hydra_app = self.hydra_apps[hydra_app_name]
-            hydra_app.delete()
-
-    def create_hydra_app_tasks_group(self, hydra_app_name, tasks_group_name, num_tasks, policy, analyser):
-        tasks_group = TasksGroup(self, hydra_app_name, tasks_group_name, analyser)
-        tasks_group.add_tasks_to_group(num_tasks, policy)
-        return tasks_group
-
-    def ping_all_hydra_app_inst(self, hydra_app_name):
-        """
-        Ping all the application task's and if any of they don't respond to
-        ping remove them from active task list.
+        Create relevant dictionaries containting info about
+        process info categorized into groups.
         @args:
-        name:         Name of the app
-        group_name:   Group name if only group singal required (optional)
+        app_name:               Name of the app
+        group_name:             Name of the group.
+        num_app_instances:     Number of app instances to group together
+        analyser:        Analyser class "name" e-g HAnalyser not HAnalyser()
+
+        NOTE: This only groups process info like ip:port to talk to that process
+              it DOES NOT group process launches
         """
-        assert (hydra_app_name not in self.hydra_apps)
-        hydra_app = self.hydra_apps[hydra_app_name]
-        hydra_app.ping_all_instances()
+        return self.create_app_instances_group(app_name, group_name, num_app_instances, analyser)
+
+    def create_app_instances_group(self, app_name, group_name, num_app_instances, analyser):
+        """
+        Many instances of app can combine together to form a group. A group is just a data structure, holding,
+        instance name a.k.a task name and ip:port of the app instance.
+        :param app_name:            Name of the app whose instances are needed to be combined in a group.
+        :param group_name:          Name of the app instances' group
+        :param num_app_instances:   Number of app instances to group together.
+        :param analyser:            Analyser class "name" e-g HAnalyser not HAnalyser().
+        :return:                    Instance of AppGroup class.
+
+        NOTE: This only groups process info like ip:port to talk to that process
+              it DOES NOT group process launches
+        """
+        l.debug("Grouping process port info, name:%s group_name:%s, apps_in_group:%s, anaylzer:%s"
+                % (app_name, group_name, num_app_instances, analyser))
+        assert(app_name in self.apps)
+        if group_name not in self.app_group:
+            self.app_group[group_name] = []
+
+        temp_list = []
+        for x in range(num_app_instances):
+            while True:
+                key_generated = True
+                r_key = random.choice(self.all_task_ids[app_name])
+                l.debug("r_key = %s", r_key)
+                for g_list in self.app_group.values():
+                    if (r_key in g_list or r_key in temp_list):
+                        key_generated = False
+                        break
+                if not key_generated:
+                    continue
+                temp_list.append(r_key)
+                break
+        self.app_group[group_name] = temp_list
+        return AppGroup(self, app_name, group_name, num_app_instances, analyser)
 
     def create_binary_app(self, name, app_script, cpus, mem, ports=None, constraints=None):
         """ Create an application that is a binary and not a shell script.
@@ -470,9 +360,23 @@ class HydraBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
-    def scale_and_verify_app(self, mt_app_name, scale_count, sleep_before_next_try=1):
-        self.__scale_app(mt_app_name, scale_count)
-        self.hydra.wait_app_ready(mt_app_name, scale_count, sleep_before_next_try=2)
+    def scale_and_verify_app(self, name, scale_cnt, ping=True, sleep_before_next_try=1):
+        """ Scale an application to the given count
+         and then wait for the application to scale and
+         complete deployment.
+         after that if ping is request, ping all the apps tasks
+         before returning.
+        """
+        l.info("Scaling %s app to [%d]", name, scale_cnt)
+        assert(name in self.apps)
+        self.__scale_app(name, scale_cnt)
+        self.wait_app_ready(name, scale_cnt, sleep_before_next_try)
+
+        inst_cnt = self.refresh_app_info(name)
+        assert(inst_cnt == scale_cnt)
+        # probe all the clients to see if they are ready.
+        if ping:
+            self.ping_all_app_inst(name)
 
     def reset_all_app_stats(self, name, group_name=""):
         """
@@ -497,6 +401,59 @@ class HydraBase(BoundaryRunnerBase):
             # Signal it to reset all client stats
             ha_sub.reset_stats()
             ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
+
+    def ping_all_app_inst(self, name, group_name=""):
+        """
+        Ping all the application task's and if any of they don't respond to
+        ping remove them from active task list.
+        @args:
+        name:         Name of the app
+        group_name:   Group name if only group singal required (optional)
+        """
+        assert(name in self.apps)
+        task_list = self.all_task_ids[name]
+        if group_name:
+            assert(group_name in self.app_group)
+            task_list = self.app_group[group_name]
+            l.debug('Pinging group instances of app[%s], group[%s] to make sure they are started....', name, group_name)
+        else:
+            l.debug('Pinging instances of app[%s] to make sure they are started....', name)
+        cnt = 0
+        remove_list = []
+        for task_id in task_list:
+            info = self.apps[name]['ip_port_map'][task_id]
+            port = info[0]
+            ip = info[1]
+            ha = HAnalyser(ip, port, task_id)
+            # Signal it to start sending data, blocks until PUB responsds with "DONE" after sending all data
+            res = ha.do_ping()
+            if not res:
+                l.info("Ping failed to [%s] %s:%s. removing from client list" % (task_id, ip, port))
+                remove_list.append(task_id)
+                ha.stop()
+            cnt += res
+            ha.stop()  # closes the Analyser socket, can not be used anymore
+        l.info('Done pinging all the clients. Got pong response from %d out of %d' %
+               (cnt, len(self.apps[name]['ip_port_map'].items())))
+
+        temp_dict = {}
+        for g_name in self.app_group.keys():
+            temp_dict[g_name] = []
+        for item in remove_list:
+            l.info("Removing client [%s]" % (item))
+            del self.apps[name]['ip_port_map'][item]
+            self.all_task_ids[name].remove(item)
+            for g_name, g_list in self.app_group.items():
+                l.debug("Checking if bad client[%s] is in group[%s]", item, g_name)
+                l.debug(g_list)
+                if item in g_list:
+                    l.info("Appending [%s] in group [%s]", g_name)
+                    temp_dict[g_name].append(item)
+        l.info(temp_dict)
+        for g_name, bad_list in temp_dict.items():
+            for bad_client in bad_list:
+                l.info("Removing client [%s] from group [%s]", bad_client, g_name)
+                self.app_group[g_name].remove(bad_client)
 
     def refresh_app_info(self, name):
         """ Refresh all the ip-port map for the application
@@ -603,7 +560,7 @@ class HydraBase(BoundaryRunnerBase):
         """
         return self.__mt.wait_app_ready(name, cnt, sleep_before_next_try)
 
-    def scale_app(self, name, cnt):
+    def __scale_app(self, name, cnt):
         return self.__mt.scale_app(name, cnt)
 
     def get_app(self, name):
@@ -621,26 +578,6 @@ class HydraBase(BoundaryRunnerBase):
     def list_tasks(self, app_id, **kwargs):
         return self.__mt.list_tasks(app_id, **kwargs)
 
-    def delete_all_launched_hydra_apps(self, cmd=None, timeout=1, wait=True):
-        apps = self.__mt.get_apps()
-        for app in apps:
-            app_id = app.id
-            if app.tasks_running > 50:
-                l.info("Found %d instances of old running app. Scaling down to 1" % a.tasks_running)
-                self.__mt.scale_app(app_id, 1)
-                self.wait_app_ready(app_id, 1)
-                if app:
-                    for deployment in app.deployments:
-                        self.__mt.delete_deployment(deployment.id)
-            self.__mt.delete_app_ifexisting(app_id, timeout)
-            if wait:
-                self.__mt.wait_app_removal(app_id)
-        # TODO: DataSturcture cleanup.
-        for hydra_app_name, hydra_app in self.hydra_apps.items():
-            hydra_app.mt_apps.clear()
-            hydra_app.tasks_groups.clear()
-        self.hydra_apps.clear()
-
     def random_select_instances(self, app_name, cnt):
         """ Select a random collection of tasks for an app
         and and return the set
@@ -652,6 +589,14 @@ class HydraBase(BoundaryRunnerBase):
             r = randint(0, len(ipm) - 1)
             cset += [ipm.keys()[r]]
         return cset
+
+    def delete_all_launched_apps(self, timeout=12):
+        l.info("Delete all apps")
+        for app in self.appIdList:
+            self.delete_app(app, timeout, False)
+        l.info("Waiting for delete to complete")
+        for app in self.appIdList:
+            self.__mt.wait_app_removal(app)
 
     def get_mesos_slave_ips_attr(self, attr_type, attr_value):
         """

@@ -21,8 +21,8 @@ class MarathonIF(object):
         self.myAddr = my_addr
         self.mesos = mesos
 
-    def get_apps(self, cmd=None):
-        listapps = self.mcli.list_apps(cmd=cmd)
+    def get_apps(self):
+        listapps = self.mcli.list_apps()
         return listapps
 
     def get_app(self, app_id):
@@ -113,6 +113,7 @@ class MarathonIF(object):
 
     def ping(self):
         return self.mcli.ping()
+
 
 class MesosIF(object):
     def __init__(self, addr):
