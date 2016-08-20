@@ -38,24 +38,26 @@ def debug(sig, frame):
 class AppGroup(object):
     """
     Class to hold info about an APP group.
-    Allows cabilities to execute methods on the analyser
+    Allows capabilities to execute methods on the analyser
     as passed by the caller
-    @args:
-    hydra:          hydra handle
-    app_name:       App name
-    group_name:     group name
-    analyser:       Analyser class "name" e-g HAnalyser not HAnalyser()
     """
-    def __init__(self, hydra, app_name, group_name, num_app_instances, analyser=None):
-        self.group_info = {}
+    def __init__(self, hydra, app_name, group_name, num_tasks, tasks_list, analyser=None):
+        """
+        :param hydra: Hydra handle
+        :param app_name: Name of the marathon app whose tasks you want to group.
+        :param group_name: Name of the group.
+        :param num_tasks: Number of tasks in a group.
+        :param tasks_list: list of the tasks to include in group.
+        :param analyser: Analyser class "name" e-g HAnalyser not HAnalyser()
+        """
         self.hydra = hydra
         if not analyser:
             raise Exception("AppGroup needs analyser class name passed as a name, curr val = %s" % analyser)
         self.analyser = analyser
         self.group_name = group_name
         self.app_name = app_name
-        self.num_app_instances = num_app_instances
-        self.group_info[self.group_name] = self.hydra.app_group[self.group_name]
+        self.num_tasks = num_tasks
+        self.tasks_list = tasks_list
 
     def _execute(self, method, **kwargs):
         """
@@ -65,8 +67,8 @@ class AppGroup(object):
         **kwargs:  kwargs to pass down to the method (Method MUST have arg implementation)
         """
         assert(self.group_name in self.hydra.app_group)
-        task_list = self.group_info[self.group_name]
-        for task_id in task_list:
+        tasks_list = self.tasks_list
+        for task_id in tasks_list:
             info = self.hydra.apps[self.app_name]['ip_port_map'][task_id]
             port = info[0]
             ip = info[1]
@@ -77,17 +79,33 @@ class AppGroup(object):
             func(**kwargs)
             ha.stop()
 
-    def _get_group_info(self):
+    def delete_tasks_from_group(self, num_tasks_to_delete):
         """
-        Return group info
+        Delete given number of tasks from group.
+        :param num_tasks_to_delete: Number of tasks to be deleted from group.
+        :return: 0 in case of success. 1 in case of failure.
         """
-        return self.group_info
+        res = 0
+        for i in range(num_tasks_to_delete):
+            try:
+                task_id_to_del = self.tasks_list.pop().rsplit('_', 1)[0]
+                self.hydra.mt.kill_task(self.app_name, task_id_to_del)
+                self.num_tasks -= 1
+            except BaseException as e:
+                l.info("Error in deletiong task: %s " % str(e))
+                res = 1
+                break
+        self.hydra.refresh_app_info(self.app_name)
+        return res
+
+    def get_num_tasks(self):
+        return len(self.tasks_list)
 
     def _get_tasklist(self):
         """
         Return group tasklist
         """
-        return self.group_info[self.group_name]
+        return self.tasks_list
 
 
 class HydraBase(BoundaryRunnerBase):
@@ -325,25 +343,62 @@ class HydraBase(BoundaryRunnerBase):
         l.debug("Grouping process port info, name:%s group_name:%s, apps_in_group:%s, anaylzer:%s"
                 % (app_name, group_name, num_app_instances, analyser))
         assert(app_name in self.apps)
-        if group_name not in self.app_group:
-            self.app_group[group_name] = []
 
-        temp_list = []
+        tasks_list = []
         for x in range(num_app_instances):
             while True:
                 key_generated = True
-                r_key = random.choice(self.all_task_ids[app_name])
-                l.debug("r_key = %s", r_key)
-                for g_list in self.app_group.values():
-                    if (r_key in g_list or r_key in temp_list):
+                # Pick any random task id.
+                random_task_id = random.choice(self.all_task_ids[app_name])
+                l.debug("random_task_id = %s", random_task_id)
+                # Check whether random_task_id is part of any existing group? Also check that it has not
+                # already been part of current group tasks_list.
+                for app_grp_obj in self.app_group.values():
+                    if random_task_id in app_grp_obj.tasks_list or random_task_id in tasks_list:
                         key_generated = False
                         break
                 if not key_generated:
                     continue
-                temp_list.append(r_key)
+                tasks_list.append(random_task_id)
                 break
-        self.app_group[group_name] = temp_list
-        return AppGroup(self, app_name, group_name, num_app_instances, analyser)
+        app_grp = AppGroup(self, app_name, group_name, num_app_instances, tasks_list, analyser)
+        self.app_group[group_name] = app_grp
+        return app_grp
+
+    def delete_tasks_from_group(self, group_name, num_tasks_to_delete):
+        """
+        Delete tasks from group.
+        :param group_name: Name of the group whose tasks to delete.
+        :param num_tasks_to_delete: Number of tasks to be deleted from group.
+        :return:
+        """
+        # If num_tasks_to_delete is greater than the current number of tasks in group, we will simply delete all
+        # tasks in group.
+        res = 0
+        num_tasks_to_delete = int(num_tasks_to_delete)
+        app_grp = self.app_group[group_name]
+        current_num_tasks_in_grp = app_grp.get_num_tasks()
+        if num_tasks_to_delete > current_num_tasks_in_grp:
+            num_tasks_to_delete = current_num_tasks_in_grp
+
+        # Delete tasks. Update data structures.
+        res = app_grp.delete_tasks_from_group(num_tasks_to_delete)
+        # Make sure that desired number of tasks have been deleted.
+        num_tasks_after_delete = app_grp.get_num_tasks()
+        if (current_num_tasks_in_grp - num_tasks_to_delete != num_tasks_after_delete) or (res == 1):
+            l.error("Error in deleting tasks from group")
+            res = 1
+        return res
+
+    def get_num_tasks_in_group(self, group_name):
+        """
+        Get existing number of tasks in group.
+        :param group_name: Name of the group
+        :return: Number of current tasks in group.
+        """
+        app_grp = self.app_group[group_name]
+        num_tasks = app_grp.get_num_tasks()
+        return num_tasks
 
     def create_binary_app(self, name, app_script, cpus, mem, ports=None, constraints=None):
         """ Create an application that is a binary and not a shell script.

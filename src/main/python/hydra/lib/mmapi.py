@@ -114,6 +114,9 @@ class MarathonIF(object):
     def ping(self):
         return self.mcli.ping()
 
+    def kill_task(self, app_id, task_id):
+        return self.mcli.kill_task(app_id, task_id)
+
 
 class MesosIF(object):
     def __init__(self, addr):
