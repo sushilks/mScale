@@ -10,6 +10,7 @@ import time
 import sys
 import logging
 import re
+import traceback
 
 l = util.createlogger('API', logging.INFO)
 # l.setLevel(logging.DEBUG)
@@ -25,15 +26,34 @@ class MarathonIF(object):
         listapps = self.mcli.list_apps()
         return listapps
 
-    def get_app(self, app_id):
-        try:
-            a = self.mcli.get_app(app_id)
-        except marathon.exceptions.NotFoundError as e:  # NOQA
-            return None
-        return a
+    def get_app(self, app_id, timeout=300):
+        st_time = time.time()
+        while(time.time() - st_time < timeout):
+            try:
+                try:
+                    a = self.mcli.get_app(app_id)
+                except marathon.exceptions.NotFoundError as e:  # NOQA
+                    return None
+                return a
+            except:
+                l.info("mcli: get_app returned error")
+                l.info(traceback.format_exc())
+                l.info("Retrying after 10 secs timeout=%d", timeout)
+                time.sleep(10)
+        raise Exception("mcli get_app timed out, possible zookeper/marathon/mesos malfunction")
 
-    def delete_app(self, app_id, force=False):
-        return self.mcli.delete_app(app_id, force)
+    def delete_app(self, app_id, force=False, timeout=200):
+        st_time = time.time()
+        while(time.time() - st_time < timeout):
+            try:
+                self.mcli.delete_app(app_id, force)
+                return
+            except:
+                l.info("mcli: delete_app returned error")
+                l.info(traceback.format_exc())
+                l.info("Retrying after 10 secs timeout=%d", timeout)
+                time.sleep(10)
+        raise Exception("mcli delete_app timed out, possible zookeper/marathon/mesos malfunction")
 
     def delete_deployment(self, dep_id):
         return self.mcli.delete_deployment(dep_id)
@@ -99,6 +119,14 @@ class MarathonIF(object):
         cnt = 0
         while True:
             a1 = self.get_app(app)
+            # if tasks_running are greater (due to whatever reason, scale down accordingly)
+            if a1.tasks_running > running_count:
+                delta = a1.tasks_running - running_count
+                l.info("Found [%d] more apps, scaling down to [%d]", delta, running_count)
+                self.scale_app(app, running_count)
+                # Allow for some time before next poll
+                time.sleep(1)
+                continue
             if a1.tasks_running == running_count:
                 return a1
             cnt += 1
@@ -108,8 +136,18 @@ class MarathonIF(object):
                        "current stat staged=%d running=%d expected Running=%d" %
                        (a1.tasks_staged, a1.tasks_running, running_count))
 
-    def scale_app(self, app, scale):
-        return self.mcli.scale_app(app, scale)
+    def scale_app(self, app, scale, timeout=300):
+        st_time = time.time()
+        while(time.time() - st_time < timeout):
+            try:
+                self.mcli.scale_app(app, scale)
+                return
+            except:
+                l.info("mcli: scale_app returned error")
+                l.info(traceback.format_exc())
+                l.info("Retrying after 10 secs timeout=%d", timeout)
+                time.sleep(10)
+        raise Exception("mcli scale_app timed out, possible zookeper/marathon/mesos malfunction")
 
     def ping(self):
         return self.mcli.ping()

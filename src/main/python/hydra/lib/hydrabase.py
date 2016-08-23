@@ -236,16 +236,35 @@ class HydraBase(BoundaryRunnerBase):
         return 'env && cd ./src/main/scripts && ./hydra ' + \
                function_path + ' ' + arguments
 
-    def delete_app(self, app, timeout=1, wait=True):
-        """ Delete an application
+    def delete_app(self, app, timeout=1, wait=True, threshold=200, instance_batch=100):
+        """
+        Delete an application in batches to avoid overloading zookeeper, marathon
+        @args:
+        app:                               name of the app
+        timeout:                           individual app del timeout
+        wait:                              wait for app to be removed
+        threshold:                         delete instance threshold
+        instance_batch:                    instance batch
         """
         if app in self.apps:
             del self.apps[app]
         a = self.__mt.get_app(app)
-        if a and (a.tasks_running > 50):
-            l.info("Found %d instances of old running app. Scaling down to 1" % a.tasks_running)
-            self.__mt.scale_app(app, 1)
-            self.wait_app_ready(app, 1)
+        if a and (a.tasks_running > threshold):
+            remaining = a.tasks_running
+            while len(self.get_app_tasks(app)) != 1:
+                # Reached required scale
+                if remaining < instance_batch:
+                    l.info("Approaching All instances delete for[%s] Remaining=%d", app, remaining)
+                    self.__scale_app(app, 1)
+                    self.wait_app_ready(app, 1)
+                    assert(len(self.get_app_tasks(app)) == 1)
+                    break
+                target_instances = instance_batch
+                l.info("Deleting batch instances=%d", target_instances)
+                self.__scale_app(app, remaining - target_instances)
+                self.wait_app_ready(app, remaining - target_instances)
+                remaining = remaining - target_instances
+                l.info("Total Remaining=%d", remaining)
         if a:
             for deployment in a.deployments:
                 self.__mt.delete_deployment(deployment.id)
@@ -360,19 +379,62 @@ class HydraBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
-    def scale_and_verify_app(self, name, scale_cnt, ping=True, sleep_before_next_try=1):
-        """ Scale an application to the given count
-         and then wait for the application to scale and
-         complete deployment.
-         after that if ping is request, ping all the apps tasks
-         before returning.
+    def scale_and_verify_app(self, name, scale_cnt, ping=True, sleep_before_next_try=1,
+                             instance_batch=300, instance_threshold=500):
+        """
+        Scale an application to the given count
+        and then wait for the application to scale and
+        complete deployment.
+        after that if ping is request, ping all the apps tasks
+        before returning.
+        Does incremental increase in scale to reduce amount of work zookeeper
+        and marathon need to do
+        @args:
+        name:                              name of the app
+        scale_cnt:                         target scale count
+        ping:                              whether to ping all launched apps
+        sleep_before_next_retry:           sleep time between subsequent app_get queries
+        instance_batch:                    instance batch
+        instance_threshold:                Max instances that could be launched in one go
         """
         l.info("Scaling %s app to [%d]", name, scale_cnt)
         assert(name in self.apps)
-        self.__scale_app(name, scale_cnt)
-        self.wait_app_ready(name, scale_cnt, sleep_before_next_try)
-
+        instances_launched = 0
+        first_batch = True
+        if scale_cnt > instance_threshold:
+            l.info("Requested instances=%d  > instance_threshold=%d,  breaking down scaling", scale_cnt, instance_threshold)
+            while len(self.get_app_tasks(name)) != scale_cnt:
+                if first_batch:
+                    l.info("First batch: Launching threshold instances=%d", instance_threshold)
+                    first_batch = False
+                    target_instances = instance_threshold
+                    self.__scale_app(name, target_instances)
+                    self.wait_app_ready(name, target_instances, sleep_before_next_try)
+                    remaining = scale_cnt - target_instances
+                    instances_launched += target_instances
+                    l.info("Total launched=%d,  Remaining=%d", instances_launched, remaining)
+                    continue
+                # Reached required scale
+                if remaining < instance_batch:
+                    l.info("Approaching required scale=%d, Total launched=%d,  Remaining=%d", scale_cnt,
+                           instances_launched, remaining)
+                    target_instances = remaining
+                    self.__scale_app(name, instances_launched + target_instances)
+                    self.wait_app_ready(name, instances_launched + target_instances, sleep_before_next_try)
+                    assert(len(self.get_app_tasks(name)) == scale_cnt)
+                    break
+                l.info("Launching batch instances=%d", instance_batch)
+                target_instances = instance_batch
+                self.__scale_app(name, instances_launched + target_instances)
+                self.wait_app_ready(name, instances_launched + target_instances, sleep_before_next_try)
+                remaining = remaining - target_instances
+                instances_launched += target_instances
+                l.info("Total launched=%d,  Remaining=%d", instances_launched, remaining)
+        else:
+            self.__scale_app(name, scale_cnt)
+            self.wait_app_ready(name, scale_cnt, sleep_before_next_try)
         inst_cnt = self.refresh_app_info(name)
+        l.info("Expected count=%d,  current count=%d", scale_cnt, inst_cnt)
         assert(inst_cnt == scale_cnt)
         # probe all the clients to see if they are ready.
         if ping:
