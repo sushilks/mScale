@@ -41,7 +41,7 @@ class AppGroup(object):
     Allows capabilities to execute methods on the analyser
     as passed by the caller
     """
-    def __init__(self, hydra, app_name, group_name, num_tasks, tasks_list, analyser=None):
+    def __init__(self, hydra, app_name, group_name, num_tasks, analyser=None):
         """
         :param hydra: Hydra handle
         :param app_name: Name of the marathon app whose tasks you want to group.
@@ -57,7 +57,7 @@ class AppGroup(object):
         self.group_name = group_name
         self.app_name = app_name
         self.num_tasks = num_tasks
-        self.tasks_list = tasks_list
+        self.tasks_list = list()
 
     def _execute(self, method, **kwargs):
         """
@@ -78,6 +78,18 @@ class AppGroup(object):
             func = getattr(ha, method)
             func(**kwargs)
             ha.stop()
+
+    def add_tasks_to_group(self, tasks_list):
+        """
+        Add tasks to the group.
+        :param tasks_list: Tasks list to add. Duplicate tasks will be added only once.
+        :return: 0 in case of success.
+        """
+        in_first = set(self.tasks_list)
+        in_second = set(tasks_list)
+        in_second_but_not_in_first = in_second - in_first
+        self.tasks_list.extend(in_second_but_not_in_first)
+        return 0
 
     def delete_tasks_from_group(self, num_tasks_to_delete):
         """
@@ -335,7 +347,7 @@ class HydraBase(BoundaryRunnerBase):
         :param group_name:          Name of the app instances' group
         :param num_app_instances:   Number of app instances to group together.
         :param analyser:            Analyser class "name" e-g HAnalyser not HAnalyser().
-        :return:                    Instance of AppGroup class.
+        :return:                    Instance of AppGroup class. 1 in case of failure.
 
         NOTE: This only groups process info like ip:port to talk to that process
               it DOES NOT group process launches
@@ -343,6 +355,12 @@ class HydraBase(BoundaryRunnerBase):
         l.debug("Grouping process port info, name:%s group_name:%s, apps_in_group:%s, anaylzer:%s"
                 % (app_name, group_name, num_app_instances, analyser))
         assert(app_name in self.apps)
+        if group_name in self.app_group:
+            l.error("Group with same name already exists")
+            return 1
+
+        app_grp = AppGroup(self, app_name, group_name, num_app_instances, analyser)
+        self.app_group[group_name] = app_grp
 
         tasks_list = []
         for x in range(num_app_instances):
@@ -361,8 +379,8 @@ class HydraBase(BoundaryRunnerBase):
                     continue
                 tasks_list.append(random_task_id)
                 break
-        app_grp = AppGroup(self, app_name, group_name, num_app_instances, tasks_list, analyser)
-        self.app_group[group_name] = app_grp
+
+        app_grp.add_tasks_to_group(tasks_list)
         return app_grp
 
     def delete_tasks_from_group(self, group_name, num_tasks_to_delete):
