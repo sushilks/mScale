@@ -43,12 +43,13 @@ class AppGroup(object):
     """
     def __init__(self, hydra, app_name, group_name, num_tasks, analyser=None):
         """
-        :param hydra: Hydra handle
-        :param app_name: Name of the marathon app whose tasks you want to group.
-        :param group_name: Name of the group.
-        :param num_tasks: Number of tasks in a group.
-        :param tasks_list: list of the tasks to include in group.
-        :param analyser: Analyser class "name" e-g HAnalyser not HAnalyser()
+        @args:
+        hydra: Hydra handle
+        app_name: Name of the marathon app whose tasks you want to group.
+        group_name: Name of the group.
+        num_tasks: Number of tasks in a group.
+        tasks_list: list of the tasks to include in group.
+        analyser: Analyser class "name" e-g HAnalyser not HAnalyser()
         """
         self.hydra = hydra
         if not analyser:
@@ -82,7 +83,8 @@ class AppGroup(object):
     def add_tasks_to_group(self, tasks_list):
         """
         Add tasks to the group.
-        :param tasks_list: Tasks list to add. Duplicate tasks will be added only once.
+        @args:
+        tasks_list: Tasks list to add. Duplicate tasks will be added only once.
         :return: 0 in case of success.
         """
         in_first = set(self.tasks_list)
@@ -94,21 +96,22 @@ class AppGroup(object):
     def delete_tasks_from_group(self, num_tasks_to_delete):
         """
         Delete given number of tasks from group.
-        :param num_tasks_to_delete: Number of tasks to be deleted from group.
-        :return: 0 in case of success. 1 in case of failure.
+        @args:
+        num_tasks_to_delete: Number of tasks to be deleted from group.
+        :return: list of deleted tasks in case of success. 1 in case of failure.
         """
-        res = 0
+        deleted_tasks = list()
         for i in range(num_tasks_to_delete):
             try:
-                task_id_to_del = self.tasks_list.pop().rsplit('_', 1)[0]
-                self.hydra.mt.kill_task(self.app_name, task_id_to_del)
+                task_id_to_del = self.tasks_list.pop()
+                self.hydra.mt.kill_task(self.app_name, task_id_to_del.rsplit('_', 1)[0])
                 self.num_tasks -= 1
+                deleted_tasks.append(task_id_to_del)
             except BaseException as e:
                 l.info("Error in deletiong task: %s " % str(e))
-                res = 1
-                break
+                return 1
         self.hydra.refresh_app_info(self.app_name)
-        return res
+        return deleted_tasks
 
     def get_num_tasks(self):
         return len(self.tasks_list)
@@ -266,16 +269,35 @@ class HydraBase(BoundaryRunnerBase):
         return 'env && cd ./src/main/scripts && ./hydra ' + \
                function_path + ' ' + arguments
 
-    def delete_app(self, app, timeout=1, wait=True):
-        """ Delete an application
+    def delete_app(self, app, timeout=1, wait=True, threshold=200, instance_batch=100):
+        """
+        Delete an application in batches to avoid overloading zookeeper, marathon
+        @args:
+        app:                               name of the app
+        timeout:                           individual app del timeout
+        wait:                              wait for app to be removed
+        threshold:                         delete instance threshold
+        instance_batch:                    instance batch
         """
         if app in self.apps:
             del self.apps[app]
         a = self.__mt.get_app(app)
-        if a and (a.tasks_running > 50):
-            l.info("Found %d instances of old running app. Scaling down to 1" % a.tasks_running)
-            self.__mt.scale_app(app, 1)
-            self.wait_app_ready(app, 1)
+        if a and (a.tasks_running > threshold):
+            remaining = a.tasks_running
+            while len(self.get_app_tasks(app)) != 1:
+                # Reached required scale
+                if remaining < instance_batch:
+                    l.info("Approaching All instances delete for[%s] Remaining=%d", app, remaining)
+                    self.__scale_app(app, 1)
+                    self.wait_app_ready(app, 1)
+                    assert(len(self.get_app_tasks(app)) == 1)
+                    break
+                target_instances = instance_batch
+                l.info("Deleting batch instances=%d", target_instances)
+                self.__scale_app(app, remaining - target_instances)
+                self.wait_app_ready(app, remaining - target_instances)
+                remaining = remaining - target_instances
+                l.info("Total Remaining=%d", remaining)
         if a:
             for deployment in a.deployments:
                 self.__mt.delete_deployment(deployment.id)
@@ -291,8 +313,9 @@ class HydraBase(BoundaryRunnerBase):
         Constraints control where apps run. It is to allow optimizing for either fault tolerance (by spreading a task
         out on multiple nodes) or locality (by running all of an application tasks on the same node). Constraints have
         three parts
-        :param field: Field can be the hostname of the agent node or any attribute of the agent node.
-        :param operator: e.g. UNIQUE tells Marathon to enforce uniqueness of the attribute across all of an app's tasks.
+        @args:
+        field: Field can be the hostname of the agent node or any attribute of the agent node.
+        operator: e.g. UNIQUE tells Marathon to enforce uniqueness of the attribute across all of an app's tasks.
                               This allows you, for example, to run only one app taks on each host.
                               CLUSTER allows you to run all of your app's tasks on agent nodes that share a certain
                               attribute. Think about having special hardware needs.
@@ -302,7 +325,7 @@ class HydraBase(BoundaryRunnerBase):
                               the agent nodes whose field values match the regular expression.
                               UNLIKE accepts a regular expression as parameter, and allows you to run your tasks on
                               agent nodes whose field values do NOT match the regular expression.
-        :param value:
+        value:
         :return:
         """
         return MarathonConstraint(field=field, operator=operator, value=value)
@@ -343,10 +366,11 @@ class HydraBase(BoundaryRunnerBase):
         """
         Many instances of app can combine together to form a group. A group is just a data structure, holding,
         instance name a.k.a task name and ip:port of the app instance.
-        :param app_name:            Name of the app whose instances are needed to be combined in a group.
-        :param group_name:          Name of the app instances' group
-        :param num_app_instances:   Number of app instances to group together.
-        :param analyser:            Analyser class "name" e-g HAnalyser not HAnalyser().
+        @args:
+        app_name:            Name of the app whose instances are needed to be combined in a group.
+        group_name:          Name of the app instances' group
+        num_app_instances:   Number of app instances to group together.
+        analyser:            Analyser class "name" e-g HAnalyser not HAnalyser().
         :return:                    Instance of AppGroup class. 1 in case of failure.
 
         NOTE: This only groups process info like ip:port to talk to that process
@@ -361,6 +385,12 @@ class HydraBase(BoundaryRunnerBase):
 
         app_grp = AppGroup(self, app_name, group_name, num_app_instances, analyser)
         self.app_group[group_name] = app_grp
+
+        available_tasks = len(self.all_task_ids[app_name])
+        if num_app_instances > available_tasks:
+            num_app_instances = available_tasks
+            l.info("Number of available tasks(%s) are lesser than requested number of tasks (%s)"
+                   % (available_tasks, num_app_instances))
 
         tasks_list = []
         for x in range(num_app_instances):
@@ -386,13 +416,12 @@ class HydraBase(BoundaryRunnerBase):
     def delete_tasks_from_group(self, group_name, num_tasks_to_delete):
         """
         Delete tasks from group.
-        :param group_name: Name of the group whose tasks to delete.
-        :param num_tasks_to_delete: Number of tasks to be deleted from group.
-        :return:
+        group_name: Name of the group whose tasks to delete.
+        num_tasks_to_delete: Number of tasks to be deleted from group.
+        :return: list of deleted tasks in case of success. 1 in case of failure.
         """
         # If num_tasks_to_delete is greater than the current number of tasks in group, we will simply delete all
         # tasks in group.
-        res = 0
         num_tasks_to_delete = int(num_tasks_to_delete)
         app_grp = self.app_group[group_name]
         current_num_tasks_in_grp = app_grp.get_num_tasks()
@@ -405,13 +434,15 @@ class HydraBase(BoundaryRunnerBase):
         num_tasks_after_delete = app_grp.get_num_tasks()
         if (current_num_tasks_in_grp - num_tasks_to_delete != num_tasks_after_delete) or (res == 1):
             l.error("Error in deleting tasks from group")
-            res = 1
+            return 1
+        l.info("Deleted tasks are %s" % res)
         return res
 
     def get_num_tasks_in_group(self, group_name):
         """
         Get existing number of tasks in group.
-        :param group_name: Name of the group
+        @args:
+        group_name: Name of the group
         :return: Number of current tasks in group.
         """
         app_grp = self.app_group[group_name]
@@ -433,19 +464,62 @@ class HydraBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
-    def scale_and_verify_app(self, name, scale_cnt, ping=True, sleep_before_next_try=1):
-        """ Scale an application to the given count
-         and then wait for the application to scale and
-         complete deployment.
-         after that if ping is request, ping all the apps tasks
-         before returning.
+    def scale_and_verify_app(self, name, scale_cnt, ping=True, sleep_before_next_try=1,
+                             instance_batch=300, instance_threshold=500):
+        """
+        Scale an application to the given count
+        and then wait for the application to scale and
+        complete deployment.
+        after that if ping is request, ping all the apps tasks
+        before returning.
+        Does incremental increase in scale to reduce amount of work zookeeper
+        and marathon need to do
+        @args:
+        name:                              name of the app
+        scale_cnt:                         target scale count
+        ping:                              whether to ping all launched apps
+        sleep_before_next_retry:           sleep time between subsequent app_get queries
+        instance_batch:                    instance batch
+        instance_threshold:                Max instances that could be launched in one go
         """
         l.info("Scaling %s app to [%d]", name, scale_cnt)
         assert(name in self.apps)
-        self.__scale_app(name, scale_cnt)
-        self.wait_app_ready(name, scale_cnt, sleep_before_next_try)
-
+        instances_launched = 0
+        first_batch = True
+        if scale_cnt > instance_threshold:
+            l.info("Requested instances=%d  > instance_threshold=%d,  breaking down scaling", scale_cnt, instance_threshold)
+            while len(self.get_app_tasks(name)) != scale_cnt:
+                if first_batch:
+                    l.info("First batch: Launching threshold instances=%d", instance_threshold)
+                    first_batch = False
+                    target_instances = instance_threshold
+                    self.__scale_app(name, target_instances)
+                    self.wait_app_ready(name, target_instances, sleep_before_next_try)
+                    remaining = scale_cnt - target_instances
+                    instances_launched += target_instances
+                    l.info("Total launched=%d,  Remaining=%d", instances_launched, remaining)
+                    continue
+                # Reached required scale
+                if remaining < instance_batch:
+                    l.info("Approaching required scale=%d, Total launched=%d,  Remaining=%d", scale_cnt,
+                           instances_launched, remaining)
+                    target_instances = remaining
+                    self.__scale_app(name, instances_launched + target_instances)
+                    self.wait_app_ready(name, instances_launched + target_instances, sleep_before_next_try)
+                    assert(len(self.get_app_tasks(name)) == scale_cnt)
+                    break
+                l.info("Launching batch instances=%d", instance_batch)
+                target_instances = instance_batch
+                self.__scale_app(name, instances_launched + target_instances)
+                self.wait_app_ready(name, instances_launched + target_instances, sleep_before_next_try)
+                remaining = remaining - target_instances
+                instances_launched += target_instances
+                l.info("Total launched=%d,  Remaining=%d", instances_launched, remaining)
+        else:
+            self.__scale_app(name, scale_cnt)
+            self.wait_app_ready(name, scale_cnt, sleep_before_next_try)
         inst_cnt = self.refresh_app_info(name)
+        l.info("Expected count=%d,  current count=%d", scale_cnt, inst_cnt)
         assert(inst_cnt == scale_cnt)
         # probe all the clients to see if they are ready.
         if ping:
@@ -487,7 +561,7 @@ class HydraBase(BoundaryRunnerBase):
         task_list = self.all_task_ids[name]
         if group_name:
             assert(group_name in self.app_group)
-            task_list = self.app_group[group_name]
+            task_list = self.app_group[group_name].tasks_list
             l.debug('Pinging group instances of app[%s], group[%s] to make sure they are started....', name, group_name)
         else:
             l.debug('Pinging instances of app[%s] to make sure they are started....', name)
@@ -516,7 +590,8 @@ class HydraBase(BoundaryRunnerBase):
             l.info("Removing client [%s]" % (item))
             del self.apps[name]['ip_port_map'][item]
             self.all_task_ids[name].remove(item)
-            for g_name, g_list in self.app_group.items():
+            for g_name, g_obj in self.app_group.items():
+                g_list = g_obj.tasks_list
                 l.debug("Checking if bad client[%s] is in group[%s]", item, g_name)
                 l.debug(g_list)
                 if item in g_list:
@@ -663,10 +738,11 @@ class HydraBase(BoundaryRunnerBase):
             cset += [ipm.keys()[r]]
         return cset
 
-    def delete_all_launched_apps(self, timeout=12):
+    def delete_all_launched_apps(self, timeout=12, threshold=200, instance_batch=100):
         l.info("Delete all apps")
         for app in self.appIdList:
-            self.delete_app(app, timeout, False)
+            l.info("---- instance_batch=%s" % instance_batch)
+            self.delete_app(app, timeout, False, threshold, instance_batch)
         l.info("Waiting for delete to complete")
         for app in self.appIdList:
             self.__mt.wait_app_removal(app)
