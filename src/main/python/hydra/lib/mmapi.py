@@ -179,6 +179,14 @@ class MesosIF(object):
             return True
         return False
 
+    def get_slave_stats(self, ip, port=5051):
+        addr = "http://%s:%d" % (ip, port)
+        # returns a list of app tasks
+        r = requests.get(addr + '/monitor/statistics.json')
+        assert(r.status_code == 200)
+        dt = json.loads(r.content.decode("utf-8"))
+        return dt
+
     def get_version(self):
         # returns
         # {"build_date":"2016-02-23 00:35:03","build_time":1456187703.0,"build_user":"root",
