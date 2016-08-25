@@ -684,8 +684,7 @@ class HydraBase(BoundaryRunnerBase):
 
     def get_all_mesos_slave_iplist(self):
         """
-        Get all slave ips corresponding to attributes.
-        Returns a list of slave ips
+        Get all mesos slave ips
         """
         ip_list = list()
         attr_list = self.get_all_mesos_slave_attr()
@@ -697,6 +696,15 @@ class HydraBase(BoundaryRunnerBase):
         return ip_list
 
     def get_app_mem_cpu_stats(self, name):
+        """
+        Get an apps stats querying all slaves
+        If multiple tasks are running for the same app
+        e-g an app x which is scaled to y instances.
+        This function will return a list of all tasks
+        stats for that app
+        @args:
+        name  :  Name of the app
+        """
         app_stats_list = {}
         task_stats = {"timestamp": 0,
                       "mem_rss_bytes": 0,
