@@ -1,5 +1,4 @@
 from pybuilder.core import use_plugin, init, Author, task, description, depends
-from pybuilder.plugins.exec_plugin import run_command
 from pybuilder.pluginhelper.external_command import ExternalCommandBuilder
 from pybuilder.errors import BuildFailedException
 import sys
@@ -11,7 +10,6 @@ use_plugin("python.unittest")
 use_plugin("python.integrationtest")
 use_plugin("python.install_dependencies")
 use_plugin("python.flake8")
-#use_plugin("python.coverage")
 use_plugin("python.distutils")
 use_plugin("python.pycharm")
 use_plugin("exec")
@@ -51,17 +49,17 @@ def set_properties(project):
     project.set_property('copy_resources_target', '$dir_dist')
     project.get_property('copy_resources_glob').append('LICENSE')
     project.get_property('copy_resources_glob').append('src/main/data/*')
-#    project.get_property('copy_resources_glob').append('src/main/data/z')
+    # project.get_property('copy_resources_glob').append('src/main/data/z')
 
-#    project.include_file(name, 'LICENSE')
-#    project.include_file(name, 'config/*.ini')
-#    project.include_directory('src/main/data', ['*.ini'])
+    # project.include_file(name, 'LICENSE')
+    # project.include_file(name, 'config/*.ini')
+    # project.include_directory('src/main/data', ['*.ini'])
     project.set_property('flake8_verbose_output', True)
     project.set_property('flake8_break_build', True)
     project.set_property('flake8_include_test_sources', True)
     project.set_property('flake8_max_line_length', 130)
 
-    project.set_property('publish_command','./make_test_exec.sh')
+    project.set_property('publish_command', './make_test_exec.sh')
     project.set_property('publish_propagate_stderr', True)
     project.set_property('publish_propagate_stdout', True)
 
@@ -79,14 +77,15 @@ def set_properties(project):
         'Programming Language :: Python :: 3.4',
         'Topic :: Software Development :: Testing',
         'Topic :: Software Development :: Quality Assurance'])
-
     pass
+
 
 @task
 @description("Runs all unit tests. Runs unit tests based on Python's unittest module.")
 @depends('run_unit_tests')
 def test(project, logger):
     pass
+
 
 @task
 @description("Run a negative test that will fail due to exception.")
@@ -95,10 +94,10 @@ def negative_test(project, logger):
     command = ExternalCommandBuilder('hydra', project)
     command.use_argument('negative-test-exception')
     result = command.run_on_production_source_files(logger)
-    #print(result.error_report_lines)
     if result.exit_code:
-       raise BuildFailedException("Exit code is set")
+        raise BuildFailedException("Exit code is set")
     return result.exit_code
+
 
 @task
 @description("Run a positive test case.")
@@ -107,7 +106,5 @@ def positive_test(project, logger):
     command = ExternalCommandBuilder('hydra', project)
     command.use_argument('positive-test')
     result = command.run_on_production_source_files(logger)
-    #print(result.error_report_lines)
-    #print(result.report_lines)
     if result.exit_code:
-       raise BuildFailedException("Exit code is set")
+        raise BuildFailedException("Exit code is set")

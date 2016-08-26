@@ -189,8 +189,10 @@ class MockMarathonIF(object):
         # Init task info, sort of mimics marathon
         self.list_apps[app_id].tasks.append(TaskInfo())
         task_count = self.app_attr[app_id][1]
-        self.list_apps[app_id].tasks[task_count].id = str(self.list_apps[app_id].cmgr.jobs[app_local_launch_name]["pid"])
-        self.list_apps[app_id].tasks[task_count].ports = self.list_apps[app_id].cmgr.jobs[app_local_launch_name]["ports"]
+        self.list_apps[app_id].tasks[task_count].id = \
+            str(self.list_apps[app_id].cmgr.jobs[app_local_launch_name]["pid"])
+        self.list_apps[app_id].tasks[task_count].ports = \
+            self.list_apps[app_id].cmgr.jobs[app_local_launch_name]["ports"]
         self.list_apps[app_id].tasks[task_count].host = "localhost"
         self.list_apps[app_id].tasks_running = len(self.list_apps[app_id].tasks)
         self.app_attr[app_id][1] += 1
