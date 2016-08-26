@@ -595,7 +595,7 @@ class HydraBase(BoundaryRunnerBase):
                 l.debug("Checking if bad client[%s] is in group[%s]", item, g_name)
                 l.debug(g_list)
                 if item in g_list:
-                    l.info("Appending [%s] in group [%s]", g_name)
+                    l.info("Appending [%s] in group [%s]", item, g_name)
                     temp_dict[g_name].append(item)
         l.info(temp_dict)
         for g_name, bad_list in temp_dict.items():
