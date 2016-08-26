@@ -180,6 +180,12 @@ class MesosIF(object):
         return False
 
     def get_slave_stats(self, ip, port=5051):
+        """
+        Get slave statistics via mesos API
+        @args:
+        ip:      Ip of the slave
+        port:    Port that slave is listening to for requests
+        """
         addr = "http://%s:%d" % (ip, port)
         # returns a list of app tasks
         r = requests.get(addr + '/monitor/statistics.json')

@@ -782,4 +782,3 @@ class HydraBase(BoundaryRunnerBase):
             return self.__mesos.get_slave_ip_from_hn(task.host)
         l.warn("Unable to find IP address for app " + app)
         return None
-
