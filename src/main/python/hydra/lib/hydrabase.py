@@ -169,7 +169,7 @@ class HydraBase(BoundaryRunnerBase):
         self.marathon_addr = 'http://' + config.get('marathon', 'ip') + ':' + \
                              config.get('marathon', 'port')
         self.app_prefix = config.get('marathon', 'app_prefix')
-        self.appIdList = []
+        self.app_id_list = []
         self.__mesos = None
         self.__mt = None
         self.appItemToUpload = app_dirs
@@ -177,6 +177,7 @@ class HydraBase(BoundaryRunnerBase):
         BoundaryRunnerBase.__init__(self)
         if startappserver:
             self.start_appserver()
+        self.all_mesos_slave_iplist = []
 
     def set_options(self, options):
         self.options = options
@@ -198,7 +199,7 @@ class HydraBase(BoundaryRunnerBase):
         os.chdir(self.pwd)
 
     def add_appid(self, name):
-        self.appIdList.append(name)
+        self.app_id_list.append(name)
 
     def add_appitem_toupload(self, item):
         self.appItemToUpload.append(item)
@@ -235,6 +236,7 @@ class HydraBase(BoundaryRunnerBase):
         self.init_marathon()
         l.info("Delete any pre-existing apps")
         self.delete_all_launched_apps()
+        # Populate all slave ip list to be later used
 
     def get_appserver_addr(self):
         return self.myaddr
@@ -253,6 +255,9 @@ class HydraBase(BoundaryRunnerBase):
 
     def get_mesos_slave_count(self):
         return self.__mesos.get_slave_cnt()
+
+    def get_mesos_slave_stats(self):
+        return self.__mesos.get_slave_stats()
 
     def get_app_tasks(self, app):
         """ Get a list of tasks for the apps
@@ -740,11 +745,11 @@ class HydraBase(BoundaryRunnerBase):
 
     def delete_all_launched_apps(self, timeout=12, threshold=200, instance_batch=100):
         l.info("Delete all apps")
-        for app in self.appIdList:
-            l.info("---- instance_batch=%s" % instance_batch)
+        for app in self.app_id_list:
+            l.info("Deleting instances,  instance_batch=%s" % instance_batch)
             self.delete_app(app, timeout, False, threshold, instance_batch)
         l.info("Waiting for delete to complete")
-        for app in self.appIdList:
+        for app in self.app_id_list:
             self.__mt.wait_app_removal(app)
 
     def get_mesos_slave_ips_attr(self, attr_type, attr_value):
@@ -752,6 +757,66 @@ class HydraBase(BoundaryRunnerBase):
         Get the ip of a mesos slave that matches the provided attribute
         """
         return self.__mesos.get_slave_ips_from_attribute(attr_type, attr_value)
+
+    def get_all_mesos_slave_attr(self):
+        """
+        Get all slave attributes.
+        """
+        attr_list = []
+        for idx, info in self.mesos_cluster.items():
+            attr_list.append([info["cat"], info["match"]])
+        # A sample attribute list would be
+        # [['slave_id', 'slave-set1_0'], ['slave_id', 'slave-set1_1'], ['slave_id', 'slave-set1_2']]
+        return attr_list
+
+    def get_all_mesos_slave_iplist(self):
+        """
+        Get all mesos slave ips
+        """
+        ip_list = list()
+        attr_list = self.get_all_mesos_slave_attr()
+        for attr in attr_list:
+            slave_ips = self.get_mesos_slave_ips_attr(attr[0], attr[1])
+            if len(slave_ips) == 0:
+                raise Exception("NO slave exists with attribtue [%s=%s]" % (attr[0], attr[1]))
+            ip_list.append(slave_ips[0])
+        return ip_list
+
+    def get_app_mem_cpu_stats(self, name):
+        """
+        Get an apps stats querying all slaves
+        If multiple tasks are running for the same app
+        e-g an app x which is scaled to y instances.
+        This function will return a list of all tasks
+        stats for that app
+        @args:
+        name  :  Name of the app
+        """
+        app_stats_list = {}
+        task_stats = {"timestamp": 0,
+                      "mem_rss_bytes": 0,
+                      "cpu_system_time_secs": 0,
+                      "cpu_user_time_secs": 0,
+                      }
+        assert(name in self.app_id_list)
+        if not self.all_mesos_slave_iplist:
+            self.all_mesos_slave_iplist = self.get_all_mesos_slave_iplist()
+        for slave_ip in self.all_mesos_slave_iplist:
+            # list of all app and its tasks
+            stats = self.__mesos.get_slave_stats(slave_ip)
+            assert(stats)
+            for app_task in stats:
+                task_name = app_task["source"]
+                if not task_name.startswith(name):
+                    continue
+                if slave_ip not in app_stats_list:
+                    app_stats_list[slave_ip] = []
+                task_stats["timestamp"] = app_task["statistics"]["timestamp"]
+                task_stats["mem_rss_bytes"] = app_task["statistics"]["mem_rss_bytes"]
+                task_stats["cpu_system_time_secs"] = app_task["statistics"]["cpus_system_time_secs"]
+                task_stats["cpu_user_time_secs"] = app_task["statistics"]["cpus_user_time_secs"]
+                app_stats_list[slave_ip].append(task_stats)
+        return app_stats_list
 
     @staticmethod
     def block_ip_port_on_node(ip_to_block, port, chain="INPUT", protocol="tcp", host_ip="", user=""):
