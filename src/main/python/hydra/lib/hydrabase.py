@@ -38,24 +38,27 @@ def debug(sig, frame):
 class AppGroup(object):
     """
     Class to hold info about an APP group.
-    Allows cabilities to execute methods on the analyser
+    Allows capabilities to execute methods on the analyser
     as passed by the caller
-    @args:
-    hydra:          hydra handle
-    app_name:       App name
-    group_name:     group name
-    analyser:       Analyser class "name" e-g HAnalyser not HAnalyser()
     """
-    def __init__(self, hydra, app_name, group_name, num_app_instances, analyser=None):
-        self.group_info = {}
+    def __init__(self, hydra, app_name, group_name, num_tasks, analyser=None):
+        """
+        @args:
+        hydra: Hydra handle
+        app_name: Name of the marathon app whose tasks you want to group.
+        group_name: Name of the group.
+        num_tasks: Number of tasks in a group.
+        tasks_list: list of the tasks to include in group.
+        analyser: Analyser class "name" e-g HAnalyser not HAnalyser()
+        """
         self.hydra = hydra
         if not analyser:
             raise Exception("AppGroup needs analyser class name passed as a name, curr val = %s" % analyser)
         self.analyser = analyser
         self.group_name = group_name
         self.app_name = app_name
-        self.num_app_instances = num_app_instances
-        self.group_info[self.group_name] = self.hydra.app_group[self.group_name]
+        self.num_tasks = num_tasks
+        self.tasks_list = list()
 
     def _execute(self, method, **kwargs):
         """
@@ -65,8 +68,8 @@ class AppGroup(object):
         **kwargs:  kwargs to pass down to the method (Method MUST have arg implementation)
         """
         assert(self.group_name in self.hydra.app_group)
-        task_list = self.group_info[self.group_name]
-        for task_id in task_list:
+        tasks_list = self.tasks_list
+        for task_id in tasks_list:
             info = self.hydra.apps[self.app_name]['ip_port_map'][task_id]
             port = info[0]
             ip = info[1]
@@ -77,17 +80,47 @@ class AppGroup(object):
             func(**kwargs)
             ha.stop()
 
-    def _get_group_info(self):
+    def add_tasks_to_group(self, tasks_list):
         """
-        Return group info
+        Add tasks to the group.
+        @args:
+        tasks_list: Tasks list to add. Duplicate tasks will be added only once.
+        :return: 0 in case of success.
         """
-        return self.group_info
+        in_first = set(self.tasks_list)
+        in_second = set(tasks_list)
+        in_second_but_not_in_first = in_second - in_first
+        self.tasks_list.extend(in_second_but_not_in_first)
+        return 0
+
+    def delete_tasks_from_group(self, num_tasks_to_delete):
+        """
+        Delete given number of tasks from group.
+        @args:
+        num_tasks_to_delete: Number of tasks to be deleted from group.
+        :return: list of deleted tasks in case of success. 1 in case of failure.
+        """
+        deleted_tasks = list()
+        for i in range(num_tasks_to_delete):
+            try:
+                task_id_to_del = self.tasks_list.pop()
+                self.hydra.mt.kill_task(self.app_name, task_id_to_del.rsplit('_', 1)[0])
+                self.num_tasks -= 1
+                deleted_tasks.append(task_id_to_del)
+            except BaseException as e:
+                l.info("Error in deletiong task: %s " % str(e))
+                return 1
+        self.hydra.refresh_app_info(self.app_name)
+        return deleted_tasks
+
+    def get_num_tasks(self):
+        return len(self.tasks_list)
 
     def _get_tasklist(self):
         """
         Return group tasklist
         """
-        return self.group_info[self.group_name]
+        return self.tasks_list
 
 
 class HydraBase(BoundaryRunnerBase):
@@ -285,8 +318,9 @@ class HydraBase(BoundaryRunnerBase):
         Constraints control where apps run. It is to allow optimizing for either fault tolerance (by spreading a task
         out on multiple nodes) or locality (by running all of an application tasks on the same node). Constraints have
         three parts
-        :param field: Field can be the hostname of the agent node or any attribute of the agent node.
-        :param operator: e.g. UNIQUE tells Marathon to enforce uniqueness of the attribute across all of an app's tasks.
+        @args:
+        field: Field can be the hostname of the agent node or any attribute of the agent node.
+        operator: e.g. UNIQUE tells Marathon to enforce uniqueness of the attribute across all of an app's tasks.
                               This allows you, for example, to run only one app taks on each host.
                               CLUSTER allows you to run all of your app's tasks on agent nodes that share a certain
                               attribute. Think about having special hardware needs.
@@ -296,7 +330,7 @@ class HydraBase(BoundaryRunnerBase):
                               the agent nodes whose field values match the regular expression.
                               UNLIKE accepts a regular expression as parameter, and allows you to run your tasks on
                               agent nodes whose field values do NOT match the regular expression.
-        :param value:
+        value:
         :return:
         """
         return MarathonConstraint(field=field, operator=operator, value=value)
@@ -337,11 +371,12 @@ class HydraBase(BoundaryRunnerBase):
         """
         Many instances of app can combine together to form a group. A group is just a data structure, holding,
         instance name a.k.a task name and ip:port of the app instance.
-        :param app_name:            Name of the app whose instances are needed to be combined in a group.
-        :param group_name:          Name of the app instances' group
-        :param num_app_instances:   Number of app instances to group together.
-        :param analyser:            Analyser class "name" e-g HAnalyser not HAnalyser().
-        :return:                    Instance of AppGroup class.
+        @args:
+        app_name:            Name of the app whose instances are needed to be combined in a group.
+        group_name:          Name of the app instances' group
+        num_app_instances:   Number of app instances to group together.
+        analyser:            Analyser class "name" e-g HAnalyser not HAnalyser().
+        :return:                    Instance of AppGroup class. 1 in case of failure.
 
         NOTE: This only groups process info like ip:port to talk to that process
               it DOES NOT group process launches
@@ -349,25 +384,75 @@ class HydraBase(BoundaryRunnerBase):
         l.debug("Grouping process port info, name:%s group_name:%s, apps_in_group:%s, anaylzer:%s"
                 % (app_name, group_name, num_app_instances, analyser))
         assert(app_name in self.apps)
-        if group_name not in self.app_group:
-            self.app_group[group_name] = []
+        if group_name in self.app_group:
+            l.error("Group with same name already exists")
+            return 1
 
-        temp_list = []
+        app_grp = AppGroup(self, app_name, group_name, num_app_instances, analyser)
+        self.app_group[group_name] = app_grp
+
+        available_tasks = len(self.all_task_ids[app_name])
+        if num_app_instances > available_tasks:
+            num_app_instances = available_tasks
+            l.info("Number of available tasks(%s) are lesser than requested number of tasks (%s)"
+                   % (available_tasks, num_app_instances))
+
+        tasks_list = []
         for x in range(num_app_instances):
             while True:
                 key_generated = True
-                r_key = random.choice(self.all_task_ids[app_name])
-                l.debug("r_key = %s", r_key)
-                for g_list in self.app_group.values():
-                    if (r_key in g_list or r_key in temp_list):
+                # Pick any random task id.
+                random_task_id = random.choice(self.all_task_ids[app_name])
+                l.debug("random_task_id = %s", random_task_id)
+                # Check whether random_task_id is part of any existing group? Also check that it has not
+                # already been part of current group tasks_list.
+                for app_grp_obj in self.app_group.values():
+                    if random_task_id in app_grp_obj.tasks_list or random_task_id in tasks_list:
                         key_generated = False
                         break
                 if not key_generated:
                     continue
-                temp_list.append(r_key)
+                tasks_list.append(random_task_id)
                 break
-        self.app_group[group_name] = temp_list
-        return AppGroup(self, app_name, group_name, num_app_instances, analyser)
+
+        app_grp.add_tasks_to_group(tasks_list)
+        return app_grp
+
+    def delete_tasks_from_group(self, group_name, num_tasks_to_delete):
+        """
+        Delete tasks from group.
+        group_name: Name of the group whose tasks to delete.
+        num_tasks_to_delete: Number of tasks to be deleted from group.
+        :return: list of deleted tasks in case of success. 1 in case of failure.
+        """
+        # If num_tasks_to_delete is greater than the current number of tasks in group, we will simply delete all
+        # tasks in group.
+        num_tasks_to_delete = int(num_tasks_to_delete)
+        app_grp = self.app_group[group_name]
+        current_num_tasks_in_grp = app_grp.get_num_tasks()
+        if num_tasks_to_delete > current_num_tasks_in_grp:
+            num_tasks_to_delete = current_num_tasks_in_grp
+
+        # Delete tasks. Update data structures.
+        res = app_grp.delete_tasks_from_group(num_tasks_to_delete)
+        # Make sure that desired number of tasks have been deleted.
+        num_tasks_after_delete = app_grp.get_num_tasks()
+        if (current_num_tasks_in_grp - num_tasks_to_delete != num_tasks_after_delete) or (res == 1):
+            l.error("Error in deleting tasks from group")
+            return 1
+        l.info("Deleted tasks are %s" % res)
+        return res
+
+    def get_num_tasks_in_group(self, group_name):
+        """
+        Get existing number of tasks in group.
+        @args:
+        group_name: Name of the group
+        :return: Number of current tasks in group.
+        """
+        app_grp = self.app_group[group_name]
+        num_tasks = app_grp.get_num_tasks()
+        return num_tasks
 
     def create_binary_app(self, name, app_script, cpus, mem, ports=None, constraints=None):
         """ Create an application that is a binary and not a shell script.
@@ -481,7 +566,7 @@ class HydraBase(BoundaryRunnerBase):
         task_list = self.all_task_ids[name]
         if group_name:
             assert(group_name in self.app_group)
-            task_list = self.app_group[group_name]
+            task_list = self.app_group[group_name].tasks_list
             l.debug('Pinging group instances of app[%s], group[%s] to make sure they are started....', name, group_name)
         else:
             l.debug('Pinging instances of app[%s] to make sure they are started....', name)
@@ -510,7 +595,8 @@ class HydraBase(BoundaryRunnerBase):
             l.info("Removing client [%s]" % (item))
             del self.apps[name]['ip_port_map'][item]
             self.all_task_ids[name].remove(item)
-            for g_name, g_list in self.app_group.items():
+            for g_name, g_obj in self.app_group.items():
+                g_list = g_obj.tasks_list
                 l.debug("Checking if bad client[%s] is in group[%s]", item, g_name)
                 l.debug(g_list)
                 if item in g_list:
@@ -657,10 +743,11 @@ class HydraBase(BoundaryRunnerBase):
             cset += [ipm.keys()[r]]
         return cset
 
-    def delete_all_launched_apps(self, timeout=12):
+    def delete_all_launched_apps(self, timeout=12, threshold=200, instance_batch=100):
         l.info("Delete all apps")
         for app in self.app_id_list:
-            self.delete_app(app, timeout, False)
+            l.info("Deleting instances,  instance_batch=%s" % instance_batch)
+            self.delete_app(app, timeout, False, threshold, instance_batch)
         l.info("Waiting for delete to complete")
         for app in self.app_id_list:
             self.__mt.wait_app_removal(app)
