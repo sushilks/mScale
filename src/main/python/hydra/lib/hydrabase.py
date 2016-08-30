@@ -418,6 +418,19 @@ class HydraBase(BoundaryRunnerBase):
         app_grp.add_tasks_to_group(tasks_list)
         return app_grp
 
+    def delete_app_instances_group(self, group_name):
+        """
+        Delete a particular tasks group.
+        @args:
+        group_name:          Name of the app instances' group
+        :return:             return True in case of success. False otherwise.
+        """
+        if group_name not in self.app_group:
+            l.error("Group with this name does NOT exist")
+            return False
+        del self.app_group[group_name]
+        return True
+
     def delete_tasks_from_group(self, group_name, num_tasks_to_delete):
         """
         Delete tasks from group.
@@ -492,7 +505,8 @@ class HydraBase(BoundaryRunnerBase):
         instances_launched = 0
         first_batch = True
         if scale_cnt > instance_threshold:
-            l.info("Requested instances=%d  > instance_threshold=%d,  breaking down scaling", scale_cnt, instance_threshold)
+            l.info("Requested instances=%d  > instance_threshold=%d,  breaking down scaling", scale_cnt,
+                   instance_threshold)
             while len(self.get_app_tasks(name)) != scale_cnt:
                 if first_batch:
                     l.info("First batch: Launching threshold instances=%d", instance_threshold)
@@ -751,6 +765,20 @@ class HydraBase(BoundaryRunnerBase):
         l.info("Waiting for delete to complete")
         for app in self.app_id_list:
             self.__mt.wait_app_removal(app)
+
+    def delete_all_app_instances_groups(self):
+        """
+        Delete all existing hydra app instances groups
+        :return: True in case of success. False otherwise.
+        """
+        l.info("Deleting all groups")
+        for group_name in self.app_group.keys():
+            if not self.delete_app_instances_group(group_name):
+                l.error("Failed to delete app instances group %s." % group_name)
+                return False
+            else:
+                l.info("App instances group %s has been deleted." % group_name)
+        return True
 
     def get_mesos_slave_ips_attr(self, attr_type, attr_value):
         """
