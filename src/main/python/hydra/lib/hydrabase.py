@@ -555,7 +555,7 @@ class HydraBase(BoundaryRunnerBase):
         task_list = self.all_task_ids[name]
         if group_name:
             assert(group_name in self.app_group)
-            task_list = self.app_group[group_name]
+            task_list = self.app_group[group_name].tasks_list
             l.info("Attempting to reset client group stats for app[%s], group[%s]...", name, group_name)
         else:
             l.info("Attempting to reset client stats for app[%s]...", name)
@@ -620,7 +620,7 @@ class HydraBase(BoundaryRunnerBase):
         for g_name, bad_list in temp_dict.items():
             for bad_client in bad_list:
                 l.info("Removing client [%s] from group [%s]", bad_client, g_name)
-                self.app_group[g_name].remove(bad_client)
+                self.app_group[g_name].tasks_list.remove(bad_client)
 
     def refresh_app_info(self, name):
         """ Refresh all the ip-port map for the application
@@ -656,7 +656,7 @@ class HydraBase(BoundaryRunnerBase):
         task_list = self.all_task_ids[name]
         if group_name:
             assert(group_name in self.app_group)
-            task_list = self.app_group[group_name]
+            task_list = self.app_group[group_name].tasks_list
             l.info("Attempting to fetch client group stats for app[%s], group[%s]...", name, group_name)
         else:
             l.info("Attempting to fetch client stats for app[%s]...", name)
