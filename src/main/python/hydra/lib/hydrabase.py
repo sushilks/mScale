@@ -95,12 +95,20 @@ class AppGroup(object):
 
     def delete_tasks_from_group(self, num_tasks_to_delete):
         """
-        Delete given number of tasks from group.
-        @args:
+        Delete tasks from group.
+        group_name: Name of the group whose tasks to delete.
         num_tasks_to_delete: Number of tasks to be deleted from group.
         :return: list of deleted tasks in case of success. 1 in case of failure.
         """
+        # If num_tasks_to_delete is greater than the current number of tasks in group, we will simply delete all
+        # tasks in group.
         deleted_tasks = list()
+        num_tasks_to_delete = int(num_tasks_to_delete)
+        current_num_tasks_in_grp = self.get_num_tasks()
+        if num_tasks_to_delete > current_num_tasks_in_grp:
+            num_tasks_to_delete = current_num_tasks_in_grp
+
+        # Delete tasks. Update data structures.
         for i in range(num_tasks_to_delete):
             try:
                 task_id_to_del = self.tasks_list.pop()
@@ -111,6 +119,12 @@ class AppGroup(object):
                 l.info("Error in deletiong task: %s " % str(e))
                 return 1
         self.hydra.refresh_app_info(self.app_name)
+
+        # Make sure that desired number of tasks have been deleted.
+        num_tasks_after_delete = self.get_num_tasks()
+        if current_num_tasks_in_grp - num_tasks_to_delete != num_tasks_after_delete:
+            l.error("Error in deleting tasks from group")
+            return 1
         return deleted_tasks
 
     def get_num_tasks(self):
@@ -431,31 +445,6 @@ class HydraBase(BoundaryRunnerBase):
         del self.app_group[group_name]
         return True
 
-    def delete_tasks_from_group(self, group_name, num_tasks_to_delete):
-        """
-        Delete tasks from group.
-        group_name: Name of the group whose tasks to delete.
-        num_tasks_to_delete: Number of tasks to be deleted from group.
-        :return: list of deleted tasks in case of success. 1 in case of failure.
-        """
-        # If num_tasks_to_delete is greater than the current number of tasks in group, we will simply delete all
-        # tasks in group.
-        num_tasks_to_delete = int(num_tasks_to_delete)
-        app_grp = self.app_group[group_name]
-        current_num_tasks_in_grp = app_grp.get_num_tasks()
-        if num_tasks_to_delete > current_num_tasks_in_grp:
-            num_tasks_to_delete = current_num_tasks_in_grp
-
-        # Delete tasks. Update data structures.
-        res = app_grp.delete_tasks_from_group(num_tasks_to_delete)
-        # Make sure that desired number of tasks have been deleted.
-        num_tasks_after_delete = app_grp.get_num_tasks()
-        if (current_num_tasks_in_grp - num_tasks_to_delete != num_tasks_after_delete) or (res == 1):
-            l.error("Error in deleting tasks from group")
-            return 1
-        l.info("Deleted tasks are %s" % res)
-        return res
-
     def get_num_tasks_in_group(self, group_name):
         """
         Get existing number of tasks in group.
@@ -482,8 +471,7 @@ class HydraBase(BoundaryRunnerBase):
         self.refresh_app_info(name)
         return r
 
-    def scale_and_verify_app(self, name, scale_cnt, ping=True, sleep_before_next_try=1,
-                             instance_batch=300, instance_threshold=500):
+    def scale_app(self, name, scale_cnt, sleep_before_next_try=1, instance_batch=300, instance_threshold=500):
         """
         Scale an application to the given count
         and then wait for the application to scale and
@@ -541,8 +529,6 @@ class HydraBase(BoundaryRunnerBase):
         l.info("Expected count=%d,  current count=%d", scale_cnt, inst_cnt)
         assert(inst_cnt == scale_cnt)
         # probe all the clients to see if they are ready.
-        if ping:
-            self.ping_all_app_inst(name)
 
     def reset_all_app_stats(self, name, group_name=""):
         """
@@ -568,7 +554,7 @@ class HydraBase(BoundaryRunnerBase):
             ha_sub.reset_stats()
             ha_sub.stop()  # closes the ANalyser socket, can not be used anymore
 
-    def ping_all_app_inst(self, name, group_name=""):
+    def remove_unresponsive_tasks(self, name, group_name=""):
         """
         Ping all the application task's and if any of they don't respond to
         ping remove them from active task list.
@@ -810,7 +796,7 @@ class HydraBase(BoundaryRunnerBase):
             ip_list.append(slave_ips[0])
         return ip_list
 
-    def get_app_mem_cpu_stats(self, name):
+    def get_app_mem_cpu_stats(self, name, slave_ips_lst):
         """
         Get an apps stats querying all slaves
         If multiple tasks are running for the same app
@@ -827,9 +813,7 @@ class HydraBase(BoundaryRunnerBase):
                       "cpu_user_time_secs": 0,
                       }
         assert(name in self.app_id_list)
-        if not self.all_mesos_slave_iplist:
-            self.all_mesos_slave_iplist = self.get_all_mesos_slave_iplist()
-        for slave_ip in self.all_mesos_slave_iplist:
+        for slave_ip in slave_ips_lst:
             # list of all app and its tasks
             stats = self.__mesos.get_slave_stats(slave_ip)
             assert(stats)
