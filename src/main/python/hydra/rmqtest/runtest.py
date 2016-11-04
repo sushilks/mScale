@@ -69,7 +69,7 @@ class RunTestRMQ(HydraBase):
         g3 = self.create_app_group(self.rmqsub, "test-group3", num_app_instances=5, analyser=HAnalyser)
 
         l.info("Groups created")
-        self.ping_all_app_inst(self.rmqsub)
+        self.remove_unresponsive_tasks(self.rmqsub)
 
         g1._execute("do_ping")
         g2._execute("do_ping")
@@ -231,7 +231,7 @@ class RunTestRMQ(HydraBase):
         self.scale_sub_app()
 
     def scale_sub_app(self):
-        self.scale_and_verify_app(self.rmqsub, self.options.total_sub_apps, ping=False)
+        self.scale_app(self.rmqsub, self.options.total_sub_apps)
 
     def delete_all_launched_apps(self):
         l.info("Deleting all launched apps")
