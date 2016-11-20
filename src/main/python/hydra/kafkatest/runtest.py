@@ -226,7 +226,8 @@ class RunTestKAFKA(HydraBase):
         self.scale_sub_app()
 
     def scale_sub_app(self):
-        self.scale_and_verify_app(self.kafkasub, self.options.total_sub_apps)
+        self.scale_app(self.kafkasub, self.options.total_sub_apps)
+        self.remove_unresponsive_tasks(self.kafkasub)
 
     def delete_all_launched_apps(self):
         l.info("[KafkaTest.delete_all_launched_apps] Deleting ALL (PUB & SUBs) launched apps")

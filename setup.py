@@ -34,8 +34,6 @@ import sys
 import glob
 import shutil
 
-from sys import version_info
-
 script_dir = os.path.dirname(os.path.realpath(__file__))
 exit_code = 0
 try:
