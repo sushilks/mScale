@@ -20,8 +20,6 @@ before_script:
   - sudo rabbitmqctl add_user hydra hydra
   - sudo rabbitmqctl set_user_tags hydra administrator
   - sudo rabbitmqctl set_permissions hydra ".*" ".*" ".*"
-  - wget https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp
-  - mv zmq.hpp /home/travis/build/lake-lerna/hydra/src/main/c/zmq
 
 install:
   - pip install pybuilder
