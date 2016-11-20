@@ -168,6 +168,8 @@ class hydraUnitTest(unittest.TestCase):  # NOQA
         # stop and clean up
         self.rt.delete_app(tapp)
         self.assertEqual(message, 'pong')
+
+
 '''
     TODO: Enable this test case.
     def test_multiple_apps(self):
