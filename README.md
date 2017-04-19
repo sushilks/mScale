@@ -74,6 +74,14 @@ pyb install -x run_unit_tests -x run_integration_tests -x verify
 
 Congratulations! You have installed Hydra. <\br >
 There is a CLI mode to get some interaction with the running tests.
+
+To make use of it. Make sure to add these two paths to your .bashrc.
+
+```
+echo 'export PATH="$HOME/hydra/src/main/scripts:$PATH"' >> ~/.bashrc
+echo 'export PYTHONPATH="$HOME/hydra/src/main/python:$PATH" >> ~/.bashrc
+source ~/.bashrc
+```
 ```
 >hydra cli
 Usage:
