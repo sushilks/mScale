@@ -16,8 +16,8 @@ from hydra.lib.hydrabase import HydraBase
 tests :
  -Check connectivity to mesos
  -check connectivity to marathon
- -check number of slaves
- - check cpu/memory etc. on slave
+ -check number of subordinates
+ - check cpu/memory etc. on subordinate
  - check app server deployment
  - chack launching of app-s
  - check communication to app-s
@@ -81,8 +81,8 @@ class hydraUnitTest(unittest.TestCase):  # NOQA
         self.rt = None
 
     def test_mesos_health(self):
-        # slaveCount = self.rt.mesos.get_slave_cnt()
-        # self.assertTrue(slaveCount > 0)
+        # subordinateCount = self.rt.mesos.get_subordinate_cnt()
+        # self.assertTrue(subordinateCount > 0)
         self.assertTrue(self.rt.get_mesos_health(), "Unable to get health status from mesos")
         ver = self.rt.get_mesos_version()
         self.assertNotEqual(ver, None, "Unable to get version information from mesos")
@@ -103,9 +103,9 @@ class hydraUnitTest(unittest.TestCase):  # NOQA
         self.assertTrue(stats['mem_total_bytes'] > 0)
         self.assertTrue(stats['mem_free_bytes'] > 0)
 
-    def test_mesos_slaves(self):
-        slave_count = self.rt.get_mesos_slave_count()
-        self.assertTrue(slave_count > 0, 'No slaves detected on mesos cluster')
+    def test_mesos_subordinates(self):
+        subordinate_count = self.rt.get_mesos_subordinate_count()
+        self.assertTrue(subordinate_count > 0, 'No subordinates detected on mesos cluster')
 
     def test_marathon_connectivity(self):
         a = self.rt.ping()

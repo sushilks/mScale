@@ -246,7 +246,7 @@ class RunTest(object):
         usage = ('python %prog --test_duration=<time to run test> --msg_batch=<msg burst batch before sleep>'
                  '--msg_rate=<rate in packet per secs> --total_sub_apps=<Total sub apps to launch>'
                  '--config_file=<path_to_config_file> --keep_running')
-        parser = OptionParser(description='zmq scale test master',
+        parser = OptionParser(description='zmq scale test main',
                               version="0.1", usage=usage)
         parser.add_option("--test_duration", dest='test_duration', type='float', default=10)
         parser.add_option("--msg_batch", dest='msg_batch', type='int', default=100)
