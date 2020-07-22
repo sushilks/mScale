@@ -63,7 +63,7 @@ class RunSuitFixed(object):
 def Run(argv):  # NOQA
     usage = ('python %prog --c_pub --c_sub'
              ' --test_duration=<time to run test> --msg_batch=<msg burst batch before sleep>')
-    parser = OptionParser(description='zmq scale maxrate test master',
+    parser = OptionParser(description='zmq scale maxrate test main',
                           version="0.1", usage=usage)
     parser.add_option("--test_duration", dest='test_duration', type='int', default=15)
     parser.add_option("--msg_batch", dest='msg_batch', type='int', default=100)

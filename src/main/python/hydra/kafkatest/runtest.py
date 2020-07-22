@@ -245,7 +245,7 @@ class RunTest(object):
                  '--acks=<server_acknowledgement> --linger_ms=<linger_ms>'
                  '--consumer_max_buffer_size=<consumer_buffer_size>')
         # Parse Command-Line options and set to default values if not specified
-        parser = OptionParser(description='kafka scale test master',
+        parser = OptionParser(description='kafka scale test main',
                               version="0.1", usage=usage)
         parser.add_option("--test_duration", dest='test_duration', type='float', default=10)
         parser.add_option("--msg_batch", dest='msg_batch', type='int', default=100)

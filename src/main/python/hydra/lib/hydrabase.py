@@ -191,7 +191,7 @@ class HydraBase(BoundaryRunnerBase):
         BoundaryRunnerBase.__init__(self)
         if startappserver:
             self.start_appserver()
-        self.all_mesos_slave_iplist = []
+        self.all_mesos_subordinate_iplist = []
 
     def set_options(self, options):
         self.options = options
@@ -250,7 +250,7 @@ class HydraBase(BoundaryRunnerBase):
         self.init_marathon()
         l.info("Delete any pre-existing apps")
         self.delete_all_launched_apps()
-        # Populate all slave ip list to be later used
+        # Populate all subordinate ip list to be later used
 
     def get_appserver_addr(self):
         return self.myaddr
@@ -267,11 +267,11 @@ class HydraBase(BoundaryRunnerBase):
     def get_mesos_stats(self):
         return self.__mesos.get_stats()
 
-    def get_mesos_slave_count(self):
-        return self.__mesos.get_slave_cnt()
+    def get_mesos_subordinate_count(self):
+        return self.__mesos.get_subordinate_cnt()
 
-    def get_mesos_slave_stats(self):
-        return self.__mesos.get_slave_stats()
+    def get_mesos_subordinate_stats(self):
+        return self.__mesos.get_subordinate_stats()
 
     def get_app_tasks(self, app):
         """ Get a list of tasks for the apps
@@ -280,9 +280,9 @@ class HydraBase(BoundaryRunnerBase):
         return a1.tasks
 
     def get_ip_hostname(self, hostname):
-        """ Get the ip of a mesos slave
+        """ Get the ip of a mesos subordinate
         """
-        return self.__mesos.get_slave_ip_from_hn(hostname)
+        return self.__mesos.get_subordinate_ip_from_hn(hostname)
 
     def get_cmd(self, function_path, arguments):
         return 'env && cd ./src/main/scripts && ./hydra ' + \
@@ -766,39 +766,39 @@ class HydraBase(BoundaryRunnerBase):
                 l.info("App instances group %s has been deleted." % group_name)
         return True
 
-    def get_mesos_slave_ips_attr(self, attr_type, attr_value):
+    def get_mesos_subordinate_ips_attr(self, attr_type, attr_value):
         """
-        Get the ip of a mesos slave that matches the provided attribute
+        Get the ip of a mesos subordinate that matches the provided attribute
         """
-        return self.__mesos.get_slave_ips_from_attribute(attr_type, attr_value)
+        return self.__mesos.get_subordinate_ips_from_attribute(attr_type, attr_value)
 
-    def get_all_mesos_slave_attr(self):
+    def get_all_mesos_subordinate_attr(self):
         """
-        Get all slave attributes.
+        Get all subordinate attributes.
         """
         attr_list = []
         for idx, info in self.mesos_cluster.items():
             attr_list.append([info["cat"], info["match"]])
         # A sample attribute list would be
-        # [['slave_id', 'slave-set1_0'], ['slave_id', 'slave-set1_1'], ['slave_id', 'slave-set1_2']]
+        # [['subordinate_id', 'subordinate-set1_0'], ['subordinate_id', 'subordinate-set1_1'], ['subordinate_id', 'subordinate-set1_2']]
         return attr_list
 
-    def get_all_mesos_slave_iplist(self):
+    def get_all_mesos_subordinate_iplist(self):
         """
-        Get all mesos slave ips
+        Get all mesos subordinate ips
         """
         ip_list = list()
-        attr_list = self.get_all_mesos_slave_attr()
+        attr_list = self.get_all_mesos_subordinate_attr()
         for attr in attr_list:
-            slave_ips = self.get_mesos_slave_ips_attr(attr[0], attr[1])
-            if len(slave_ips) == 0:
-                raise Exception("NO slave exists with attribtue [%s=%s]" % (attr[0], attr[1]))
-            ip_list.append(slave_ips[0])
+            subordinate_ips = self.get_mesos_subordinate_ips_attr(attr[0], attr[1])
+            if len(subordinate_ips) == 0:
+                raise Exception("NO subordinate exists with attribtue [%s=%s]" % (attr[0], attr[1]))
+            ip_list.append(subordinate_ips[0])
         return ip_list
 
-    def get_app_mem_cpu_stats(self, name, slave_ips_lst):
+    def get_app_mem_cpu_stats(self, name, subordinate_ips_lst):
         """
-        Get an apps stats querying all slaves
+        Get an apps stats querying all subordinates
         If multiple tasks are running for the same app
         e-g an app x which is scaled to y instances.
         This function will return a list of all tasks
@@ -813,21 +813,21 @@ class HydraBase(BoundaryRunnerBase):
                       "cpu_user_time_secs": 0,
                       }
         assert(name in self.app_id_list)
-        for slave_ip in slave_ips_lst:
+        for subordinate_ip in subordinate_ips_lst:
             # list of all app and its tasks
-            stats = self.__mesos.get_slave_stats(slave_ip)
+            stats = self.__mesos.get_subordinate_stats(subordinate_ip)
             assert(stats)
             for app_task in stats:
                 task_name = app_task["source"]
                 if not task_name.startswith(name):
                     continue
-                if slave_ip not in app_stats_list:
-                    app_stats_list[slave_ip] = []
+                if subordinate_ip not in app_stats_list:
+                    app_stats_list[subordinate_ip] = []
                 task_stats["timestamp"] = app_task["statistics"]["timestamp"]
                 task_stats["mem_rss_bytes"] = app_task["statistics"]["mem_rss_bytes"]
                 task_stats["cpu_system_time_secs"] = app_task["statistics"]["cpus_system_time_secs"]
                 task_stats["cpu_user_time_secs"] = app_task["statistics"]["cpus_user_time_secs"]
-                app_stats_list[slave_ip].append(task_stats)
+                app_stats_list[subordinate_ip].append(task_stats)
         return app_stats_list
 
     @staticmethod
@@ -877,7 +877,7 @@ class HydraBase(BoundaryRunnerBase):
         a1 = self.__mt.wait_app_ready(app, 1)
         for task in a1.tasks:
             l.info("TASK " + task.id + " Running on host : " + task.host + ' IP = ' +
-                   self.__mesos.get_slave_ip_from_hn(task.host))
-            return self.__mesos.get_slave_ip_from_hn(task.host)
+                   self.__mesos.get_subordinate_ip_from_hn(task.host))
+            return self.__mesos.get_subordinate_ip_from_hn(task.host)
         l.warn("Unable to find IP address for app " + app)
         return None

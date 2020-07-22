@@ -159,35 +159,35 @@ class MarathonIF(object):
 class MesosIF(object):
     def __init__(self, addr):
         self.myaddr = addr
-        self.update_slaves()
+        self.update_subordinates()
 
-    def update_slaves(self):
-        r = requests.get(self.myaddr + '/master/slaves')
+    def update_subordinates(self):
+        r = requests.get(self.myaddr + '/main/subordinates')
         assert r.status_code == 200
         dt = json.loads(r.content.decode("utf-8"))
-        self.noOfSlaves = len(dt['slaves'])
-        # pprint(" Slaves Found : " + str(self.noOfSlaves))
-        self.slavesID = {}
-        self.slavesHN = {}
-        for idx in range(0, self.noOfSlaves):
-            itm = dt['slaves'][idx]
-            # l.info(" Slave [" + itm['hostname'] + " ID=" + itm['id'] +
+        self.noOfSubordinates = len(dt['subordinates'])
+        # pprint(" Subordinates Found : " + str(self.noOfSubordinates))
+        self.subordinatesID = {}
+        self.subordinatesHN = {}
+        for idx in range(0, self.noOfSubordinates):
+            itm = dt['subordinates'][idx]
+            # l.info(" Subordinate [" + itm['hostname'] + " ID=" + itm['id'] +
             #       "  CPU = " + str(itm['used_resources']['cpus']) + '/' + str(itm['unreserved_resources']['cpus']))
-            self.slavesHN[itm['hostname']] = itm
-            self.slavesID[itm['id']] = itm
+            self.subordinatesHN[itm['hostname']] = itm
+            self.subordinatesID[itm['id']] = itm
 
     def get_health(self):
-        r = requests.get(self.myaddr + '/master/state')
+        r = requests.get(self.myaddr + '/main/state')
         if (r.status_code == 200):
             return True
         return False
 
-    def get_slave_stats(self, ip, port=5051):
+    def get_subordinate_stats(self, ip, port=5051):
         """
-        Get slave statistics via mesos API
+        Get subordinate statistics via mesos API
         @args:
-        ip:      Ip of the slave
-        port:    Port that slave is listening to for requests
+        ip:      Ip of the subordinate
+        port:    Port that subordinate is listening to for requests
         """
         addr = "http://%s:%d" % (ip, port)
         # returns a list of app tasks
@@ -214,35 +214,35 @@ class MesosIF(object):
             return json.loads(r.content.decode("utf-8"))
         return None
 
-    def print_slaves(self):
-        for slaveId in self.slavesID.keys():
-            itm = self.slavesID[slaveId]
-            l.info(" Slave [" + itm['hostname'] + " ID=" + itm['id'] +
+    def print_subordinates(self):
+        for subordinateId in self.subordinatesID.keys():
+            itm = self.subordinatesID[subordinateId]
+            l.info(" Subordinate [" + itm['hostname'] + " ID=" + itm['id'] +
                    "  CPU = " + str(itm['used_resources']['cpus']) + '/' + str(itm['unreserved_resources']['cpus']))
 
-    def get_slave_cnt(self):
-        return self.noOfSlaves
+    def get_subordinate_cnt(self):
+        return self.noOfSubordinates
 
     def get_id(self, id):
-        return self.slavesID[id]
+        return self.subordinatesID[id]
 
     def get_hn(self, hn):
-        return self.slavesHN[hn]
+        return self.subordinatesHN[hn]
 
     def get_ip_from_pid(self, pid):
         return pid.split('@')[1].split(':')[0]
 
-    def get_slave_ip_from_id(self, slave_id):
-        pid = self.slavesID[slave_id]['pid']
+    def get_subordinate_ip_from_id(self, subordinate_id):
+        pid = self.subordinatesID[subordinate_id]['pid']
         return self.get_ip_from_pid(pid)
 
-    def get_slave_ip_from_hn(self, slave_hn):
-        pid = self.slavesHN[slave_hn]['pid']
+    def get_subordinate_ip_from_hn(self, subordinate_hn):
+        pid = self.subordinatesHN[subordinate_hn]['pid']
         return self.get_ip_from_pid(pid)
 
-    def get_slave_ips_from_attribute(self, attr_type, attr_value):
+    def get_subordinate_ips_from_attribute(self, attr_type, attr_value):
         ret = []
-        for host_ip, info in self.slavesHN.items():
+        for host_ip, info in self.subordinatesHN.items():
             if info["attributes"][attr_type] == attr_value:
                 ret.append(host_ip)
         return ret

@@ -1,7 +1,7 @@
 """hydra cli.
 
 Usage:
-   hydra cli ls slaves
+   hydra cli ls subordinates
    hydra cli ls apps
    hydra cli ls task <app>
    hydra cli [force] stop <app>
@@ -53,9 +53,9 @@ def cli(argv):
     args = docopt(__doc__, argv=argv, version='hydra 0.1.0', )
     # pprint (args)
     if args['ls']:
-        if args['slaves']:
+        if args['subordinates']:
             mesos = mmapi.MesosIF(mesos_addr)
-            mesos.print_slaves()
+            mesos.print_subordinates()
         elif args['apps']:
             mt = mmapi.MarathonIF(marathon_addr, '127.0.0.1', None)
             apps = mt.get_apps()
@@ -107,7 +107,7 @@ def cli(argv):
         mt.wait_app_ready(app, scale)
 # SK:Tried to add log collection but no luck so far.
 #    elif args['logs']:
-#        path = "/tmp/mesos/slaves/"
+#        path = "/tmp/mesos/subordinates/"
 #        #11323ada-daab-4d76-8749-3113b5448bed-S0/
 #        path += "/frameworks/
 #        # #11323ada-daab-4d76-8749-3113b5448bed-0007

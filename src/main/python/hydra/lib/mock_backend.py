@@ -243,30 +243,30 @@ class MockMarathonIF(object):
 class MockMesosIF(object):
     """
     MockMesosIF class.
-    Creates a mapping of only one slave i-e localhost
+    Creates a mapping of only one subordinate i-e localhost
     """
     def __init__(self, addr):
-        self.slaves_ids = {}
-        self.slaves_hostname_info = {}
-        self.slave_count = 1
+        self.subordinates_ids = {}
+        self.subordinates_hostname_info = {}
+        self.subordinate_count = 1
         self.myaddr = addr
         self.myip = "127.0.0.1"
-        self.update_slaves()
+        self.update_subordinates()
         l.info("MockMesosIF init")
 
-    def update_slaves(self):
+    def update_subordinates(self):
         """
         Populate localhost data
         """
-        self.total_slaves = self.slave_count
-        self.slaves_hostname_info["localhost"] = self.myip
-        l.info(self.slaves_hostname_info)
+        self.total_subordinates = self.subordinate_count
+        self.subordinates_hostname_info["localhost"] = self.myip
+        l.info(self.subordinates_hostname_info)
 
-    def get_slave_ip_from_hn(self, slave_hn):
+    def get_subordinate_ip_from_hn(self, subordinate_hn):
         """
         Return ip for hostname (localhost)
 
         @args:
-        slave_hn  : slave hostname
+        subordinate_hn  : subordinate hostname
         """
-        return self.slaves_hostname_info[slave_hn]
+        return self.subordinates_hostname_info[subordinate_hn]
